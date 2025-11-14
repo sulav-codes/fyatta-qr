@@ -52,7 +52,7 @@ interface FormField {
   name: keyof FormData;
   type: string;
   placeholder: string;
-  icon: JSX.Element;
+  icon: React.ReactElement;
 }
 
 interface RegisterResponse {
@@ -246,38 +246,38 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/vendor/register/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: formData.email,
-            email: formData.email,
-            password: formData.password,
-            restaurant_name: formData.restaurant_name,
-            owner_name: formData.owner_name,
-            phone: formData.phone,
-            location: formData.location,
-            description: formData.description,
-            opening_time: formData.opening_time,
-            closing_time: formData.closing_time,
-          }),
-        }
-      );
+      const response = await fetch("http://127.0.0.1:8000/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.email.split("@")[0],
+          email: formData.email,
+          password: formData.password,
+          restaurantName: formData.restaurant_name,
+          ownerName: formData.owner_name,
+          phone: formData.phone,
+          location: formData.location,
+          description: formData.description,
+          openingTime: formData.opening_time,
+          closingTime: formData.closing_time,
+        }),
+      });
 
       const data: RegisterResponse = await response.json();
       if (response.ok) {
         // Only redirect if component is mounted
         if (mounted) {
-          router.push("/login");
           toast.success("Registration successful! Please log in.");
+          router.push("/login");
         }
       } else {
         // error message using toast
-        toast.error(data.error || "Registration failed.");
+        const errorMsg = data.error || "Registration failed.";
+        toast.error(errorMsg);
+        console.error("Registration error:", data);
       }
     } catch (error) {
+      console.error("Registration error:", error);
       toast.error("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
