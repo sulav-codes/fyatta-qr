@@ -63,6 +63,7 @@ interface FormErrors {
 interface LoginResponse {
   token: string;
   user: any; // Replace 'any' with your user type
+  error?: string;
 }
 
 export default function Login() {
@@ -124,16 +125,13 @@ export default function Login() {
 
       setIsLoading(true);
       try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/vendor/login/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(formData),
-          }
-        );
+        const response = await fetch("http://127.0.0.1:8000/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
 
         const data: LoginResponse = await response.json();
         if (response.ok) {
@@ -147,20 +145,23 @@ export default function Login() {
         } else if (response.status === 401) {
           setErrors((prev) => ({
             ...prev,
-            password: "Invalid email or password",
+            password: data.error || "Invalid email or password",
           }));
         } else if (response.status === 404) {
           setErrors((prev) => ({
             ...prev,
-            email: "User does not exist",
+            email: data.error || "User does not exist",
           }));
         } else {
+          const errorMsg = data.error || "An error occurred. Please try again.";
+          toast.error(errorMsg);
           setErrors((prev) => ({
             ...prev,
-            email: "An error occurred. Please try again.",
+            email: errorMsg,
           }));
         }
       } catch (error) {
+        console.error("Login error:", error);
         toast.error("Error connecting to the server.");
       } finally {
         setIsLoading(false);
