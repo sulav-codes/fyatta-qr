@@ -466,7 +466,9 @@ export default function OrdersPage() {
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
                         <strong>Amount:</strong> ₹
-                        {order.total_amount.toFixed(2)}
+                        {order.total_amount
+                          ? order.total_amount.toFixed(2)
+                          : "0.00"}
                       </p>
                       <p className="text-gray-500 text-xs">
                         {formatTimeElapsed(order.created_at)}

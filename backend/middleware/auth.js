@@ -82,11 +82,27 @@ const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next(); // No token, continue without user
+    // If no auth header at all, just continue
+    if (!authHeader) {
+      return next();
+    }
+
+    // If auth header exists but doesn't start with Bearer, ignore it and continue
+    if (!authHeader.startsWith("Bearer ")) {
+      console.log(
+        "[optionalAuth] Auth header exists but not Bearer format, ignoring:",
+        authHeader
+      );
+      return next();
     }
 
     const token = authHeader.substring(7);
+
+    // If token is empty after removing Bearer, continue without user
+    if (!token || token.trim() === "") {
+      return next();
+    }
+
     const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
     const decoded = jwt.verify(token, jwtSecret);
 
@@ -98,6 +114,10 @@ const optionalAuth = async (req, res, next) => {
     next();
   } catch (error) {
     // Token invalid, but don't fail - just continue without user
+    console.log(
+      "[optionalAuth] Token validation failed, continuing without user:",
+      error.message
+    );
     next();
   }
 };

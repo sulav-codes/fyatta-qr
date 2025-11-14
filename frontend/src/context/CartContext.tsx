@@ -541,8 +541,9 @@ export const CartProvider = ({
       };
 
       const apiBaseUrl = getApiBaseUrl();
+      const url = `${apiBaseUrl}/api/customer/orders`;
 
-      const response = await fetch(`${apiBaseUrl}/api/orders`, {
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -550,12 +551,24 @@ export const CartProvider = ({
         body: JSON.stringify(orderData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create order");
+      console.log("[CartContext] Response received");
+      console.log("[CartContext] Response status:", response.status);
+      console.log("[CartContext] Response ok:", response.ok);
+      console.log("[CartContext] Response status text:", response.statusText);
+
+      const responseText = await response.text();
+      console.log("[CartContext] Response text:", responseText);
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error("Invalid response from server");
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create order");
+      }
 
       const orderId = result.order?.id || result.order_id;
 
@@ -566,10 +579,10 @@ export const CartProvider = ({
 
       const orderObject: Order = {
         id: orderId,
-        status: "pending",
+        status: result.order?.status || "pending",
         table_identifier: tableNo,
         vendor_id: parseInt(String(vendorId)),
-        total: result.total || result.order?.total || cartTotal.toString(),
+        total: result.order?.total || cartTotal.toFixed(2),
         table_name: result.table_name || result.order?.table_name || "Table",
         timestamp: new Date().toISOString(),
         items: cart.map((item) => ({
@@ -578,6 +591,7 @@ export const CartProvider = ({
           quantity: item.quantity,
           price: item.price,
         })),
+        invoiceNo: result.order?.invoice_no,
       };
 
       const trackedOrders: Order[] = JSON.parse(

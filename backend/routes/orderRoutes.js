@@ -9,8 +9,13 @@ router.get(
   authenticate,
   orderController.getOrders
 );
+
+// Public customer order creation endpoint - no authentication required
+router.post("/customer/orders", orderController.createCustomerOrder);
+
+// Protected vendor order creation
 router.post("/orders", authenticate, orderController.createOrder);
-router.get("/orders/:orderId", authenticate, orderController.getOrderDetails);
+router.get("/orders/:orderId", orderController.getOrderDetails);
 router.patch(
   "/orders/:orderId/status",
   authenticate,
