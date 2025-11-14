@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { getApiBaseUrl } from "@/lib/api";
 
 interface FormFieldProps {
   label: string;
@@ -125,7 +126,7 @@ export default function Login() {
 
       setIsLoading(true);
       try {
-        const response = await fetch("http://127.0.0.1:8000/auth/login", {
+        const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

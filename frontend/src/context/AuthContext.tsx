@@ -12,7 +12,10 @@ import {
 interface User {
   id: string;
   email: string;
+  username: string;
   name?: string;
+  restaurantName: string;
+  location: string;
   // Add other user properties as needed
 }
 
