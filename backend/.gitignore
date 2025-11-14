@@ -1,0 +1,15 @@
+# For node_modules
+node_modules
+
+# For build folder
+build
+
+# For coverage folder
+coverage
+
+# For logs folder
+logs
+
+# For .env file
+.env
+
