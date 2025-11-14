@@ -12,6 +12,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   Filter,
@@ -25,6 +32,8 @@ import {
   Package,
   Truck,
   Ban,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
 // Types
@@ -38,18 +47,30 @@ interface OrderItem {
 interface Order {
   id: number;
   invoice_no: string;
+  invoiceNo?: string;
+  orderId?: string;
   status: string;
   total_amount: number;
+  totalAmount?: number;
   items: OrderItem[];
   items_text: string;
   created_at: string;
+  createdAt?: string;
   updated_at: string;
   table_identifier: string;
+  tableIdentifier?: string;
+  table_name?: string;
+  tableName?: string;
   customer_verified: boolean;
+  customerVerified?: boolean;
   verification_timestamp: string | null;
+  verificationTimestamp?: string | null;
   delivery_issue_reported: boolean;
+  deliveryIssueReported?: boolean;
   issue_description: string | null;
+  issueDescription?: string | null;
   issue_report_timestamp: string | null;
+  issueReportTimestamp?: string | null;
   issue_resolved: boolean;
   issue_resolution_timestamp: string | null;
   resolution_message: string | null;
@@ -101,42 +122,60 @@ const STATUS_STYLES: Record<
     icon: <XCircle className="w-4 h-4" />,
   },
   rejected: {
-    bg: "bg-gray-100 dark:bg-gray-900/30",
-    text: "text-gray-800 dark:text-gray-300",
+    bg: "bg-red-100 dark:bg-red-900/30",
+    text: "text-red-800 dark:text-red-300",
     icon: <Ban className="w-4 h-4" />,
   },
 };
 
-// Helper functions
-const formatStatus = (status: string) => {
-  return status
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+const formatStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    pending: "Pending",
+    accepted: "Accepted",
+    confirmed: "Confirmed",
+    rejected: "Rejected",
+    preparing: "Preparing",
+    ready: "Ready for Pickup",
+    delivered: "Delivered",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-const formatTimeElapsed = (timestamp: string) => {
-  const now = new Date();
-  const orderTime = new Date(timestamp);
-  const diffMs = now.getTime() - orderTime.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+const formatTimeElapsed = (timestamp: string): string => {
+  if (!timestamp) return "N/A";
 
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMins > 0) return `${diffMins}m ago`;
-  return "Just now";
+  try {
+    const now = new Date();
+    const orderTime = new Date(timestamp);
+    const diff = now.getTime() - orderTime.getTime();
+
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+    if (minutes > 0) return `${minutes} min${minutes > 1 ? "s" : ""} ago`;
+    return "Just now";
+  } catch {
+    return "N/A";
+  }
 };
 
 export default function OrdersPage() {
-  const { user, token } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [updating, setUpdating] = useState<number | null>(null);
+  const [activeFilters, setActiveFilters] = useState({
+    status: [] as string[],
+    timeRange: "all",
+  });
+
+  const { user, token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
 
   // Fetch orders
@@ -144,9 +183,7 @@ export default function OrdersPage() {
     if (!user?.id || !token) return;
 
     try {
-      if (orders.length === 0) {
-        setLoading(true);
-      }
+      setLoading(true);
       setError(null);
 
       const response = await fetch(
@@ -165,24 +202,25 @@ export default function OrdersPage() {
 
       const data = await response.json();
 
-      const processedOrders = data.orders.map((order: any) => {
+      const processedOrders = (data.orders || []).map((order: any) => {
         const itemsText = Array.isArray(order.items)
           ? order.items
-              .map((item: OrderItem) => `${item.quantity}x ${item.name}`)
+              .map((item: any) => `${item.quantity}x ${item.name}`)
               .join(", ")
           : "No items";
 
         return {
           ...order,
           items_text: itemsText,
-          customer_verified: Boolean(order.customer_verified),
-          verification_timestamp: order.verification_timestamp || null,
-          delivery_issue_reported: Boolean(order.delivery_issue_reported),
-          issue_description: order.issue_description || null,
-          issue_report_timestamp: order.issue_report_timestamp || null,
-          issue_resolved: Boolean(order.issue_resolved),
-          issue_resolution_timestamp: order.issue_resolution_timestamp || null,
-          resolution_message: order.resolution_message || null,
+          // Map camelCase to snake_case for consistent access
+          invoice_no: order.invoiceNo,
+          total_amount: order.totalAmount,
+          created_at: order.createdAt || order.timestamp,
+          table_identifier: order.tableIdentifier,
+          table_name: order.tableName,
+          customer_verified: Boolean(order.customerVerified),
+          delivery_issue_reported: Boolean(order.deliveryIssueReported),
+          issue_description: order.issueDescription,
         };
       });
 
@@ -191,15 +229,13 @@ export default function OrdersPage() {
     } catch (err) {
       console.error("Error fetching orders:", err);
       setError("Failed to load orders. Please try again.");
-      if (orders.length === 0) {
-        toast.error("Failed to load orders");
-      }
+      toast.error("Failed to load orders");
     } finally {
       setLoading(false);
     }
-  }, [user?.id, token, orders.length]);
+  }, [user?.id, token]);
 
-  // WebSocket for real-time order updates
+  // WebSocket for real-time updates
   useEffect(() => {
     if (!user?.id || !token) {
       if (socketRef.current) {
@@ -209,12 +245,9 @@ export default function OrdersPage() {
       return;
     }
 
-    // Initial fetch
     fetchOrders();
 
-    // Connect to WebSocket
     const apiBaseUrl = getApiBaseUrl();
-
     const socket = io(apiBaseUrl, {
       transports: ["websocket", "polling"],
       reconnection: true,
@@ -229,17 +262,14 @@ export default function OrdersPage() {
       socket.emit("join-vendor", user.id);
     });
 
-    // Listen for new orders
     socket.on("order-created", (data: any) => {
       console.log("[Orders] New order received:", data);
       toast.success(`New order #${data.orderId} received!`);
-      fetchOrders(); // Refresh orders list
+      fetchOrders();
     });
 
-    // Listen for order status changes
     socket.on("order-status-changed", (data: any) => {
       console.log("[Orders] Order status changed:", data);
-
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
           order.id === data.orderId
@@ -247,7 +277,6 @@ export default function OrdersPage() {
             : order
         )
       );
-
       toast.success(
         `Order #${data.orderId} status updated to ${data.newStatus}`
       );
@@ -312,258 +341,493 @@ export default function OrdersPage() {
     }
   };
 
+  // Filter handlers
+  const toggleStatusFilter = useCallback((status: string) => {
+    setActiveFilters((prev) => ({
+      ...prev,
+      status: prev.status.includes(status)
+        ? prev.status.filter((s) => s !== status)
+        : [...prev.status, status],
+    }));
+  }, []);
+
+  const setTimeRangeFilter = useCallback((range: string) => {
+    setActiveFilters((prev) => ({ ...prev, timeRange: range }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setActiveFilters({ status: [], timeRange: "all" });
+    setSearchTerm("");
+    toast.success("Filters reset");
+  }, []);
+
   // Filter orders
   const filteredOrders = useMemo(() => {
-    let filtered = orders;
+    return orders.filter((order) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        (order.invoice_no || "").toLowerCase().includes(searchLower) ||
+        (order.table_identifier || "").toLowerCase().includes(searchLower) ||
+        (order.table_name || "").toLowerCase().includes(searchLower) ||
+        (order.status || "").toLowerCase().includes(searchLower) ||
+        (order.items_text || "").toLowerCase().includes(searchLower);
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((order) => order.status === statusFilter);
-    }
+      if (!matchesSearch) return false;
 
-    if (searchTerm.trim()) {
-      const query = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (order) =>
-          order.invoice_no.toLowerCase().includes(query) ||
-          order.items_text.toLowerCase().includes(query) ||
-          order.table_identifier.toLowerCase().includes(query)
-      );
-    }
+      if (
+        activeFilters.status.length > 0 &&
+        !activeFilters.status.includes(order.status)
+      ) {
+        return false;
+      }
 
-    return filtered;
-  }, [orders, statusFilter, searchTerm]);
+      if (activeFilters.timeRange !== "all") {
+        const orderTime = new Date(order.created_at || "");
+        const now = new Date();
+        const diffHours =
+          (now.getTime() - orderTime.getTime()) / (1000 * 60 * 60);
 
-  // Status counts for filters
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: orders.length };
-    orders.forEach((order) => {
-      counts[order.status] = (counts[order.status] || 0) + 1;
+        if (activeFilters.timeRange === "1h" && diffHours > 1) return false;
+        if (activeFilters.timeRange === "6h" && diffHours > 6) return false;
+        if (activeFilters.timeRange === "24h" && diffHours > 24) return false;
+        if (activeFilters.timeRange === "7d" && diffHours > 168) return false;
+      }
+
+      return true;
     });
-    return counts;
-  }, [orders]);
+  }, [orders, searchTerm, activeFilters]);
 
   const activeFilterCount =
-    (statusFilter !== "all" ? 1 : 0) + (searchTerm ? 1 : 0);
+    activeFilters.status.length + (activeFilters.timeRange !== "all" ? 1 : 0);
+
+  // Stats calculation
+  const stats = useMemo(() => {
+    return {
+      delivered: orders.filter((o) => o.status === "delivered").length,
+      awaitingVerification: orders.filter(
+        (o) => o.status === "delivered" && !o.customer_verified
+      ).length,
+      verified: orders.filter((o) => o.customer_verified).length,
+      activeIssues: orders.filter(
+        (o) =>
+          o.delivery_issue_reported &&
+          o.status === "delivered" &&
+          !o.customer_verified
+      ).length,
+      active: orders.filter((o) =>
+        ["pending", "accepted", "confirmed", "preparing", "ready"].includes(
+          o.status
+        )
+      ).length,
+    };
+  }, [orders]);
 
   if (loading && orders.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Orders</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage and track all your orders
-          </p>
-        </div>
-        <Button onClick={fetchOrders} variant="outline" size="sm">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-          <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">{error}</span>
+    <main className="min-h-screen bg-background">
+      <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Orders
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage your restaurant orders
+            </p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {stats.activeIssues > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                  {stats.activeIssues} Active Issue
+                  {stats.activeIssues > 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+            <Button onClick={fetchOrders} disabled={loading} variant="outline">
+              {loading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh
+            </Button>
           </div>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Search by invoice, items, or table..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Status {activeFilterCount > 0 && `(${activeFilterCount})`}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => setStatusFilter("all")}>
-              All Orders ({statusCounts.all || 0})
-            </DropdownMenuItem>
-            {Object.keys(STATUS_STYLES).map((status) => (
-              <DropdownMenuItem
-                key={status}
-                onClick={() => setStatusFilter(status)}
-              >
-                {formatStatus(status)} ({statusCounts[status] || 0})
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="bg-card rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Delivered
+              </p>
+            </div>
+            <p className="text-3xl font-bold mb-1">{stats.delivered}</p>
+            <p className="text-xs text-muted-foreground">
+              {stats.awaitingVerification} awaiting verification
+            </p>
+          </div>
 
-      {/* Orders List */}
-      {filteredOrders.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No orders found</p>
+          <div className="bg-card rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Verified
+              </p>
+            </div>
+            <p className="text-3xl font-bold mb-1">{stats.verified}</p>
+            <p className="text-xs text-muted-foreground">Customer verified</p>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse"></div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Active Issues
+              </p>
+            </div>
+            <p className="text-3xl font-bold mb-1">{stats.activeIssues}</p>
+            <p className="text-xs text-muted-foreground">Unresolved reports</p>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse"></div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Active Orders
+              </p>
+            </div>
+            <p className="text-3xl font-bold mb-1">{stats.active}</p>
+            <p className="text-xs text-muted-foreground">In progress</p>
+          </div>
+
+          <div className="bg-card rounded-xl border shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-2 w-2 rounded-full bg-gray-500"></div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Orders
+              </p>
+            </div>
+            <p className="text-3xl font-bold mb-1">{orders.length}</p>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredOrders.map((order) => {
-            const statusStyle =
-              STATUS_STYLES[order.status] || STATUS_STYLES.pending;
-            return (
-              <div
-                key={order.id}
-                className="bg-white dark:bg-gray-800 border rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    {/* Order Header */}
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-lg">
-                        #{order.invoice_no}
-                      </h3>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+            <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search orders..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <span>Filter</span>
+                {activeFilterCount > 0 && (
+                  <span className="flex items-center justify-center rounded-full bg-primary w-5 h-5 text-[10px] text-primary-foreground font-medium">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-60">
+              <DropdownMenuLabel>Filter Orders</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 flex items-center justify-center">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}
+                        className={`w-2 h-2 rounded-full ${
+                          activeFilters.status.length > 0
+                            ? "bg-primary"
+                            : "bg-muted"
+                        }`}
+                      ></span>
+                    </span>
+                    <span>Status</span>
+                  </div>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    {Object.keys(STATUS_STYLES).map((status) => (
+                      <DropdownMenuCheckboxItem
+                        key={status}
+                        checked={activeFilters.status.includes(status)}
+                        onCheckedChange={() => toggleStatusFilter(status)}
                       >
-                        {statusStyle.icon}
-                        {formatStatus(order.status)}
-                      </span>
-                      {order.customer_verified && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-green-600 px-2.5 py-0.5 text-xs font-semibold text-green-600">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
+                        {formatStatus(status)}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Time Range</span>
+                  </div>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setTimeRangeFilter("all")}>
+                      All Time
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimeRangeFilter("1h")}>
+                      Last Hour
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimeRangeFilter("6h")}>
+                      Last 6 Hours
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimeRangeFilter("24h")}>
+                      Last 24 Hours
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimeRangeFilter("7d")}>
+                      Last 7 Days
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetFilters}>
+                Reset Filters
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Orders List */}
+        {filteredOrders.length === 0 ? (
+          <div className="bg-card border rounded-xl p-12 text-center">
+            <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-lg font-medium text-muted-foreground">
+              No orders found
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Try adjusting your filters or search term
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredOrders.map((order) => {
+              const statusStyle =
+                STATUS_STYLES[order.status] || STATUS_STYLES.pending;
+              return (
+                <div
+                  key={order.id}
+                  className="bg-card border rounded-xl p-5 hover:shadow-lg transition-all duration-200 hover:border-primary/50"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-3">
+                      {/* Order Header */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="font-semibold text-lg">
+                          #{order.invoice_no}
+                        </h3>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}
+                        >
+                          {statusStyle.icon}
+                          {formatStatus(order.status)}
                         </span>
-                      )}
-                      {order.delivery_issue_reported &&
-                        !order.issue_resolved && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/20 dark:text-red-200">
-                            <AlertCircle className="w-3 h-3" />
-                            Issue Reported
+                        {order.customer_verified && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-green-600 px-2.5 py-0.5 text-xs font-semibold text-green-600 dark:border-green-500 dark:text-green-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Verified
                           </span>
                         )}
-                    </div>
+                        {order.delivery_issue_reported &&
+                          !order.issue_resolved && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                              <AlertCircle className="w-3 h-3" />
+                              Issue Reported
+                            </span>
+                          )}
+                      </div>
 
-                    {/* Order Details */}
-                    <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400">
-                        <strong>Table:</strong> {order.table_identifier}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        <strong>Items:</strong> {order.items_text}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        <strong>Amount:</strong> ₹
-                        {order.total_amount
-                          ? order.total_amount.toFixed(2)
-                          : "0.00"}
-                      </p>
-                      <p className="text-gray-500 text-xs">
-                        {formatTimeElapsed(order.created_at)}
-                      </p>
-                    </div>
-
-                    {/* Issue Description */}
-                    {order.delivery_issue_reported &&
-                      order.issue_description && (
-                        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-                          <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-sm">
-                              <strong>Issue:</strong> {order.issue_description}
+                      {/* Order Details */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <span className="text-muted-foreground min-w-[60px] font-medium">
+                              Table:
+                            </span>
+                            <span className="text-foreground font-semibold">
+                              {order.table_name ||
+                                order.table_identifier ||
+                                "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-muted-foreground min-w-[60px] font-medium">
+                              Items:
+                            </span>
+                            <span className="text-foreground line-clamp-2">
+                              {order.items_text}
                             </span>
                           </div>
                         </div>
-                      )}
-                  </div>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <span className="text-muted-foreground min-w-[60px] font-medium">
+                              Amount:
+                            </span>
+                            <span className="text-foreground font-bold text-lg">
+                              Rs. {Number(order.total_amount || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-muted-foreground text-xs">
+                              {formatTimeElapsed(order.created_at || "")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-                  {/* Actions */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={updating === order.id}
-                      >
-                        {updating === order.id ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <MoreVertical className="w-4 h-4" />
+                      {/* Issue Description */}
+                      {order.delivery_issue_reported &&
+                        order.issue_description && (
+                          <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                            <div className="flex items-start gap-2 text-red-800 dark:text-red-200">
+                              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm">
+                                <strong>Customer Issue:</strong>{" "}
+                                {order.issue_description}
+                              </div>
+                            </div>
+                          </div>
                         )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "accepted")}
-                        disabled={order.status !== "pending"}
-                      >
-                        Accept
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "preparing")}
-                        disabled={
-                          order.status !== "accepted" &&
-                          order.status !== "confirmed"
-                        }
-                      >
-                        Start Preparing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "ready")}
-                        disabled={order.status !== "preparing"}
-                      >
-                        Mark Ready
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "delivered")}
-                        disabled={order.status !== "ready"}
-                      >
-                        Mark Delivered
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "completed")}
-                        disabled={order.status !== "delivered"}
-                      >
-                        Complete Order
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "rejected")}
-                        disabled={order.status !== "pending"}
-                        className="text-red-600"
-                      >
-                        Reject Order
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateOrderStatus(order.id, "cancelled")}
-                        disabled={[
-                          "completed",
-                          "cancelled",
-                          "rejected",
-                        ].includes(order.status)}
-                        className="text-red-600"
-                      >
-                        Cancel Order
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </div>
+
+                    {/* Actions */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={updating === order.id}
+                        >
+                          {updating === order.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <MoreVertical className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "accepted")
+                          }
+                          disabled={order.status !== "pending"}
+                        >
+                          Accept Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "confirmed")
+                          }
+                          disabled={order.status !== "accepted"}
+                        >
+                          Confirm Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "preparing")
+                          }
+                          disabled={
+                            order.status !== "accepted" &&
+                            order.status !== "confirmed"
+                          }
+                        >
+                          Start Preparing
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => updateOrderStatus(order.id, "ready")}
+                          disabled={order.status !== "preparing"}
+                        >
+                          Mark as Ready
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "delivered")
+                          }
+                          disabled={order.status !== "ready"}
+                        >
+                          Mark as Delivered
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "completed")
+                          }
+                          disabled={order.status !== "delivered"}
+                        >
+                          Complete Order
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "rejected")
+                          }
+                          disabled={order.status !== "pending"}
+                          className="text-red-600 dark:text-red-400"
+                        >
+                          Reject Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            updateOrderStatus(order.id, "cancelled")
+                          }
+                          disabled={[
+                            "completed",
+                            "cancelled",
+                            "rejected",
+                          ].includes(order.status)}
+                          className="text-red-600 dark:text-red-400"
+                        >
+                          Cancel Order
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
