@@ -581,6 +581,64 @@ exports.getOrderDetails = async (req, res) => {
 };
 
 /**
+ * Get customer order details (public endpoint)
+ */
+exports.getCustomerOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await orders.findByPk(orderId, {
+      include: [
+        {
+          model: tables,
+          as: "table",
+          attributes: ["id", "name", "qrCode"],
+        },
+        {
+          model: orderItems,
+          as: "items",
+          include: [
+            {
+              model: menuItems,
+              as: "menuItem",
+              attributes: ["id", "name", "category", "price"],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.status(200).json({
+      id: order.id,
+      invoice_no: order.invoiceNo,
+      status: order.status,
+      payment_status: order.paymentStatus,
+      payment_method: order.paymentMethod,
+      total_amount: order.totalAmount,
+      table_name: order.table ? order.table.name : order.tableIdentifier,
+      transaction_id: order.transactionId,
+      created_at: order.createdAt,
+      items: order.items.map((item) => ({
+        id: item.id,
+        name: item.menuItem ? item.menuItem.name : "Deleted Item",
+        price: item.price,
+        quantity: item.quantity,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching customer order details:", error);
+    res.status(500).json({
+      error: "Failed to fetch order details",
+      details: error.message,
+    });
+  }
+};
+
+/**
  * Update payment status
  */
 exports.updatePaymentStatus = async (req, res) => {
@@ -640,6 +698,31 @@ exports.reportDeliveryIssue = async (req, res) => {
       issueDescription:
         issueDescription || "Customer reported not receiving order",
     });
+
+    // Emit socket event to vendor
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`vendor-${order.vendorId}`).emit("delivery-issue", {
+        orderId: order.id,
+        issueDescription:
+          issueDescription || "Customer reported not receiving order",
+        issueReportTimestamp: order.issueReportTimestamp,
+      });
+
+      io.to(`vendor-${order.vendorId}`).emit("notification", {
+        id: `order-${order.id}-issue`,
+        type: "issue",
+        title: "Delivery Issue Reported",
+        message: `Customer reported issue with order #${order.id}`,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        read: false,
+        data: {
+          order_id: order.id,
+          issue_description: issueDescription,
+        },
+      });
+    }
 
     res.status(200).json({
       message: "Delivery issue reported successfully",
@@ -707,6 +790,28 @@ exports.verifyDelivery = async (req, res) => {
       customerVerified: true,
       verificationTimestamp: new Date(),
     });
+
+    // Emit socket event to vendor
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`vendor-${order.vendorId}`).emit("order-verified", {
+        orderId: order.id,
+        verificationTimestamp: order.verificationTimestamp,
+      });
+
+      io.to(`vendor-${order.vendorId}`).emit("notification", {
+        id: `order-${order.id}-verified`,
+        type: "verification",
+        title: "Order Verified",
+        message: `Customer verified delivery of order #${order.id}`,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        read: false,
+        data: {
+          order_id: order.id,
+        },
+      });
+    }
 
     res.status(200).json({
       message: "Order delivery verified successfully",
