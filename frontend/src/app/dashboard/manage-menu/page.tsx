@@ -24,8 +24,8 @@ interface MenuItem {
   description: string;
   price: number;
   category: string;
-  is_available: boolean;
-  image_url: string | null;
+  isAvailable: boolean;
+  imageUrl: string | null;
 }
 
 interface MenuCategory {
@@ -91,7 +91,7 @@ export default function ManageMenu() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/list/${user?.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/categories`,
         {
           method: "GET",
           headers: {
@@ -123,9 +123,9 @@ export default function ManageMenu() {
     setActionInProgress(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/toggle/${itemId}/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${itemId}/toggle`,
         {
-          method: "POST",
+          method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -140,7 +140,7 @@ export default function ManageMenu() {
       const updatedCategories = menuCategories.map((category) => ({
         ...category,
         items: category.items.map((item) =>
-          item.id === itemId ? { ...item, is_available: !currentStatus } : item
+          item.id === itemId ? { ...item, isAvailable: !currentStatus } : item
         ),
       }));
 
@@ -166,7 +166,7 @@ export default function ManageMenu() {
     setActionInProgress(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/item/${itemToDelete.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${itemToDelete.id}`,
         {
           method: "DELETE",
           headers: {
@@ -311,9 +311,9 @@ export default function ManageMenu() {
                           <td className="p-4">
                             <div className="flex items-center space-x-3">
                               <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
-                                {item.image_url ? (
+                                {item.imageUrl ? (
                                   <img
-                                    src={item.image_url}
+                                    src={`${getApiBaseUrl()}${item.imageUrl}`}
                                     alt={item.name}
                                     className="w-full h-full object-cover"
                                   />
@@ -342,21 +342,21 @@ export default function ManageMenu() {
                               onClick={() =>
                                 handleAvailabilityToggle(
                                   item.id,
-                                  item.is_available
+                                  item.isAvailable
                                 )
                               }
                               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                item.is_available
+                                item.isAvailable
                                   ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                                   : "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                               } transition-colors`}
                             >
-                              {item.is_available ? (
+                              {item.isAvailable ? (
                                 <Eye className="h-3.5 w-3.5 mr-1.5" />
                               ) : (
                                 <EyeOff className="h-3.5 w-3.5 mr-1.5" />
                               )}
-                              {item.is_available ? "Available" : "Hidden"}
+                              {item.isAvailable ? "Available" : "Hidden"}
                             </button>
                           </td>
                           <td className="p-4">

@@ -86,7 +86,7 @@ export default function Settings() {
 
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user.id}/profile`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -247,7 +247,7 @@ export default function Settings() {
       }
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/profile`,
         {
           method: "PUT",
           headers: {

@@ -77,7 +77,9 @@ exports.createMenuItems = async (req, res) => {
       // Get image file if uploaded
       const imageKey = `image_${index}`;
       const image =
-        req.files && req.files[imageKey] ? req.files[imageKey][0].path : null;
+        req.files && req.files[imageKey] && req.files[imageKey][0]
+          ? req.files[imageKey][0].filename
+          : null;
 
       if (itemErrors.length > 0) {
         validationErrors.push(
@@ -238,6 +240,45 @@ exports.getMenuItemsByCategory = async (req, res) => {
 };
 
 /**
+ * Get a single menu item by ID
+ */
+exports.getMenuItem = async (req, res) => {
+  try {
+    const { vendorId, itemId } = req.params;
+
+    // Check authorization
+    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Find the menu item
+    const item = await menuItems.findOne({
+      where: { id: itemId, vendorId },
+    });
+
+    if (!item) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+
+    res.status(200).json({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      description: item.description,
+      category: item.category,
+      imageUrl: item.image ? `/uploads/${item.image}` : null,
+      isAvailable: item.isAvailable,
+    });
+  } catch (error) {
+    console.error("Error fetching menu item:", error);
+    res.status(500).json({
+      error: "Failed to fetch menu item",
+      details: error.message,
+    });
+  }
+};
+
+/**
  * Update a menu item
  */
 exports.updateMenuItem = async (req, res) => {
@@ -267,7 +308,7 @@ exports.updateMenuItem = async (req, res) => {
       updates.description = req.body.description.trim();
     if (req.body.isAvailable !== undefined)
       updates.isAvailable = req.body.isAvailable;
-    if (req.file) updates.image = req.file.path;
+    if (req.file) updates.image = req.file.filename;
 
     await item.update(updates);
 
