@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import { io, Socket } from "socket.io-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,6 +137,7 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const socketRef = useRef<Socket | null>(null);
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
@@ -197,14 +199,75 @@ export default function OrdersPage() {
     }
   }, [user?.id, token, orders.length]);
 
-  // Polling for real-time updates (every 5 seconds)
+  // WebSocket for real-time order updates
   useEffect(() => {
-    if (!user?.id || !token) return;
+    if (!user?.id || !token) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
 
+    // Initial fetch
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
 
-    return () => clearInterval(interval);
+    // Connect to WebSocket
+    const apiBaseUrl = getApiBaseUrl();
+
+    const socket = io(apiBaseUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("[Orders] WebSocket connected:", socket.id);
+      socket.emit("join-vendor", user.id);
+    });
+
+    // Listen for new orders
+    socket.on("order-created", (data: any) => {
+      console.log("[Orders] New order received:", data);
+      toast.success(`New order #${data.orderId} received!`);
+      fetchOrders(); // Refresh orders list
+    });
+
+    // Listen for order status changes
+    socket.on("order-status-changed", (data: any) => {
+      console.log("[Orders] Order status changed:", data);
+
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === data.orderId
+            ? { ...order, status: data.newStatus }
+            : order
+        )
+      );
+
+      toast.success(
+        `Order #${data.orderId} status updated to ${data.newStatus}`
+      );
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("[Orders] WebSocket connection error:", error);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("[Orders] WebSocket disconnected:", reason);
+    });
+
+    return () => {
+      if (socket) {
+        socket.emit("leave-vendor", user.id);
+        socket.disconnect();
+      }
+      socketRef.current = null;
+    };
   }, [user?.id, token, fetchOrders]);
 
   // Update order status

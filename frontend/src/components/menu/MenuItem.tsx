@@ -19,16 +19,17 @@ interface MenuItemProps {
 
 const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
   const { addToCart, recentlyAdded } = useCart();
+  const defaultImage = "/images/default-food-image.svg";
 
   return (
     <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-md transition-shadow">
       <div className="aspect-video relative">
         <img
-          src={item.image || "/images/default-food-image.png"}
+          src={item.image || defaultImage}
           alt={item.name}
           className="w-full h-full object-cover"
           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-            e.currentTarget.src = "/images/default-food-image.png";
+            e.currentTarget.src = defaultImage;
           }}
           loading="lazy"
         />
