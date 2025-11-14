@@ -298,7 +298,7 @@ exports.getTableStatus = async (req, res) => {
       },
     });
 
-    res.status(200).json({
+    const response = {
       tableId: table.id,
       name: table.name,
       qrCode: table.qrCode,
@@ -306,7 +306,18 @@ exports.getTableStatus = async (req, res) => {
       vendorId: table.vendorId,
       hasActiveOrder: activeOrder !== null,
       activeOrderId: activeOrder ? activeOrder.id : null,
-    });
+    };
+
+    // Emit socket event for table status check
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`table-${table.vendorId}-${table.name}`).emit(
+        "table-status-update",
+        response
+      );
+    }
+
+    res.status(200).json(response);
   } catch (error) {
     console.error("Error in getTableStatus:", error);
     res.status(500).json({

@@ -14,16 +14,22 @@ exports.getOrders = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
+    console.log(`[getOrders] Request from user:`, req.user?.id, `for vendorId:`, vendorId);
+
     // Check authorization
     if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+      console.log(`[getOrders] Authorization failed - user ${req.user.id} tried to access vendor ${vendorId}`);
       return res.status(403).json({ error: "Unauthorized" });
     }
 
     // Verify vendor exists
     const vendor = await users.findByPk(vendorId);
     if (!vendor) {
+      console.log(`[getOrders] Vendor ${vendorId} not found`);
       return res.status(404).json({ error: "Vendor not found" });
     }
+
+    console.log(`[getOrders] Fetching orders for vendor ${vendorId}`);
 
     // Get all orders for this vendor with related data
     const vendorOrders = await orders.findAll({
@@ -46,8 +52,10 @@ exports.getOrders = async (req, res) => {
           ],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
+
+    console.log(`[getOrders] Found ${vendorOrders.length} orders`);
 
     const ordersData = vendorOrders.map((order) => {
       const timeElapsed = getTimeElapsed(order.createdAt);
@@ -83,12 +91,14 @@ exports.getOrders = async (req, res) => {
       };
     });
 
+    console.log(`[getOrders] Returning ${ordersData.length} orders`);
     res.status(200).json({
       orders: ordersData,
       count: ordersData.length,
     });
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    console.error("[getOrders] Error fetching orders:", error);
+    console.error("[getOrders] Error stack:", error.stack);
     res.status(500).json({
       error: "Failed to fetch orders",
       details: error.message,
@@ -162,6 +172,24 @@ exports.createOrder = async (req, res) => {
       await order.update({ totalAmount: calculatedTotal });
     }
 
+    // Emit socket event for new order
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`vendor-${vendorId}`).emit("order-created", {
+        orderId: order.id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        tableIdentifier: table ? table.name : null,
+      });
+
+      if (table) {
+        io.to(`table-${vendorId}-${table.name}`).emit("order-status-update", {
+          orderId: order.id,
+          status: order.status,
+        });
+      }
+    }
+
     res.status(201).json({
       orderId: order.id,
       tableId: table ? table.id : null,
@@ -220,6 +248,28 @@ exports.updateOrderStatus = async (req, res) => {
 
     const oldStatus = order.status;
     await order.update({ status: newStatus });
+
+    // Emit socket event for status update
+    const io = req.app.get("io");
+    if (io) {
+      // Notify vendor
+      io.to(`vendor-${order.vendorId}`).emit("order-status-changed", {
+        orderId: order.id,
+        oldStatus,
+        newStatus,
+      });
+
+      // Notify customer at table
+      if (order.tableIdentifier) {
+        io.to(`table-${order.vendorId}-${order.tableIdentifier}`).emit(
+          "order-status-update",
+          {
+            orderId: order.id,
+            status: newStatus,
+          }
+        );
+      }
+    }
 
     res.status(200).json({
       message: "Order status updated successfully",
