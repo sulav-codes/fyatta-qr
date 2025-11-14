@@ -1,0 +1,494 @@
+const {
+  orders,
+  orderItems,
+  menuItems,
+  tables,
+  users,
+} = require("../models/index");
+const { Op } = require("sequelize");
+
+/**
+ * Get all orders for a vendor
+ */
+exports.getOrders = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    // Check authorization
+    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Verify vendor exists
+    const vendor = await users.findByPk(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    // Get all orders for this vendor with related data
+    const vendorOrders = await orders.findAll({
+      where: { vendorId },
+      include: [
+        {
+          model: tables,
+          as: "table",
+          attributes: ["id", "name", "qrCode"],
+        },
+        {
+          model: orderItems,
+          as: "items",
+          include: [
+            {
+              model: menuItems,
+              as: "menuItem",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const ordersData = vendorOrders.map((order) => {
+      const timeElapsed = getTimeElapsed(order.createdAt);
+      const tableName = order.table
+        ? order.table.name
+        : order.tableIdentifier || "Unknown";
+
+      return {
+        id: order.id,
+        orderId: `ORD${String(order.id).padStart(3, "0")}`,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        totalAmount: order.totalAmount,
+        tableName: tableName,
+        tableId: order.table ? order.table.id : null,
+        qrCode: order.table ? order.table.qrCode : order.tableIdentifier,
+        invoiceNo: order.invoiceNo,
+        createdAt: order.createdAt,
+        timestamp: order.createdAt,
+        timeElapsed: timeElapsed,
+        items: order.items.map((item) => ({
+          id: item.id,
+          name: item.menuItem ? item.menuItem.name : "Deleted Item",
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        customerVerified: order.customerVerified,
+        verificationTimestamp: order.verificationTimestamp,
+        deliveryIssueReported: order.deliveryIssueReported,
+        issueReportTimestamp: order.issueReportTimestamp,
+        issueDescription: order.issueDescription,
+      };
+    });
+
+    res.status(200).json({
+      orders: ordersData,
+      count: ordersData.length,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({
+      error: "Failed to fetch orders",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Create a new order
+ */
+exports.createOrder = async (req, res) => {
+  try {
+    const { vendorId, tableId, items: orderItemsData, totalAmount } = req.body;
+
+    // Validate required fields
+    if (!vendorId || !orderItemsData || orderItemsData.length === 0) {
+      return res.status(400).json({
+        error: "Vendor ID and order items are required",
+      });
+    }
+
+    // Verify vendor exists
+    const vendor = await users.findByPk(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    // Find table if tableId provided
+    let table = null;
+    if (tableId) {
+      table = await tables.findOne({
+        where: { id: tableId, vendorId },
+      });
+      if (!table) {
+        return res.status(404).json({ error: "Table not found" });
+      }
+    }
+
+    // Generate invoice number
+    const invoiceNo = await generateInvoiceNumber();
+
+    // Create order
+    const order = await orders.create({
+      vendorId,
+      tableId: table ? table.id : null,
+      tableIdentifier: table ? table.name : null,
+      status: "pending",
+      totalAmount: totalAmount || 0,
+      invoiceNo,
+      paymentStatus: "pending",
+      paymentMethod: "cash",
+    });
+
+    // Create order items
+    let calculatedTotal = 0;
+    for (const itemData of orderItemsData) {
+      const menuItem = await menuItems.findByPk(itemData.id);
+      if (menuItem) {
+        await orderItems.create({
+          orderId: order.id,
+          menuItemId: menuItem.id,
+          quantity: itemData.quantity || 1,
+          price: menuItem.price,
+        });
+        calculatedTotal += menuItem.price * (itemData.quantity || 1);
+      }
+    }
+
+    // Update total amount if not provided
+    if (!totalAmount) {
+      await order.update({ totalAmount: calculatedTotal });
+    }
+
+    res.status(201).json({
+      orderId: order.id,
+      tableId: table ? table.id : null,
+      tableName: table ? table.name : null,
+      message: "Order created successfully",
+    });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(500).json({
+      error: "Failed to create order",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Update order status
+ */
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status: newStatus } = req.body;
+
+    // Check authorization
+    const order = await orders.findByPk(orderId, {
+      include: [{ model: users, as: "vendor" }],
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Validate status
+    const validStatuses = [
+      "pending",
+      "accepted",
+      "confirmed",
+      "rejected",
+      "preparing",
+      "ready",
+      "delivered",
+      "completed",
+      "cancelled",
+    ];
+
+    if (!validStatuses.includes(newStatus)) {
+      return res.status(400).json({
+        error: "Invalid status",
+        validStatuses,
+      });
+    }
+
+    const oldStatus = order.status;
+    await order.update({ status: newStatus });
+
+    res.status(200).json({
+      message: "Order status updated successfully",
+      orderId: order.id,
+      oldStatus,
+      newStatus,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      error: "Failed to update order status",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Get order details
+ */
+exports.getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await orders.findByPk(orderId, {
+      include: [
+        {
+          model: tables,
+          as: "table",
+          attributes: ["id", "name", "qrCode"],
+        },
+        {
+          model: orderItems,
+          as: "items",
+          include: [
+            {
+              model: menuItems,
+              as: "menuItem",
+              attributes: ["id", "name", "category", "price"],
+            },
+          ],
+        },
+        {
+          model: users,
+          as: "vendor",
+          attributes: ["id", "restaurantName", "ownerName"],
+        },
+      ],
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Check authorization
+    if (req.user && req.user.id !== order.vendorId && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    res.status(200).json({
+      id: order.id,
+      orderId: `ORD${String(order.id).padStart(3, "0")}`,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      invoiceNo: order.invoiceNo,
+      transactionId: order.transactionId,
+      table: order.table,
+      vendor: order.vendor,
+      items: order.items.map((item) => ({
+        id: item.id,
+        name: item.menuItem ? item.menuItem.name : "Deleted Item",
+        category: item.menuItem ? item.menuItem.category : null,
+        price: item.price,
+        quantity: item.quantity,
+        subtotal: item.price * item.quantity,
+      })),
+      customerVerified: order.customerVerified,
+      verificationTimestamp: order.verificationTimestamp,
+      deliveryIssueReported: order.deliveryIssueReported,
+      issueDescription: order.issueDescription,
+      issueResolved: order.issueResolved,
+      resolutionMessage: order.resolutionMessage,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    });
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    res.status(500).json({
+      error: "Failed to fetch order details",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Update payment status
+ */
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { paymentStatus, paymentMethod, transactionId } = req.body;
+
+    const order = await orders.findByPk(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Check authorization
+    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const updates = {};
+    if (paymentStatus) updates.paymentStatus = paymentStatus;
+    if (paymentMethod) updates.paymentMethod = paymentMethod;
+    if (transactionId) updates.transactionId = transactionId;
+
+    await order.update(updates);
+
+    res.status(200).json({
+      message: "Payment status updated successfully",
+      orderId: order.id,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      transactionId: order.transactionId,
+    });
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    res.status(500).json({
+      error: "Failed to update payment status",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Report delivery issue
+ */
+exports.reportDeliveryIssue = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { issueDescription } = req.body;
+
+    const order = await orders.findByPk(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    await order.update({
+      deliveryIssueReported: true,
+      issueReportTimestamp: new Date(),
+      issueDescription:
+        issueDescription || "Customer reported not receiving order",
+    });
+
+    res.status(200).json({
+      message: "Delivery issue reported successfully",
+      orderId: order.id,
+    });
+  } catch (error) {
+    console.error("Error reporting delivery issue:", error);
+    res.status(500).json({
+      error: "Failed to report delivery issue",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Resolve delivery issue
+ */
+exports.resolveDeliveryIssue = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { resolutionMessage } = req.body;
+
+    const order = await orders.findByPk(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Check authorization
+    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await order.update({
+      issueResolved: true,
+      issueResolutionTimestamp: new Date(),
+      resolutionMessage: resolutionMessage || "Issue has been resolved",
+    });
+
+    res.status(200).json({
+      message: "Delivery issue resolved successfully",
+      orderId: order.id,
+    });
+  } catch (error) {
+    console.error("Error resolving delivery issue:", error);
+    res.status(500).json({
+      error: "Failed to resolve delivery issue",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Verify order delivery by customer
+ */
+exports.verifyDelivery = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await orders.findByPk(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    await order.update({
+      customerVerified: true,
+      verificationTimestamp: new Date(),
+    });
+
+    res.status(200).json({
+      message: "Order delivery verified successfully",
+      orderId: order.id,
+    });
+  } catch (error) {
+    console.error("Error verifying delivery:", error);
+    res.status(500).json({
+      error: "Failed to verify delivery",
+      details: error.message,
+    });
+  }
+};
+
+// Helper functions
+
+/**
+ * Calculate time elapsed since order creation
+ */
+function getTimeElapsed(createdAt) {
+  const now = new Date();
+  const diffMs = now - new Date(createdAt);
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) {
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  } else if (diffMins > 0) {
+    return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+  } else {
+    return "Just now";
+  }
+}
+
+/**
+ * Generate unique invoice number
+ */
+async function generateInvoiceNumber() {
+  const lastOrder = await orders.findOne({
+    order: [["id", "DESC"]],
+  });
+
+  const nextId = lastOrder ? lastOrder.id + 1 : 1;
+  return `INV-${String(nextId).padStart(6, "0")}`;
+}
+
+module.exports = exports;
