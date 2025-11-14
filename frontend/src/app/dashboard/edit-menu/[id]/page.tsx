@@ -17,8 +17,8 @@ interface MenuItem {
   price: string;
   description: string;
   category: string;
-  is_available: boolean;
-  image_url: string | null;
+  isAvailable: boolean;
+  imageUrl: string | null;
 }
 
 export default function EditMenuItem({
@@ -40,8 +40,8 @@ export default function EditMenuItem({
     price: "",
     description: "",
     category: "",
-    is_available: true,
-    image_url: null,
+    isAvailable: true,
+    imageUrl: null,
   });
 
   const [newImage, setNewImage] = useState<File | null>(null);
@@ -56,13 +56,16 @@ export default function EditMenuItem({
   const fetchMenuItem = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${getApiBaseUrl()}/api/menu/item/${id}/`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${id}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to fetch menu item");
@@ -70,7 +73,9 @@ export default function EditMenuItem({
 
       const data = await response.json();
       setMenuItem(data);
-      setImagePreview(data.image_url);
+      setImagePreview(
+        data.imageUrl ? `${getApiBaseUrl()}${data.imageUrl}` : null
+      );
     } catch (error) {
       console.error("Error fetching menu item:", error);
       toast.error("Failed to load menu item details");
@@ -113,11 +118,11 @@ export default function EditMenuItem({
   };
 
   const removeImage = () => {
-    if (imagePreview && imagePreview !== menuItem.image_url) {
+    if (imagePreview && imagePreview !== menuItem.imageUrl) {
       URL.revokeObjectURL(imagePreview);
     }
     setNewImage(null);
-    setImagePreview(menuItem.image_url);
+    setImagePreview(menuItem.imageUrl);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,19 +152,22 @@ export default function EditMenuItem({
       formData.append("price", menuItem.price);
       formData.append("category", menuItem.category);
       formData.append("description", menuItem.description || "");
-      formData.append("is_available", String(menuItem.is_available));
+      formData.append("isAvailable", String(menuItem.isAvailable));
 
       if (newImage) {
         formData.append("image", newImage);
       }
 
-      const response = await fetch(`${getApiBaseUrl()}/api/menu/item/${id}/`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
@@ -184,11 +192,11 @@ export default function EditMenuItem({
 
   useEffect(() => {
     return () => {
-      if (imagePreview && imagePreview !== menuItem.image_url) {
+      if (imagePreview && imagePreview !== menuItem.imageUrl) {
         URL.revokeObjectURL(imagePreview);
       }
     };
-  }, [imagePreview, menuItem.image_url]);
+  }, [imagePreview, menuItem.imageUrl]);
 
   if (isLoading) {
     return (

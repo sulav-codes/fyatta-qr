@@ -148,7 +148,7 @@ export default function OrdersPage() {
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/orders/${user.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user.id}/orders`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -215,7 +215,7 @@ export default function OrdersPage() {
       setUpdating(orderId);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/orders/${orderId}/status/`,
+        `${getApiBaseUrl()}/api/orders/${orderId}/status`,
         {
           method: "PATCH",
           headers: {

@@ -166,7 +166,7 @@ export default function CreateMenu() {
       });
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/create/${user.id}/`,
+        `${getApiBaseUrl()}/api/vendors/${user.id}/menu`,
         {
           method: "POST",
           headers: {

@@ -78,7 +78,7 @@ export default function GenerateQR() {
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/tables/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -113,7 +113,7 @@ export default function GenerateQR() {
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/tables/add/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables`,
         {
           method: "POST",
           headers: {
@@ -148,7 +148,7 @@ export default function GenerateQR() {
       setIsDeletingTable(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/tables/${id}/delete/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -180,9 +180,7 @@ export default function GenerateQR() {
       setIsTogglingAvailability(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${
-          user?.id
-        }/tables/${id}/toggle-availability/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
         {
           method: "PUT",
           headers: {
@@ -271,7 +269,7 @@ export default function GenerateQR() {
       setIsRenamingTable(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/tables/${id}/rename/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
         {
           method: "PUT",
           headers: {
@@ -314,7 +312,7 @@ export default function GenerateQR() {
       setIsRegeneratingQR(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendor/${user?.id}/tables/${id}/regenerate-qr/`,
+        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}/regenerate-qr`,
         {
           method: "PUT",
           headers: {
