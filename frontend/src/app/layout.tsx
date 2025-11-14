@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
 import React, { ReactNode } from "react";
+import Navbar from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,13 +18,16 @@ interface RootLayoutProps {
   children: ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps): React.ReactNode {
+export default function RootLayout({
+  children,
+}: RootLayoutProps): React.ReactNode {
   return (
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
           <ThemeProvider>
             <Toaster />
+            <Navbar />
             <main>{children}</main>
           </ThemeProvider>
         </AuthProvider>

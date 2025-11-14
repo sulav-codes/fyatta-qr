@@ -1,11 +1,12 @@
 "use client";
 
+import Hero from "@/components/home/Hero";
+
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* <Navbar />
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Hero />
-      <Features />
+      {/*<Features />
       <HowItWorks />
       <Testimonials />
       <CallToAction />
