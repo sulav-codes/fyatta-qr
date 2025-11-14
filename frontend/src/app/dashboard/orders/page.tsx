@@ -129,6 +129,8 @@ const STATUS_STYLES: Record<
 };
 
 const formatStatus = (status: string): string => {
+  if (!status) return "Created";
+
   const statusMap: Record<string, string> = {
     pending: "Pending",
     accepted: "Accepted",
@@ -174,6 +176,7 @@ export default function OrdersPage() {
     status: [] as string[],
     timeRange: "all",
   });
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const { user, token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
@@ -259,35 +262,112 @@ export default function OrdersPage() {
 
     socket.on("connect", () => {
       console.log("[Orders] WebSocket connected:", socket.id);
+      setSocketConnected(true);
       socket.emit("join-vendor", user.id);
     });
 
+    // Handle new orders
     socket.on("order-created", (data: any) => {
       console.log("[Orders] New order received:", data);
-      toast.success(`New order #${data.orderId} received!`);
+      toast.success(`New order #${data.orderId || data.order_id} received!`);
       fetchOrders();
     });
 
+    // Handle order status changes
     socket.on("order-status-changed", (data: any) => {
       console.log("[Orders] Order status changed:", data);
+      const orderId = data.orderId || data.order_id;
+      const newStatus = data.newStatus || data.status;
+
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
-          order.id === data.orderId
-            ? { ...order, status: data.newStatus }
-            : order
+          order.id === orderId ? { ...order, status: newStatus } : order
         )
       );
       toast.success(
-        `Order #${data.orderId} status updated to ${data.newStatus}`
+        `Order #${orderId} status updated to ${formatStatus(newStatus)}`
       );
+    });
+
+    // Handle customer verification
+    socket.on("order-verified", (data: any) => {
+      console.log("[Orders] Order verified by customer:", data);
+      const orderId = data.orderId || data.order_id;
+
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                customer_verified: true,
+                verification_timestamp:
+                  data.verificationTimestamp ||
+                  data.verification_timestamp ||
+                  new Date().toISOString(),
+              }
+            : order
+        )
+      );
+      toast.success(`✅ Order #${orderId} verified by customer`);
+    });
+
+    // Handle delivery issues
+    socket.on("delivery-issue", (data: any) => {
+      console.log("[Orders] Delivery issue reported:", data);
+      const orderId = data.orderId || data.order_id;
+
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                delivery_issue_reported: true,
+                issue_description:
+                  data.issueDescription || data.issue_description,
+                issue_report_timestamp:
+                  data.issueReportTimestamp ||
+                  data.issue_report_timestamp ||
+                  new Date().toISOString(),
+              }
+            : order
+        )
+      );
+      toast.error(`⚠️ Customer reported issue with order #${orderId}`);
+    });
+
+    // Handle vendor notifications
+    socket.on("vendor_notification", (data: any) => {
+      console.log("[Orders] Vendor notification:", data);
+
+      if (data.type === "new_order" || data.data?.type === "new_order") {
+        fetchOrders();
+        toast.success("New order received!");
+      } else if (
+        data.type === "order_status" ||
+        data.data?.type === "order_status"
+      ) {
+        const orderData = data.data?.data || data;
+        const orderId = orderData.order_id || orderData.orderId;
+        const newStatus = orderData.status;
+
+        if (orderId && newStatus) {
+          setOrders((prevOrders) =>
+            prevOrders.map((order) =>
+              order.id === orderId ? { ...order, status: newStatus } : order
+            )
+          );
+        }
+      }
     });
 
     socket.on("connect_error", (error) => {
       console.error("[Orders] WebSocket connection error:", error);
+      setSocketConnected(false);
     });
 
     socket.on("disconnect", (reason) => {
       console.log("[Orders] WebSocket disconnected:", reason);
+      setSocketConnected(false);
     });
 
     return () => {
@@ -453,6 +533,19 @@ export default function OrdersPage() {
                 </span>
               </div>
             )}
+
+            {/* WebSocket Connection Status */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-card/50">
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  socketConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                }`}
+              ></div>
+              <span className="text-xs text-muted-foreground">
+                {socketConnected ? "Live updates" : "Offline"}
+              </span>
+            </div>
+
             <Button onClick={fetchOrders} disabled={loading} variant="outline">
               {loading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

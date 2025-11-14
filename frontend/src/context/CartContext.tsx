@@ -630,13 +630,13 @@ export const CartProvider = ({
     try {
       const apiBaseUrl = getApiBaseUrl();
 
-      const response = await fetch(`${apiBaseUrl}/api/initiate-payment/`, {
+      const response = await fetch(`${apiBaseUrl}/api/payment/esewa/initiate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order_id: orderId,
+          orderId: orderId,
         }),
       });
 
@@ -647,7 +647,35 @@ export const CartProvider = ({
       }
 
       const paymentData = await response.json();
-      localStorage.setItem(`payment_pending_${orderId}`, "true");
+      console.log("[eSewa] Payment data received:", paymentData);
+
+      if (
+        paymentData.success &&
+        paymentData.paymentUrl &&
+        paymentData.paymentData
+      ) {
+        // Store pending payment info
+        localStorage.setItem(`payment_pending_${orderId}`, "true");
+
+        // Create and submit eSewa form
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = paymentData.paymentUrl;
+
+        // Add all payment data as hidden fields
+        Object.entries(paymentData.paymentData).forEach(([key, value]) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        throw new Error("Invalid payment data received");
+      }
 
       return paymentData;
     } catch (error) {
