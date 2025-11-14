@@ -306,8 +306,13 @@ exports.updateMenuItem = async (req, res) => {
     if (req.body.category) updates.category = req.body.category.trim();
     if (req.body.description !== undefined)
       updates.description = req.body.description.trim();
-    if (req.body.isAvailable !== undefined)
-      updates.isAvailable = req.body.isAvailable;
+    if (req.body.isAvailable !== undefined) {
+      // Handle both boolean and string values
+      updates.isAvailable =
+        req.body.isAvailable === true ||
+        req.body.isAvailable === "true" ||
+        req.body.isAvailable === 1;
+    }
     if (req.file) updates.image = req.file.filename;
 
     await item.update(updates);

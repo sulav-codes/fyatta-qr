@@ -268,6 +268,24 @@ export default function EditMenuItem({
                 />
               </div>
 
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isAvailable"
+                  checked={menuItem.isAvailable}
+                  onChange={(e) =>
+                    setMenuItem((prev) => ({
+                      ...prev,
+                      isAvailable: e.target.checked,
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label htmlFor="isAvailable" className="text-sm font-medium">
+                  Available for ordering
+                </label>
+              </div>
+
               <div>
                 <label className="text-sm font-medium block mb-2">
                   Item Image

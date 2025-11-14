@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import { io, Socket } from "socket.io-client";
 
 // Types
 interface CartItem {
@@ -19,7 +20,7 @@ interface CartItem {
   price: number;
   quantity: number;
   category?: string;
-  image?: string;
+  image?: string | null;
   description?: string;
 }
 
@@ -46,7 +47,7 @@ interface Order {
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (item: CartItem) => void;
+  addToCart: (item: Omit<CartItem, "quantity">) => void;
   removeFromCart: (itemId: number) => void;
   updateQuantity: (itemId: number, newQuantity: number) => void;
   recentlyAdded: Record<number, boolean>;
@@ -95,6 +96,7 @@ export const CartProvider = ({
   const timeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
   const initialLoadCompleted = useRef(false);
   const previousCartJSON = useRef("");
+  const socketRef = useRef<Socket | null>(null);
 
   // Prevent excessive recommendation updates with debounce
   const recommendationsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -250,7 +252,109 @@ export const CartProvider = ({
     loadOrdersFromStorage();
   }, [vendorId, tableNo, clearCart]);
 
-  // Poll for order status updates every 5 seconds when there's a pending order
+  // WebSocket connection setup
+  useEffect(() => {
+    const baseUrl = getApiBaseUrl();
+    const wsUrl = baseUrl.replace(/^http/, "ws");
+
+    console.log("CartContext: Connecting to WebSocket:", wsUrl);
+
+    const socket = io(wsUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("CartContext: WebSocket connected");
+      // Join table room for real-time updates
+      socket.emit("join-table", {
+        vendorId: String(vendorId),
+        tableIdentifier: tableNo,
+      });
+    });
+
+    socket.on("disconnect", () => {
+      console.log("CartContext: WebSocket disconnected");
+    });
+
+    // Listen for order status updates
+    socket.on(
+      "order-status-update",
+      (data: { orderId: number; status: string }) => {
+        console.log("CartContext: Received order-status-update:", data);
+
+        if (pendingOrder && pendingOrder.id === data.orderId) {
+          const updatedOrder: Order = {
+            ...pendingOrder,
+            status: data.status,
+          };
+
+          setPendingOrder(updatedOrder);
+
+          // Update localStorage
+          const trackedOrders: Order[] = JSON.parse(
+            localStorage.getItem("tracked_orders") || "[]"
+          );
+          const updatedOrders = trackedOrders.map((order) =>
+            order.id === data.orderId ? updatedOrder : order
+          );
+          localStorage.setItem("tracked_orders", JSON.stringify(updatedOrders));
+
+          // Show toast for status change
+          const toastKey = `order-${data.orderId}-${data.status}`;
+          const toastId = `${toastKey}-ws-${Date.now()}`;
+
+          const lastShown = localStorage.getItem(`last_toast_${toastKey}`);
+          const shouldShow =
+            !lastShown || Date.now() - parseInt(lastShown) > 30000;
+
+          if (shouldShow) {
+            localStorage.setItem(
+              `last_toast_${toastKey}`,
+              Date.now().toString()
+            );
+
+            if (data.status === "accepted") {
+              toast.success(
+                "Your order has been accepted and is ready for payment!",
+                {
+                  id: toastId,
+                  duration: 4000,
+                }
+              );
+            } else if (data.status === "preparing") {
+              toast.success("Your order is being prepared!", { id: toastId });
+            } else if (data.status === "ready") {
+              toast.success("Your order is ready!", { id: toastId });
+            } else if (data.status === "delivered") {
+              toast.success("Your order has been delivered!", { id: toastId });
+            }
+          }
+
+          // Clear cart for confirmed orders
+          if (data.status === "confirmed" || data.status === "preparing") {
+            clearCart();
+          }
+        }
+      }
+    );
+
+    return () => {
+      if (socket) {
+        socket.emit("leave-table", {
+          vendorId: String(vendorId),
+          tableIdentifier: tableNo,
+        });
+        socket.disconnect();
+      }
+    };
+  }, [vendorId, tableNo, pendingOrder, clearCart]);
+
+  // Poll for order status updates every 5 seconds when there's a pending order (fallback)
   useEffect(() => {
     if (!pendingOrder || !pendingOrder.id) return;
 
@@ -341,7 +445,7 @@ export const CartProvider = ({
   }, [onUpdateRecommendations]);
 
   const addToCart = useCallback(
-    (item: CartItem) => {
+    (item: Omit<CartItem, "quantity">) => {
       setCart((prevCart) => {
         const existingItem = prevCart.find(
           (cartItem) => cartItem.id === item.id

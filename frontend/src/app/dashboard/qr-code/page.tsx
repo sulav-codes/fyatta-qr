@@ -35,8 +35,8 @@ import { QRCodeCanvas } from "qrcode.react";
 interface Table {
   id: number;
   name: string;
-  qr_code: string;
-  is_active: boolean;
+  qrCode: string;
+  isActive: boolean;
 }
 
 export default function GenerateQR() {
@@ -188,7 +188,7 @@ export default function GenerateQR() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            is_active: !currentStatus,
+            isActive: !currentStatus,
           }),
         }
       );
@@ -205,14 +205,14 @@ export default function GenerateQR() {
       setTables((prevTables) =>
         prevTables.map((table) =>
           table.id === id
-            ? { ...table, is_active: data.table?.is_active ?? data.is_active }
+            ? { ...table, isActive: data.table?.isActive ?? data.isActive }
             : table
         )
       );
 
       toast.success(
         `Table ${
-          data.table?.is_active ?? data.is_active ? "activated" : "deactivated"
+          data.table?.isActive ?? data.isActive ? "activated" : "deactivated"
         } successfully`
       );
     } catch (error: any) {
@@ -330,7 +330,7 @@ export default function GenerateQR() {
 
       setTables(
         tables.map((table) =>
-          table.id === id ? { ...table, qr_code: data.qr_code } : table
+          table.id === id ? { ...table, qrCode: data.table.qrCode } : table
         )
       );
 
@@ -346,9 +346,9 @@ export default function GenerateQR() {
   const getTableUrl = useCallback(
     (table: Table) => {
       if (!hostUrl) {
-        return `${window.location.protocol}//${window.location.host}/menu/${user?.id}/${table.qr_code}`;
+        return `${window.location.protocol}//${window.location.host}/menu/${user?.id}/${table.qrCode}`;
       }
-      return `${hostUrl}/menu/${user?.id}/${table.qr_code}`;
+      return `${hostUrl}/menu/${user?.id}/${table.qrCode}`;
     },
     [hostUrl, user?.id]
   );
@@ -568,19 +568,19 @@ export default function GenerateQR() {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      toggleTableAvailability(table.id, table.is_active)
+                      toggleTableAvailability(table.id, table.isActive)
                     }
                     disabled={isTogglingAvailability === table.id}
                     className="flex-1"
                   >
                     {isTogglingAvailability === table.id ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : table.is_active ? (
+                    ) : table.isActive ? (
                       <EyeOff className="h-4 w-4 mr-1" />
                     ) : (
                       <Eye className="h-4 w-4 mr-1" />
                     )}
-                    {table.is_active ? "Deactivate" : "Activate"}
+                    {table.isActive ? "Deactivate" : "Activate"}
                   </Button>
                 </div>
 
@@ -600,7 +600,7 @@ export default function GenerateQR() {
                 </Button>
               </div>
 
-              {!table.is_active && (
+              {!table.isActive && (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
                   <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                     <AlertCircle className="h-4 w-4" />
