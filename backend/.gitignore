@@ -13,3 +13,5 @@ logs
 # For .env file
 .env
 
+# For same file
+/sample

@@ -1,11 +1,29 @@
+require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
+const routes = require("./routes/index"); // Ensure this is loaded once before any route
+
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 8000; // Use environment variable or fallback
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+// Middleware
+app.use(express.json()); // Parse JSON payloads
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded payloads
+app.use(express.static("public")); // Serve static files
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+// CORS configuration
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:3000", // Configurable client URL
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true, // Allow cookies if needed
+  })
+);
+
+// Routes
+app.use("/", routes);
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });
