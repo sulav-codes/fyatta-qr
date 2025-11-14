@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import { getApiBaseUrl } from "@/lib/api";
 
 interface FormData {
   restaurant_name: string;
@@ -246,7 +247,7 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/register", {
+      const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
