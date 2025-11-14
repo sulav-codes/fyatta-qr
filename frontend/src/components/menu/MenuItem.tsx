@@ -2,6 +2,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { useCart } from "../../context/CartContext";
 import React from "react";
+import { getApiBaseUrl } from "@/lib/api";
 
 interface MenuItemProps {
   item: {
@@ -21,11 +22,18 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
   const { addToCart, recentlyAdded } = useCart();
   const defaultImage = "/images/default-food-image.svg";
 
+  // Construct full image URL if it's a relative path
+  const getImageUrl = (imagePath: string | null) => {
+    if (!imagePath) return defaultImage;
+    if (imagePath.startsWith("http")) return imagePath;
+    return `${getApiBaseUrl()}${imagePath}`;
+  };
+
   return (
     <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-md transition-shadow">
       <div className="aspect-video relative">
         <img
-          src={item.image || defaultImage}
+          src={getImageUrl(item.image)}
           alt={item.name}
           className="w-full h-full object-cover"
           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {

@@ -58,7 +58,7 @@ router.get("/public-menu/:vendorId/", async (req, res) => {
         description: item.description,
         price: item.price,
         category: item.category,
-        image_url: item.imageUrl,
+        image_url: item.image ? `/uploads/${item.image}` : null,
         is_available: item.isAvailable,
       });
     });

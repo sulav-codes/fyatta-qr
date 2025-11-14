@@ -99,24 +99,27 @@ const MenuContent: React.FC<MenuContentProps> = ({
 
       // No need to explicitly check via API as pendingOrder will be updated via WebSocket
       if (pendingOrder.status === "accepted") {
+        // Check if user just came from order tracking page
+        const fromTracking = sessionStorage.getItem("from_order_tracking");
+        if (fromTracking) {
+          // Clear the flag and don't show toast
+          sessionStorage.removeItem("from_order_tracking");
+          return;
+        }
+
         // Generate a unique toast ID for this status update
-        const toastKey = `order-${pendingOrder.id}-${pendingOrder.status}`;
-        const toastId = `${toastKey}-menu-${Date.now()}`;
+        const toastKey = `order-${pendingOrder.id}-accepted`;
 
-        // Check if we've shown this exact status update before (in the last 30 seconds)
-        // Increased from 5 to 30 seconds to prevent duplicate toasts across page navigations
-        const lastShown = localStorage.getItem(`last_toast_${toastKey}`);
-        const shouldShow =
-          !lastShown || Date.now() - parseInt(lastShown) > 30000;
+        // Check if we've already shown this toast for this specific order acceptance
+        const hasShown = sessionStorage.getItem(`toast_shown_${toastKey}`);
 
-        if (shouldShow) {
-          // Save this toast's timestamp
-          localStorage.setItem(`last_toast_${toastKey}`, Date.now().toString());
+        if (!hasShown) {
+          // Mark this toast as shown for this session
+          sessionStorage.setItem(`toast_shown_${toastKey}`, "true");
 
           toast.success(
             "Your order has been accepted and is ready for payment!",
             {
-              id: toastId,
               duration: 4000,
             }
           );

@@ -595,6 +595,11 @@ exports.getCustomerOrderDetails = async (req, res) => {
           attributes: ["id", "name", "qrCode"],
         },
         {
+          model: users,
+          as: "vendor",
+          attributes: ["id", "restaurantName"],
+        },
+        {
           model: orderItems,
           as: "items",
           include: [
@@ -620,6 +625,9 @@ exports.getCustomerOrderDetails = async (req, res) => {
       payment_method: order.paymentMethod,
       total_amount: order.totalAmount,
       table_name: order.table ? order.table.name : order.tableIdentifier,
+      table_identifier: order.tableIdentifier,
+      vendor_id: order.vendorId,
+      vendor_name: order.vendor ? order.vendor.restaurantName : null,
       transaction_id: order.transactionId,
       created_at: order.createdAt,
       items: order.items.map((item) => ({
