@@ -1,74 +1,165 @@
 const { users } = require("../models/index");
-const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const jwtSecret = process.env.JWT_SECRET_KEY;
+const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
 
-// Register a new user with secure password hashing using bcrypt
+/**
+ * Register a new vendor
+ * Validates required fields and creates a new vendor account
+ */
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const user = await users.create({
-      firstName,
-      lastName,
+    const {
+      username,
       email,
-      password: hashedPassword,
-    });
-    if (user) {
-      res.redirect("http://localhost:5173/login");
-    } else {
-      res.status(400).json({ error: "User registration failed" });
+      password,
+      restaurantName,
+      ownerName,
+      phone,
+      location,
+      description,
+      openingTime,
+      closingTime,
+    } = req.body;
+
+    // Validate required fields
+    const requiredFields = [
+      "username",
+      "email",
+      "password",
+      "restaurantName",
+      "location",
+    ];
+    for (const field of requiredFields) {
+      if (!req.body[field] || req.body[field].trim() === "") {
+        return res.status(400).json({
+          error: `${field} is required`,
+        });
+      }
     }
+
+    // Check if email already exists
+    const existingUser = await users.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        error: "An account with this email already exists",
+      });
+    }
+
+    // Check if username already exists
+    const existingUsername = await users.findOne({ where: { username } });
+    if (existingUsername) {
+      return res.status(400).json({
+        error: "This username is already taken",
+      });
+    }
+
+    // Create the new vendor (password hashing handled by model hooks)
+    const user = await users.create({
+      username: username.trim(),
+      email: email.trim(),
+      password,
+      restaurantName: restaurantName.trim(),
+      ownerName: ownerName ? ownerName.trim() : null,
+      phone: phone ? phone.trim() : null,
+      location: location.trim(),
+      description: description ? description.trim() : null,
+      openingTime: openingTime || null,
+      closingTime: closingTime || null,
+    });
+
+    res.status(201).json({
+      message: "Vendor registered successfully",
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        restaurantName: user.restaurantName,
+      },
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Registration error:", error);
+    res.status(400).json({
+      error: error.message || "User registration failed",
+    });
   }
 };
 
-// Login a user and set the JWT token as a cookie
+/**
+ * Login a vendor
+ * Validates credentials and returns JWT token
+ */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find the user from the database by email
-    const user = await users.findOne({ where: { email } });
-
-    if (user && bcrypt.compareSync(password, user.password)) {
-      // User data to return in the response
-      const userData = {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-      };
-
-      // Generate a JWT token (Set a secret key and expiration as per your needs)
-      const token = jwt.sign(
-        { userId: user.id, email: user.email }, // Payload with user data
-        jwtSecret, // Secret
-        { expiresIn: "1h" } // Token expiration time (1 hour in this example)
-      );
-
-      // Return success response with user data and token
-      res.status(200).json({
-        status: "success",
-        message: "Login successful",
-        data: {
-          user: userData,
-          token: token,
-        },
-      });
-    } else {
-      res.status(401).json({
-        status: "error",
-        message: "Invalid login",
-        errorDetails: "Incorrect email or password",
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Email and password are required",
       });
     }
+
+    // Find the user by email
+    const user = await users.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User does not exist",
+      });
+    }
+
+    // Validate password using the model method
+    const isValidPassword = await user.validatePassword(password);
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        error: "Invalid email or password",
+      });
+    }
+
+    // Update last login
+    await user.update({ lastLogin: new Date() });
+
+    // User data to return in the response
+    const userData = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.ownerName,
+      restaurantName: user.restaurantName,
+      location: user.location,
+    };
+
+    // Generate a JWT token
+    const token = jwt.sign({ userId: user.id, email: user.email }, jwtSecret, {
+      expiresIn: "24h",
+    });
+
+    // Return success response with user data and token
+    res.status(200).json({
+      token,
+      user: userData,
+    });
   } catch (error) {
-    res.status(400).json({
-      status: "error",
-      message: "An error occurred during login",
-      errorDetails: error.message,
+    console.error("Login error:", error);
+    res.status(500).json({
+      error: "An error occurred during login",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Logout a vendor (client-side token removal)
+ */
+exports.logout = async (req, res) => {
+  try {
+    res.status(200).json({
+      message: "Logout successful",
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "An error occurred during logout",
     });
   }
 };
