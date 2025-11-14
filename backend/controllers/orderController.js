@@ -65,7 +65,14 @@ exports.getOrders = async (req, res) => {
     console.log(`[getOrders] Found ${vendorOrders.length} orders`);
 
     const ordersData = vendorOrders.map((order) => {
-      const timeElapsed = getTimeElapsed(order.createdAt);
+      console.log("[getOrders] Order raw data:", {
+        id: order.id,
+        createdAt: order.createdAt,
+        created_at: order.created_at,
+        dataValues: order.dataValues,
+      });
+
+      const timeElapsed = getTimeElapsed(order.createdAt || order.created_at);
       const tableName = order.table
         ? order.table.name
         : order.tableIdentifier || "Unknown";
@@ -81,8 +88,10 @@ exports.getOrders = async (req, res) => {
         tableId: order.table ? order.table.id : null,
         qrCode: order.table ? order.table.qrCode : order.tableIdentifier,
         invoiceNo: order.invoiceNo,
-        createdAt: order.createdAt,
-        timestamp: order.createdAt,
+        createdAt:
+          order.createdAt || order.created_at || order.dataValues?.created_at,
+        timestamp:
+          order.createdAt || order.created_at || order.dataValues?.created_at,
         timeElapsed: timeElapsed,
         items: order.items.map((item) => ({
           id: item.id,
