@@ -219,7 +219,9 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           variant="outline"
                           size="sm"
                           className="h-8 w-8 p-0"
-                          onClick={() => updateQuantity(item.id, -1)}
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity - 1)
+                          }
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -230,7 +232,9 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           variant="outline"
                           size="sm"
                           className="h-8 w-8 p-0"
-                          onClick={() => updateQuantity(item.id, 1)}
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity + 1)
+                          }
                         >
                           <Plus className="h-4 w-4" />
                         </Button>

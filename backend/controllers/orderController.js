@@ -114,6 +114,155 @@ exports.getOrders = async (req, res) => {
 };
 
 /**
+ * Create a new order from customer (public endpoint)
+ */
+exports.createCustomerOrder = async (req, res) => {
+  try {
+    const { vendor_id, table_identifier, items: orderItemsData } = req.body;
+
+    // Validate required fields
+    if (!vendor_id || !orderItemsData || orderItemsData.length === 0) {
+      return res.status(400).json({
+        error: "Vendor ID and order items are required",
+      });
+    }
+
+    // Verify vendor exists
+    const vendor = await users.findByPk(vendor_id);
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    // Find table by QR code/identifier if provided
+    let table = null;
+    if (table_identifier) {
+      table = await tables.findOne({
+        where: {
+          vendorId: vendor_id,
+          [Op.or]: [{ qrCode: table_identifier }, { name: table_identifier }],
+        },
+      });
+      console.log(
+        "[createCustomerOrder] Table lookup result:",
+        table ? table.name : "not found"
+      );
+    }
+
+    // Calculate total from items
+    let calculatedTotal = 0;
+    const validItems = [];
+
+    for (const itemData of orderItemsData) {
+      const menuItem = await menuItems.findByPk(itemData.id);
+      if (menuItem) {
+        const quantity = itemData.quantity || 1;
+        calculatedTotal += parseFloat(menuItem.price) * quantity;
+        validItems.push({
+          menuItem,
+          quantity,
+        });
+      }
+    }
+
+    if (validItems.length === 0) {
+      return res.status(400).json({ error: "No valid menu items found" });
+    }
+
+    // Generate invoice number
+    const invoiceNo = await generateInvoiceNumber();
+
+    // Create order
+    const order = await orders.create({
+      vendorId: vendor_id,
+      tableId: table ? table.id : null,
+      tableIdentifier: table_identifier || null,
+      status: "pending",
+      totalAmount: calculatedTotal,
+      invoiceNo,
+      paymentStatus: "pending",
+      paymentMethod: "cash",
+    });
+
+    console.log("[createCustomerOrder] Order created:", order.id);
+
+    // Create order items
+    for (const { menuItem, quantity } of validItems) {
+      await orderItems.create({
+        orderId: order.id,
+        menuItemId: menuItem.id,
+        quantity,
+        price: menuItem.price,
+      });
+    }
+
+    console.log("[createCustomerOrder] Order items created");
+
+    // Emit socket event for new order
+    const io = req.app.get("io");
+    if (io) {
+      // Emit order created event to vendor
+      io.to(`vendor-${vendor_id}`).emit("order-created", {
+        orderId: order.id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        tableIdentifier: table ? table.name : table_identifier,
+        tableName: table ? table.name : null,
+      });
+
+      // Emit notification to vendor
+      io.to(`vendor-${vendor_id}`).emit("notification", {
+        id: `order-${order.id}-created`,
+        type: "order",
+        title: "New Order Received",
+        message: `New order #${order.id} from ${
+          table ? table.name : "customer"
+        }`,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        read: false,
+        data: {
+          order_id: order.id,
+          table_name: table ? table.name : null,
+          total_amount: order.totalAmount,
+          status: order.status,
+        },
+      });
+
+      // Emit to table room if exists
+      if (table) {
+        io.to(`table-${vendor_id}-${table.qrCode}`).emit(
+          "order-status-update",
+          {
+            orderId: order.id,
+            status: order.status,
+          }
+        );
+      }
+    }
+
+    res.status(201).json({
+      order_id: order.id,
+      order: {
+        id: order.id,
+        status: order.status,
+        total: calculatedTotal.toFixed(2),
+        table_name: table ? table.name : null,
+        invoice_no: invoiceNo,
+      },
+      table_id: table ? table.id : null,
+      table_name: table ? table.name : null,
+      message: "Order created successfully",
+    });
+  } catch (error) {
+    console.error("Error creating customer order:", error);
+    res.status(500).json({
+      error: "Failed to create order",
+      details: error.message,
+    });
+  }
+};
+
+/**
  * Create a new order
  */
 exports.createOrder = async (req, res) => {
@@ -380,7 +529,7 @@ exports.getOrderDetails = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization
+    // Check authorization - only if user is authenticated
     if (req.user && req.user.id !== order.vendorId && !req.user.isStaff) {
       return res.status(403).json({ error: "Unauthorized" });
     }
