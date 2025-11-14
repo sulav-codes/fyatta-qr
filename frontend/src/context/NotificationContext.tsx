@@ -14,6 +14,7 @@ import React, {
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import { io, Socket } from "socket.io-client";
 
 // Types
 interface NotificationData {
@@ -66,8 +67,9 @@ export const NotificationProvider = ({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { user, token } = useAuth();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  // Fetch notifications from server
+  // Fetch notifications from server (initial load only)
   const fetchNotifications = useCallback(async () => {
     if (!user?.id || !token) return;
 
@@ -89,16 +91,107 @@ export const NotificationProvider = ({
     }
   }, [user?.id, token]);
 
+  // WebSocket connection for real-time notifications
   useEffect(() => {
-    if (user?.id && token) {
-      fetchNotifications();
-
-      // Poll for notifications every 10 seconds
-      const interval = setInterval(fetchNotifications, 10000);
-
-      return () => clearInterval(interval);
+    if (!user?.id || !token) {
+      // Disconnect socket if user logs out
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
     }
-  }, [user?.id, token, fetchNotifications]);
+
+    // Initial fetch
+    fetchNotifications();
+
+    // Connect to WebSocket
+    const apiBaseUrl = getApiBaseUrl();
+
+    const socket = io(apiBaseUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+    });
+
+    socketRef.current = socket;
+
+    // Join vendor room for notifications
+    socket.on("connect", () => {
+      console.log("[Notifications] WebSocket connected:", socket.id);
+      socket.emit("join-vendor", user.id);
+    });
+
+    // Listen for new notifications
+    socket.on("notification", (notification: Notification) => {
+      console.log("[Notifications] Received notification:", notification);
+
+      const newNotification: Notification = {
+        ...notification,
+        id:
+          notification.id ||
+          `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: notification.timestamp || new Date().toISOString(),
+        created_at: notification.created_at || new Date().toISOString(),
+        read: notification.read !== undefined ? notification.read : false,
+        type: notification.type || "info",
+        title: notification.title || "Notification",
+        message: notification.message || "",
+        data: notification.data || {},
+      };
+
+      setNotifications((prev) => [newNotification, ...prev.slice(0, 49)]);
+
+      // Play sound if enabled
+      if (soundEnabled && audioRef.current) {
+        audioRef.current
+          .play()
+          .catch((e) => console.log("Audio play failed:", e));
+      }
+
+      // Show toast notification
+      toast(notification.message || notification.title, {
+        icon: notification.type === "order" ? "🔔" : "ℹ️",
+        duration: 4000,
+      });
+    });
+
+    // Listen for notification updates
+    socket.on("notification-read", (notificationId: string | number) => {
+      console.log(
+        "[Notifications] Notification marked as read:",
+        notificationId
+      );
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+      );
+    });
+
+    // Listen for notification deletion
+    socket.on("notification-deleted", (notificationId: string | number) => {
+      console.log("[Notifications] Notification deleted:", notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    });
+
+    // Handle connection errors
+    socket.on("connect_error", (error) => {
+      console.error("[Notifications] WebSocket connection error:", error);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("[Notifications] WebSocket disconnected:", reason);
+    });
+
+    // Cleanup
+    return () => {
+      if (socket) {
+        socket.emit("leave-vendor", user.id);
+        socket.disconnect();
+      }
+      socketRef.current = null;
+    };
+  }, [user?.id, token, fetchNotifications, soundEnabled]);
 
   const addNotification = useCallback((notification: Partial<Notification>) => {
     try {

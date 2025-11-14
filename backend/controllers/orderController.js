@@ -14,11 +14,18 @@ exports.getOrders = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    console.log(`[getOrders] Request from user:`, req.user?.id, `for vendorId:`, vendorId);
+    console.log(
+      `[getOrders] Request from user:`,
+      req.user?.id,
+      `for vendorId:`,
+      vendorId
+    );
 
     // Check authorization
     if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
-      console.log(`[getOrders] Authorization failed - user ${req.user.id} tried to access vendor ${vendorId}`);
+      console.log(
+        `[getOrders] Authorization failed - user ${req.user.id} tried to access vendor ${vendorId}`
+      );
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -175,11 +182,31 @@ exports.createOrder = async (req, res) => {
     // Emit socket event for new order
     const io = req.app.get("io");
     if (io) {
+      // Emit order created event
       io.to(`vendor-${vendorId}`).emit("order-created", {
         orderId: order.id,
         status: order.status,
         totalAmount: order.totalAmount,
         tableIdentifier: table ? table.name : null,
+      });
+
+      // Emit notification to vendor
+      io.to(`vendor-${vendorId}`).emit("notification", {
+        id: `order-${order.id}-created`,
+        type: "order",
+        title: "New Order Received",
+        message: `New order #${order.id} from ${
+          table ? table.name : "customer"
+        }`,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        read: false,
+        data: {
+          order_id: order.id,
+          table_name: table ? table.name : null,
+          total_amount: order.totalAmount,
+          status: order.status,
+        },
       });
 
       if (table) {
@@ -258,6 +285,36 @@ exports.updateOrderStatus = async (req, res) => {
         oldStatus,
         newStatus,
       });
+
+      // Emit notification for significant status changes
+      const notificationMessages = {
+        accepted: "Order has been accepted",
+        rejected: "Order has been rejected",
+        preparing: "Order is being prepared",
+        ready: "Order is ready for pickup",
+        delivered: "Order has been delivered",
+        completed: "Order is completed",
+        cancelled: "Order has been cancelled",
+      };
+
+      if (notificationMessages[newStatus]) {
+        io.to(`vendor-${order.vendorId}`).emit("notification", {
+          id: `order-${order.id}-${newStatus}`,
+          type: "order",
+          title: `Order #${order.id} ${
+            newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
+          }`,
+          message: notificationMessages[newStatus],
+          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          read: false,
+          data: {
+            order_id: order.id,
+            old_status: oldStatus,
+            new_status: newStatus,
+          },
+        });
+      }
 
       // Notify customer at table
       if (order.tableIdentifier) {
