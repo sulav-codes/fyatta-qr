@@ -98,8 +98,14 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
       const data = await response.json();
       console.log("Order status update response:", data);
 
+      // Show success message
+      toast.success(`Order ${action} successfully`);
+
       // Call the onAction callback with order ID and action
       onAction?.(order_id, action);
+
+      // Reset processing state before closing
+      setIsProcessing(false);
 
       // Close the notification
       handleClose();

@@ -66,33 +66,17 @@ export const NotificationProvider = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { user, token } = useAuth();
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // Fetch notifications from server (initial load only)
-  const fetchNotifications = useCallback(async () => {
-    if (!user?.id || !token) return;
-
-    try {
-      const apiBaseUrl = getApiBaseUrl();
-      // Note: Backend doesn't have a notifications endpoint yet
-      // Notifications are handled via websockets only
-      const response = await fetch(`${apiBaseUrl}/api/vendors/${user.id}/notifications`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const serverNotifications = data.notifications || [];
-        setNotifications(serverNotifications);
-      }
-    } catch (error) {
-      // Silently fail - notifications will come through websockets
-      console.debug("Notifications endpoint not available, using websocket only");
+  // Initialize audio element on client side
+  useEffect(() => {
+    if (typeof window !== "undefined" && !audioRef.current) {
+      const audio = new Audio("/notification-sound.mp3");
+      audio.preload = "auto";
+      audioRef.current = audio;
     }
-  }, [user?.id, token]);
+  }, []);
 
   // WebSocket connection for real-time notifications
   useEffect(() => {
@@ -104,9 +88,6 @@ export const NotificationProvider = ({
       }
       return;
     }
-
-    // Initial fetch
-    fetchNotifications();
 
     // Connect to WebSocket
     const apiBaseUrl = getApiBaseUrl();
@@ -148,9 +129,10 @@ export const NotificationProvider = ({
 
       // Play sound if enabled
       if (soundEnabled && audioRef.current) {
+        audioRef.current.currentTime = 0; // Reset audio to start
         audioRef.current
           .play()
-          .catch((e) => console.log("Audio play failed:", e));
+          .catch((e) => console.error("Audio play failed:", e));
       }
 
       // Show toast notification
@@ -187,9 +169,10 @@ export const NotificationProvider = ({
 
         // Play notification sound
         if (soundEnabled && audioRef.current) {
+          audioRef.current.currentTime = 0; // Reset audio to start
           audioRef.current
             .play()
-            .catch((e) => console.log("Audio play failed:", e));
+            .catch((e) => console.error("Audio play failed:", e));
         }
 
         // Show toast with special styling
@@ -239,7 +222,7 @@ export const NotificationProvider = ({
       }
       socketRef.current = null;
     };
-  }, [user?.id, token, fetchNotifications, soundEnabled]);
+  }, [user?.id, token, soundEnabled]);
 
   const addNotification = useCallback((notification: Partial<Notification>) => {
     try {
@@ -381,17 +364,11 @@ export const NotificationProvider = ({
     clearNotifications,
     soundEnabled,
     setSoundEnabled,
-    fetchNotifications,
   };
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <audio ref={audioRef} preload="auto">
-        <source src="/notification-sound.mp3" type="audio/mpeg" />
-        <source src="/notification-sound.wav" type="audio/wav" />
-        <source src="/notification-sound.ogg" type="audio/ogg" />
-      </audio>
     </NotificationContext.Provider>
   );
 };
