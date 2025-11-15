@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/context/NotificationContext";
+import OrderNotification from "@/components/notifications/OrderNotification";
 import { getApiBaseUrl } from "@/lib/api";
 import Link from "next/link";
 
@@ -22,6 +23,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const { logout, user, token } = useAuth();
   const [logo, setLogo] = useState<string | null>(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
+  const [orderNotifications, setOrderNotifications] = useState<any[]>([]);
   const router = useRouter();
 
   // Use notification context
@@ -110,6 +112,41 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     }
   }, [user?.id, token, fetchLogo, logoLoaded]);
 
+  // Track new order notifications
+  useEffect(() => {
+    const newOrderNotifications = notifications.filter(
+      (n) =>
+        n.type === "order" &&
+        !n.read &&
+        !orderNotifications.some((on) => on.id === n.id)
+    );
+
+    if (newOrderNotifications.length > 0) {
+      setOrderNotifications((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id));
+        const uniqueNew = newOrderNotifications.filter(
+          (n) => !existingIds.has(n.id)
+        );
+        return [...prev, ...uniqueNew];
+      });
+    }
+  }, [notifications]);
+
+  const handleOrderNotificationClose = useCallback(
+    (notificationId: string | number) => {
+      setOrderNotifications((prev) =>
+        prev.filter((n) => n.id !== notificationId)
+      );
+      markAsRead(notificationId);
+    },
+    [markAsRead]
+  );
+
+  const handleOrderAction = useCallback((orderId: number, action: string) => {
+    console.log(`Order ${orderId} ${action}`);
+    // Additional logic for order actions can be added here
+  }, []);
+
   const handleLogout = useCallback(() => {
     logout();
     router.push("/login");
@@ -191,6 +228,16 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Order Notification Popups */}
+      {orderNotifications.map((notification) => (
+        <OrderNotification
+          key={notification.id}
+          notification={notification}
+          onClose={handleOrderNotificationClose}
+          onAction={handleOrderAction}
+        />
+      ))}
     </header>
   );
 };

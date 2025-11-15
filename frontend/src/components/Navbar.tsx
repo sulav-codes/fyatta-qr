@@ -1,12 +1,12 @@
-import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 const Navbar = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-99">
       <nav className="flex m-auto w-[80vw] items-center justify-between my-10">
-        <Link href="/" className="flex flex-col text-2xl font-bold">
-          <div>
+        <Link href="/" className="flex items-center gap-3">
+          <Image src="/logo.png" width="50" height="100" alt="fyatta QR logo" />
+          <div className="text-4xl font-bold">
             Fyatta<span className="text-[var(--orange)]">QR</span>
           </div>
         </Link>
