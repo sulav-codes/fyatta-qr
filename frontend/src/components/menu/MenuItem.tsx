@@ -19,10 +19,8 @@ interface MenuItemProps {
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
-  const { addToCart, recentlyAdded } = useCart();
-  // Use inline SVG data URI to avoid 404 errors
-  const defaultImage =
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Cpath d='M200 100 L250 150 L200 200 L150 150 Z' fill='%23d1d5db'/%3E%3Cpath d='M200 130 L230 150 L200 170 L170 150 Z' fill='%23e5e7eb'/%3E%3Ccircle cx='185' cy='140' r='3' fill='%239ca3af'/%3E%3Ccircle cx='215' cy='140' r='3' fill='%239ca3af'/%3E%3Cpath d='M185 155 Q200 165 215 155' stroke='%239ca3af' stroke-width='2' fill='none'/%3E%3C/svg%3E";
+  const { addToCart, recentlyAdded, pendingOrder } = useCart();
+  const defaultImage = "/images/default-food-image.svg";
 
   // Construct full image URL if it's a relative path
   const getImageUrl = (imagePath: string | null) => {
@@ -76,10 +74,14 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
               ? "bg-green-500 hover:bg-green-600 text-white"
               : "bg-orange-500 hover:bg-orange-600 text-white"
           }`}
-          disabled={!item.available}
+          disabled={!item.available || pendingOrder !== null}
           onClick={() => addToCart(item)}
         >
-          {recentlyAdded[item.id] ? "Added ✓" : "Add to Cart"}
+          {pendingOrder !== null
+            ? "Order Pending"
+            : recentlyAdded[item.id]
+            ? "Added ✓"
+            : "Add to Cart"}
         </Button>
       </div>
     </div>

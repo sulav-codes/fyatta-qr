@@ -19,6 +19,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
+import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 
 interface CartProps {
@@ -26,6 +27,14 @@ interface CartProps {
   tableNo: string;
 }
 
+// Helper function to construct full image URL
+const getImageUrl = (imagePath: string | null) => {
+  if (!imagePath) return "/images/default-food-image.svg";
+  if (imagePath.startsWith("http")) return imagePath;
+  return `${getApiBaseUrl()}${imagePath}`;
+};
+
+// Main cart component
 const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -196,19 +205,14 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                     key={item.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-card border border-border"
                   >
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-16 h-16 rounded-md object-cover"
-                        onError={(
-                          e: React.SyntheticEvent<HTMLImageElement>
-                        ) => {
-                          e.currentTarget.src =
-                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect fill='%23f3f4f6' width='80' height='80'/%3E%3Cpath d='M40 25 L50 35 L40 45 L30 35 Z' fill='%23d1d5db'/%3E%3C/svg%3E";
-                        }}
-                      />
-                    )}
+                    <img
+                      src={getImageUrl(item.image)}
+                      alt={item.name}
+                      className="w-16 h-16 rounded-md object-cover"
+                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                        e.currentTarget.src = "/images/default-food-image.svg";
+                      }}
+                    />
                     <div className="flex-1">
                       <h3 className="font-medium">{item.name}</h3>
                       <p className="text-sm text-muted-foreground">
@@ -222,6 +226,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
+                          disabled={pendingOrder !== null}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -235,6 +240,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
+                          disabled={pendingOrder !== null}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -243,6 +249,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           variant="ghost"
                           className="h-8 w-8 p-0 ml-auto text-red-500 hover:text-red-700 hover:bg-red-50"
                           onClick={() => removeFromCart(item.id)}
+                          disabled={pendingOrder !== null}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -464,19 +471,14 @@ export const MobileCartButton: React.FC<CartProps> = ({
                     key={item.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-card border border-border"
                   >
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-16 h-16 rounded-md object-cover"
-                        onError={(
-                          e: React.SyntheticEvent<HTMLImageElement>
-                        ) => {
-                          e.currentTarget.src =
-                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect fill='%23f3f4f6' width='80' height='80'/%3E%3Cpath d='M40 25 L50 35 L40 45 L30 35 Z' fill='%23d1d5db'/%3E%3C/svg%3E";
-                        }}
-                      />
-                    )}
+                    <img
+                      src={getImageUrl(item.image)}
+                      alt={item.name}
+                      className="w-16 h-16 rounded-md object-cover"
+                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                        e.currentTarget.src = "/images/default-food-image.svg";
+                      }}
+                    />
                     <div className="flex-1">
                       <h3 className="font-medium">{item.name}</h3>
                       <p className="text-sm text-muted-foreground">
