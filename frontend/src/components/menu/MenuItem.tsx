@@ -91,7 +91,9 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
         <div className="absolute inset-0 z-20 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
           <div className="relative z-30 text-center">
-            <span className="text-lg font-bold text-white drop-shadow-lg">Currently Not Available</span>
+            <span className="text-lg font-bold text-white drop-shadow-lg">
+              Currently Not Available
+            </span>
             <p className="text-xs text-white/80 mt-1">Check back later</p>
           </div>
         </div>
