@@ -30,7 +30,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
   };
 
   return (
-    <div className="group bg-card rounded-2xl overflow-hidden border border-border hover:border-orange-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <div className="group bg-card rounded-2xl overflow-hidden border border-border hover:border-orange-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative">
       <div className="aspect-[4/3] relative overflow-hidden bg-muted">
         <img
           src={getImageUrl(item.image)}
@@ -41,18 +41,6 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
           }}
           loading="lazy"
         />
-        {!item.available && (
-          <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <span className="text-lg font-semibold">
-                Currently Unavailable
-              </span>
-              <p className="text-xs text-muted-foreground mt-1">
-                Check back later
-              </p>
-            </div>
-          </div>
-        )}
         {item.isSearchResult && (
           <Badge className="absolute top-3 right-3 bg-blue-600 text-white shadow-lg">
             🔍 Match
@@ -98,6 +86,16 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
             : "+ Add to Cart"}
         </Button>
       </div>
+      {/* Overlay covers entire card including button */}
+      {!item.available && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
+          <div className="relative z-30 text-center">
+            <span className="text-lg font-bold text-white drop-shadow-lg">Currently Not Available</span>
+            <p className="text-xs text-white/80 mt-1">Check back later</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
