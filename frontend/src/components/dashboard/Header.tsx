@@ -118,7 +118,14 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
       (n) =>
         n.type === "order" &&
         !n.read &&
-        !orderNotifications.some((on) => on.id === n.id)
+        !orderNotifications.some((on) => on.id === n.id) &&
+        // Validate notification has proper data
+        n.data?.order_id &&
+        n.data?.items &&
+        Array.isArray(n.data.items) &&
+        n.data.items.length > 0 &&
+        n.data?.total &&
+        parseFloat(n.data.total) > 0
     );
 
     if (newOrderNotifications.length > 0) {
@@ -129,6 +136,17 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
         );
         return [...prev, ...uniqueNew];
       });
+    }
+
+    // Remove notifications that have been marked as read
+    const readNotificationIds = new Set(
+      notifications.filter((n) => n.type === "order" && n.read).map((n) => n.id)
+    );
+
+    if (readNotificationIds.size > 0) {
+      setOrderNotifications((prev) =>
+        prev.filter((n) => !readNotificationIds.has(n.id))
+      );
     }
   }, [notifications]);
 
