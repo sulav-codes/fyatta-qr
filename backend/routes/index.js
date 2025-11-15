@@ -14,5 +14,6 @@ router.use("/api", require("./orderRoutes"));
 router.use("/api", require("./vendorRoutes"));
 router.use("/api", require("./menuRoutes"));
 router.use("/api", require("./tableRoutes"));
+router.use("/api", require("./waiterRoutes"));
 
 module.exports = router;

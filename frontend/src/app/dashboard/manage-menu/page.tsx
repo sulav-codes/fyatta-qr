@@ -345,16 +345,16 @@ export default function ManageMenu() {
                                   item.isAvailable
                                 )
                               }
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                                 item.isAvailable
                                   ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                                   : "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                               } transition-colors`}
                             >
                               {item.isAvailable ? (
-                                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                <Eye className="h-3.5 w-3.5" />
                               ) : (
-                                <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+                                <EyeOff className="h-3.5 w-3.5" />
                               )}
                               {item.isAvailable ? "Available" : "Hidden"}
                             </button>

@@ -83,48 +83,48 @@ const STATUS_STYLES: Record<
 > = {
   pending: {
     bg: "bg-yellow-100 dark:bg-yellow-900/30",
-    text: "text-yellow-800 dark:text-yellow-300",
-    icon: <Clock className="w-4 h-4" />,
+    text: "text-yellow-800 dark:text-yellow-400",
+    icon: <Clock className="h-3.5 w-3.5" />,
   },
   accepted: {
     bg: "bg-blue-100 dark:bg-blue-900/30",
-    text: "text-blue-800 dark:text-blue-300",
-    icon: <CheckCircle2 className="w-4 h-4" />,
+    text: "text-blue-800 dark:text-blue-400",
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
   },
   confirmed: {
     bg: "bg-cyan-100 dark:bg-cyan-900/30",
-    text: "text-cyan-800 dark:text-cyan-300",
-    icon: <CheckCircle2 className="w-4 h-4" />,
+    text: "text-cyan-800 dark:text-cyan-400",
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
   },
   preparing: {
     bg: "bg-purple-100 dark:bg-purple-900/30",
-    text: "text-purple-800 dark:text-purple-300",
-    icon: <Package className="w-4 h-4" />,
+    text: "text-purple-800 dark:text-purple-400",
+    icon: <Package className="h-3.5 w-3.5" />,
   },
   ready: {
     bg: "bg-indigo-100 dark:bg-indigo-900/30",
-    text: "text-indigo-800 dark:text-indigo-300",
-    icon: <Package className="w-4 h-4" />,
+    text: "text-indigo-800 dark:text-indigo-400",
+    icon: <Package className="h-3.5 w-3.5" />,
   },
   delivered: {
     bg: "bg-teal-100 dark:bg-teal-900/30",
-    text: "text-teal-800 dark:text-teal-300",
-    icon: <Truck className="w-4 h-4" />,
+    text: "text-teal-800 dark:text-teal-400",
+    icon: <Truck className="h-3.5 w-3.5" />,
   },
   completed: {
     bg: "bg-green-100 dark:bg-green-900/30",
-    text: "text-green-800 dark:text-green-300",
-    icon: <CheckCircle2 className="w-4 h-4" />,
+    text: "text-green-800 dark:text-green-400",
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
   },
   cancelled: {
     bg: "bg-red-100 dark:bg-red-900/30",
-    text: "text-red-800 dark:text-red-300",
-    icon: <XCircle className="w-4 h-4" />,
+    text: "text-red-800 dark:text-red-400",
+    icon: <XCircle className="h-3.5 w-3.5" />,
   },
   rejected: {
     bg: "bg-red-100 dark:bg-red-900/30",
-    text: "text-red-800 dark:text-red-300",
-    icon: <Ban className="w-4 h-4" />,
+    text: "text-red-800 dark:text-red-400",
+    icon: <Ban className="h-3.5 w-3.5" />,
   },
 };
 
@@ -774,14 +774,14 @@ export default function OrdersPage() {
                         </span>
                         {order.customer_verified && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-green-600 px-2.5 py-0.5 text-xs font-semibold text-green-600 dark:border-green-500 dark:text-green-400">
-                            <CheckCircle2 className="w-3 h-3" />
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                             Verified
                           </span>
                         )}
                         {order.delivery_issue_reported &&
                           !order.issue_resolved && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/20 dark:text-red-200">
-                              <AlertCircle className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                              <AlertCircle className="h-3.5 w-3.5" />
                               Issue Reported
                             </span>
                           )}

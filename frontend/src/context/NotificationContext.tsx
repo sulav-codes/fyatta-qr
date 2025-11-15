@@ -152,9 +152,54 @@ export const NotificationProvider = ({
 
       // Show toast notification
       toast(notification.message || notification.title, {
-        icon: notification.type === "order" ? "🔔" : "ℹ️",
-        duration: 4000,
+        icon:
+          notification.type === "order"
+            ? "🔔"
+            : notification.type === "waiter_call"
+            ? "🙋"
+            : "ℹ️",
+        duration: notification.type === "waiter_call" ? 6000 : 4000,
       });
+    });
+
+    // Listen for waiter calls
+    socket.on(`vendor-${user.id}`, (data: any) => {
+      console.log("[Notifications] Vendor event received:", data);
+
+      if (data.type === "waiter_call") {
+        const waiterNotification: Notification = {
+          id: `waiter-${Date.now()}`,
+          type: "waiter_call",
+          title: "Customer Needs Assistance",
+          message:
+            data.message ||
+            `Customer at ${data.data?.table_name} is calling for assistance`,
+          timestamp: data.data?.timestamp || new Date().toISOString(),
+          created_at: data.data?.timestamp || new Date().toISOString(),
+          read: false,
+          data: data.data || {},
+        };
+
+        setNotifications((prev) => [waiterNotification, ...prev]);
+
+        // Play notification sound
+        if (soundEnabled && audioRef.current) {
+          audioRef.current
+            .play()
+            .catch((e) => console.log("Audio play failed:", e));
+        }
+
+        // Show toast with special styling
+        toast(waiterNotification.message, {
+          icon: "🙋‍♂️",
+          duration: 6000,
+          style: {
+            background: "#FEF3C7",
+            color: "#92400E",
+            border: "2px solid #F59E0B",
+          },
+        });
+      }
     });
 
     // Listen for notification updates
