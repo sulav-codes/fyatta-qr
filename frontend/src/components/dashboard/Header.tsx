@@ -117,16 +117,10 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   useEffect(() => {
     const newOrderNotifications = notifications.filter(
       (n) =>
-        n.type === "order" &&
+        (n.type === "order" || n.type === "new_order") &&
         !n.read &&
         !orderNotifications.some((on) => on.id === n.id) &&
-        // Validate notification has proper data
-        n.data?.order_id &&
-        n.data?.items &&
-        Array.isArray(n.data.items) &&
-        n.data.items.length > 0 &&
-        n.data?.total &&
-        parseFloat(n.data.total) > 0
+        n.data?.order_id
     );
 
     if (newOrderNotifications.length > 0) {

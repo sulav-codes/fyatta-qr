@@ -20,6 +20,7 @@ interface OrderNotificationProps {
       order_id?: number;
       table_name?: string;
       total_amount?: number;
+      total?: number;
       items?: Array<{
         name: string;
         quantity: number;
@@ -213,7 +214,10 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
           <div className="flex justify-between items-center pt-2 border-t border-border">
             <span className="text-sm font-medium">Total:</span>
             <span className="text-sm font-semibold">
-              Rs. {parseFloat(String(orderData?.total_amount || 0)).toFixed(2)}
+              Rs.{" "}
+              {parseFloat(
+                String(orderData?.total_amount || orderData?.total || 0)
+              ).toFixed(2)}
             </span>
           </div>
         </div>
