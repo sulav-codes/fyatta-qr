@@ -115,22 +115,36 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
   // Track new order notifications
   useEffect(() => {
-    const newOrderNotifications = notifications.filter(
+    // Only show popups for valid orders, deduplicate by order_id
+    const validOrders = notifications.filter(
       (n) =>
         (n.type === "order" || n.type === "new_order") &&
         !n.read &&
-        !orderNotifications.some((on) => on.id === n.id) &&
-        n.data?.order_id
+        n.data?.order_id &&
+        n.data?.items &&
+        Array.isArray(n.data.items) &&
+        n.data.items.length > 0 &&
+        (n.data?.total_amount || n.data?.total) > 0 &&
+        n.data?.table_name
     );
 
-    if (newOrderNotifications.length > 0) {
-      setOrderNotifications((prev) => {
-        const existingIds = new Set(prev.map((n) => n.id));
-        const uniqueNew = newOrderNotifications.filter(
-          (n) => !existingIds.has(n.id)
-        );
-        return [...prev, ...uniqueNew];
-      });
+    // Deduplicate by order_id
+    const uniqueOrders = Object.values(
+      validOrders.reduce((acc, n) => {
+        const oid = n.data?.order_id;
+        if (oid && !acc[oid]) acc[oid] = n;
+        return acc;
+      }, {} as Record<string | number, (typeof validOrders)[0]>)
+    );
+
+    // Only add new unique orders not already shown
+    const newOrderPopups = uniqueOrders.filter(
+      (n) =>
+        !orderNotifications.some((on) => on.data?.order_id === n.data?.order_id)
+    );
+
+    if (newOrderPopups.length > 0) {
+      setOrderNotifications((prev) => [...prev, ...newOrderPopups]);
     }
 
     // Remove notifications that have been marked as read
