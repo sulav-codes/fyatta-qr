@@ -27,7 +27,8 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const router = useRouter();
 
   // Use notification context
-  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
 
   // Restaurant name
   const restaurantName = useMemo(() => {
@@ -198,20 +199,102 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
             )}
           </Button>
 
-          <Link href="/dashboard/notifications">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative transition-colors"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+          {/* Notification bell - Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative transition-colors"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => markAllAsRead()}
+                    className="h-auto py-1 px-2 text-xs"
+                  >
+                    Mark all as read
+                  </Button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="max-h-[400px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    No notifications
+                  </div>
+                ) : (
+                  notifications.slice(0, 5).map((notification) => (
+                    <DropdownMenuItem
+                      key={notification.id}
+                      className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${
+                        !notification.read
+                          ? "bg-orange-50 dark:bg-orange-900/10"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        if (!notification.read) {
+                          markAsRead(notification.id);
+                        }
+                        // Navigate to relevant page based on notification type
+                        if (notification.type === "new_order") {
+                          router.push("/dashboard/orders");
+                        } else if (notification.type === "waiter_call") {
+                          router.push("/dashboard/orders");
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {notification.message}
+                          </p>
+                        </div>
+                        {!notification.read && (
+                          <span className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0 mt-1"></span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(notification.created_at).toLocaleTimeString(
+                          [],
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+              {notifications.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="justify-center text-sm text-orange-600 dark:text-orange-400"
+                    onClick={() => router.push("/dashboard/notifications")}
+                  >
+                    View all notifications
+                  </DropdownMenuItem>
+                </>
               )}
-            </Button>
-          </Link>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

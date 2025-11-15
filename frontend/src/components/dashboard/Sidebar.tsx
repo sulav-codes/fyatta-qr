@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import {
   LayoutDashboard,
   FileEdit,
@@ -151,11 +152,20 @@ export default function DashboardSidebar({
           <Link
             href="/dashboard"
             className="flex items-center space-x-3 min-w-0"
-            aria-label="Smart Menu Dashboard"
+            aria-label="FyattaQR Dashboard"
           >
-            <QrCode className="h-8 w-8 text-orange-500 flex-shrink-0" />
+            <div className="relative w-10 h-10 flex-shrink-0">
+              <Image
+                src="/logo.png"
+                fill
+                alt="FyattaQR logo"
+                className="object-contain"
+              />
+            </div>
             {isOpen && (
-              <span className="font-bold text-xl truncate">Smart Menu</span>
+              <span className="font-bold text-xl truncate">
+                Fyatta<span className="text-orange-500">QR</span>
+              </span>
             )}
           </Link>
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useCallback, ChangeEvent, FormEvent } from "react";
-import { ArrowLeft, Mail, Lock, LucideIcon } from "lucide-react";
+import { Mail, Lock, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -37,7 +37,7 @@ const FormField = ({
       {label}
     </label>
     <div className="relative">
-      <Icon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      <Icon className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       <Input
         type={type}
         name={name}
@@ -172,29 +172,22 @@ export default function Login() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
       <Navbar />
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="bg-card rounded-xl shadow-lg border border-border p-8">
-            <div className="mb-8">
-              <Link
-                href="/"
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to home
-              </Link>
-            </div>
-
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
-              <p className="text-muted-foreground">
-                Sign in to your account to continue
+      <div className="flex-1 grid lg:grid-cols-2 min-h-screen">
+        {/* Left Side - Form */}
+        <div className="flex items-center justify-center p-6 md:p-12 bg-white dark:bg-gray-950 min-h-screen">
+          <div className="w-full max-w-md space-y-8">
+            <div className="text-center">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900 dark:text-white">
+                Welcome Back
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Sign in to manage your restaurant menu
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <FormField
                 label="Email"
                 icon={Mail}
@@ -217,30 +210,126 @@ export default function Login() {
                 error={errors.password}
               />
 
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                  />
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Remember me
+                  </span>
+                </label>
+                <Link
+                  href="#"
+                  className="text-orange-500 hover:text-orange-600 font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               <Button
                 type="submit"
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-base font-semibold"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign in"
+                )}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">
+            <div className="text-center">
+              <span className="text-gray-600 dark:text-gray-400">
                 Don't have an account?{" "}
               </span>
               <Link
                 href="/register"
-                className="text-orange-500 hover:text-orange-600 font-medium"
+                className="text-orange-500 hover:text-orange-600 font-semibold"
               >
-                Sign up
+                Create one now
               </Link>
             </div>
           </div>
         </div>
+
+        {/* Right Side - Hero Section */}
+        <div className="hidden lg:flex items-center justify-center p-12 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
+          {/* Background Decoration */}
+          <div className="absolute inset-0">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-orange-300/20 dark:bg-orange-600/10 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-orange-200/20 dark:bg-orange-700/10 rounded-full blur-3xl"></div>
+          </div>
+
+          <div className="relative z-10 max-w-lg text-center space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-orange-200 dark:border-orange-800">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              </span>
+              <span className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                Join 500+ Restaurant Owners
+              </span>
+            </div>
+
+            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white">
+              Manage Your Menu with{" "}
+              <span className="text-orange-500">Ease</span>
+            </h2>
+
+            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+              Access your dashboard to update menu items, track orders, and
+              manage your restaurant operations seamlessly.
+            </p>
+
+            <div className="grid grid-cols-3 gap-6 pt-6">
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-orange-600">500+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Restaurants
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-orange-600">10K+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Menu Items
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-orange-600">50K+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Orders Served
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      {/* <Footer /> */}
+      <Footer />
     </div>
   );
 }

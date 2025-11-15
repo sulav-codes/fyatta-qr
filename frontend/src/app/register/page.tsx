@@ -2,7 +2,6 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import {
-  ArrowLeft,
   Store,
   Mail,
   Lock,
@@ -11,6 +10,7 @@ import {
   Phone,
   ClipboardList,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -293,7 +293,7 @@ export default function Signup() {
       type: "text",
       placeholder: "Your restaurant name",
       icon: (
-        <Store className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Store className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
     {
@@ -302,7 +302,7 @@ export default function Signup() {
       type: "text",
       placeholder: "Full name of owner",
       icon: (
-        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
     {
@@ -311,7 +311,7 @@ export default function Signup() {
       type: "email",
       placeholder: "Enter your email",
       icon: (
-        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
     {
@@ -320,7 +320,7 @@ export default function Signup() {
       type: "tel",
       placeholder: "+977 9812345678",
       icon: (
-        <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
     {
@@ -329,7 +329,7 @@ export default function Signup() {
       type: "text",
       placeholder: "Restaurant location",
       icon: (
-        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
   ];
@@ -342,7 +342,7 @@ export default function Signup() {
       type: "password",
       placeholder: "Create a password",
       icon: (
-        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
     {
@@ -351,45 +351,52 @@ export default function Signup() {
       type: "password",
       placeholder: "Confirm your password",
       icon: (
-        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       ),
     },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
       <Navbar />
-      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4 mt-16">
-        <div className="max-w-2xl w-full">
-          <div className="bg-card rounded-xl shadow-lg border border-border p-8">
-            <div className="mb-8">
-              <Link
-                href="/"
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to home
-              </Link>
+      <div className="flex-1 bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 py-12 px-4 md:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto pb-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 mb-4">
+              <CheckCircle2 className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                Join 500+ Restaurant Owners
+              </span>
             </div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900 dark:text-white">
+              Create Your Account
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Start managing your restaurant menu digitally in minutes
+            </p>
+          </div>
 
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold mb-2">Sign Up</h1>
-              <p className="text-muted-foreground">
-                Register to manage your digital menu
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Form Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 md:p-10">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Restaurant Information */}
               <div>
-                <h2 className="text-lg font-medium mb-4">
+                <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
+                  <Store className="h-5 w-5 text-orange-500" />
                   Restaurant Information
                 </h2>
-                <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-5">
                   {basicFormFields.map((field) => (
-                    <div key={field.name} className="space-y-2">
+                    <div
+                      key={field.name}
+                      className={
+                        field.name === "location" ? "md:col-span-2" : ""
+                      }
+                    >
                       <label
                         htmlFor={field.name}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-sm font-medium block mb-2"
                       >
                         {field.label}
                       </label>
@@ -402,7 +409,7 @@ export default function Signup() {
                           placeholder={field.placeholder}
                           value={formData[field.name]}
                           onChange={handleChange}
-                          className={`pl-10 ${
+                          className={`pl-10 h-11 ${
                             errors[field.name]
                               ? "border-red-500 focus-visible:ring-red-500"
                               : ""
@@ -410,7 +417,7 @@ export default function Signup() {
                         />
                       </div>
                       {errors[field.name] && (
-                        <p className="text-xs font-medium text-red-500 mt-1">
+                        <p className="text-xs font-medium text-red-500 mt-1.5">
                           {errors[field.name]}
                         </p>
                       )}
@@ -418,18 +425,18 @@ export default function Signup() {
                   ))}
 
                   {/* Description textarea */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium block mb-2 text-gray-900 dark:text-white">
                       Restaurant Description
                     </label>
                     <div className="relative">
-                      <ClipboardList className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <ClipboardList className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
                       <Textarea
                         name="description"
-                        placeholder="Brief description of your restaurant..."
+                        placeholder="Tell us about your restaurant..."
                         value={formData.description}
                         onChange={handleChange}
-                        className={`pl-10 min-h-[100px] ${
+                        className={`pl-10 min-h-[100px] resize-none ${
                           errors.description
                             ? "border-red-500 focus-visible:ring-red-500"
                             : ""
@@ -437,53 +444,62 @@ export default function Signup() {
                       />
                     </div>
                     {errors.description && (
-                      <p className="text-xs font-medium text-red-500 mt-1">
+                      <p className="text-xs font-medium text-red-500 mt-1.5">
                         {errors.description}
                       </p>
                     )}
                   </div>
 
                   {/* Business Hours */}
-                  <div>
-                    <label className="text-sm font-medium block mb-2">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium block mb-2 text-gray-900 dark:text-white">
                       Business Hours
                     </label>
-                    <div className="flex items-center space-x-3">
-                      <div className="relative flex-1">
-                        <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="time"
-                          name="opening_time"
-                          value={formData.opening_time}
-                          onChange={handleChange}
-                          className={`pl-10 ${
-                            errors.opening_time
-                              ? "border-red-500 focus-visible:ring-red-500"
-                              : ""
-                          }`}
-                        />
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+                          Opening Time
+                        </label>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <Input
+                            type="time"
+                            name="opening_time"
+                            value={formData.opening_time}
+                            onChange={handleChange}
+                            className={`pl-10 h-11 ${
+                              errors.opening_time
+                                ? "border-red-500 focus-visible:ring-red-500"
+                                : ""
+                            }`}
+                          />
+                        </div>
                         {errors.opening_time && (
-                          <p className="text-xs font-medium text-red-500 mt-1">
+                          <p className="text-xs font-medium text-red-500 mt-1.5">
                             {errors.opening_time}
                           </p>
                         )}
                       </div>
-                      <span className="text-sm text-muted-foreground">to</span>
-                      <div className="relative flex-1">
-                        <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="time"
-                          name="closing_time"
-                          value={formData.closing_time}
-                          onChange={handleChange}
-                          className={`pl-10 ${
-                            errors.closing_time
-                              ? "border-red-500 focus-visible:ring-red-500"
-                              : ""
-                          }`}
-                        />
+                      <div>
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+                          Closing Time
+                        </label>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <Input
+                            type="time"
+                            name="closing_time"
+                            value={formData.closing_time}
+                            onChange={handleChange}
+                            className={`pl-10 h-11 ${
+                              errors.closing_time
+                                ? "border-red-500 focus-visible:ring-red-500"
+                                : ""
+                            }`}
+                          />
+                        </div>
                         {errors.closing_time && (
-                          <p className="text-xs font-medium text-red-500 mt-1">
+                          <p className="text-xs font-medium text-red-500 mt-1.5">
                             {errors.closing_time}
                           </p>
                         )}
@@ -493,14 +509,18 @@ export default function Signup() {
                 </div>
               </div>
 
-              <div>
-                <h2 className="text-lg font-medium mb-4">Security</h2>
-                <div className="space-y-4">
+              {/* Security */}
+              <div className="border-t pt-8">
+                <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
+                  <Lock className="h-5 w-5 text-orange-500" />
+                  Security
+                </h2>
+                <div className="grid md:grid-cols-2 gap-5">
                   {securityFormFields.map((field) => (
-                    <div key={field.name} className="space-y-2">
+                    <div key={field.name}>
                       <label
                         htmlFor={field.name}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-sm font-medium block mb-2"
                       >
                         {field.label}
                       </label>
@@ -513,7 +533,7 @@ export default function Signup() {
                           placeholder={field.placeholder}
                           value={formData[field.name]}
                           onChange={handleChange}
-                          className={`pl-10 ${
+                          className={`pl-10 h-11 ${
                             errors[field.name]
                               ? "border-red-500 focus-visible:ring-red-500"
                               : ""
@@ -521,7 +541,7 @@ export default function Signup() {
                         />
                       </div>
                       {errors[field.name] && (
-                        <p className="text-xs font-medium text-red-500 mt-1">
+                        <p className="text-xs font-medium text-red-500 mt-1.5">
                           {errors[field.name]}
                         </p>
                       )}
@@ -530,30 +550,75 @@ export default function Signup() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={isLoading}
-              >
-                {isLoading ? "Creating account..." : "Create account"}
-              </Button>
-            </form>
+              {/* Submit Button */}
+              <div className="pt-4">
+                <Button
+                  type="submit"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-base font-semibold"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Creating account...
+                    </span>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">
-                Already registered?{" "}
-              </span>
-              <Link
-                href="/login"
-                className="text-orange-500 hover:text-orange-600 font-medium"
-              >
-                Login
-              </Link>
+                <p className="text-center mt-6 text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Already have an account?{" "}
+                  </span>
+                  <Link
+                    href="/login"
+                    className="text-orange-500 hover:text-orange-600 font-semibold"
+                  >
+                    Sign in instead
+                  </Link>
+                </p>
+              </div>
+            </form>
+          </div>
+
+          {/* Trust Indicators */}
+          <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>Free forever</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>No credit card required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>Setup in 5 minutes</span>
             </div>
           </div>
         </div>
       </div>
-      {/* <Footer /> */}
+      <Footer />
     </div>
   );
 }
