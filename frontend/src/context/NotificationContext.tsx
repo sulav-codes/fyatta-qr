@@ -75,7 +75,9 @@ export const NotificationProvider = ({
 
     try {
       const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/api/notifications/`, {
+      // Note: Backend doesn't have a notifications endpoint yet
+      // Notifications are handled via websockets only
+      const response = await fetch(`${apiBaseUrl}/api/vendors/${user.id}/notifications`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -87,7 +89,8 @@ export const NotificationProvider = ({
         setNotifications(serverNotifications);
       }
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      // Silently fail - notifications will come through websockets
+      console.debug("Notifications endpoint not available, using websocket only");
     }
   }, [user?.id, token]);
 
