@@ -100,19 +100,32 @@ export default function Settings() {
 
       const data = await response.json();
 
+      console.log("Backend response data:", data);
+
       setFormData({
-        restaurant_name: data.restaurant_name || "",
-        owner_name: data.owner_name || "",
+        restaurant_name: data.restaurantName || "",
+        owner_name: data.ownerName || "",
         email: data.email || "",
         phone: data.phone || "",
         location: data.location || "",
         description: data.description || "",
-        opening_time: data.opening_time || "",
-        closing_time: data.closing_time || "",
+        opening_time: data.openingTime || "",
+        closing_time: data.closingTime || "",
+      });
+
+      console.log("Form data after setting:", {
+        restaurant_name: data.restaurantName || "",
+        owner_name: data.ownerName || "",
+        opening_time: data.openingTime || "",
+        closing_time: data.closingTime || "",
       });
 
       if (data.logo) {
-        setLogoPreview(data.logo);
+        // Construct full URL if it's a relative path
+        const logoUrl = data.logo.startsWith("http")
+          ? data.logo
+          : `${getApiBaseUrl()}${data.logo}`;
+        setLogoPreview(logoUrl);
       }
     } catch (err) {
       console.error("Error loading settings:", err);
@@ -192,11 +205,30 @@ export default function Settings() {
     };
     let isValid = true;
 
+    // Restaurant name validation
     if (!formData.restaurant_name.trim()) {
       newErrors.restaurant_name = "Restaurant name is required";
       isValid = false;
+    } else {
+      const nameRegex = /^[a-zA-Z0-9\s.,'-]{3,50}$/;
+      if (!nameRegex.test(formData.restaurant_name)) {
+        newErrors.restaurant_name =
+          "Name must be 3-50 characters and can include letters, numbers, spaces, and basic punctuation";
+        isValid = false;
+      }
     }
 
+    // Owner name validation
+    if (formData.owner_name.trim()) {
+      const nameRegex = /^[a-zA-Z\s.,'-]{3,50}$/;
+      if (!nameRegex.test(formData.owner_name)) {
+        newErrors.owner_name =
+          "Owner name must be 3-50 characters and can include letters, spaces, and basic punctuation";
+        isValid = false;
+      }
+    }
+
+    // Email validation
     if (!formData.email) {
       newErrors.email = "Email is required";
       isValid = false;
@@ -208,17 +240,33 @@ export default function Settings() {
       }
     }
 
+    // Phone validation
     if (formData.phone.trim()) {
-      const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-      if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = "Enter a valid phone number";
+      const phoneRegex = /^(\+\d{1,3}[- ]?)?\d{10}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s+/g, ""))) {
+        newErrors.phone = "Enter a valid phone number (e.g. +977 9812345678)";
         isValid = false;
       }
     }
 
+    // Location validation
     if (!formData.location.trim()) {
       newErrors.location = "Location is required";
       isValid = false;
+    }
+
+    // Description validation
+    if (formData.description.trim() && formData.description.length < 20) {
+      newErrors.description = "Description must be at least 20 characters";
+      isValid = false;
+    }
+
+    // Business hours validation
+    if (formData.opening_time && formData.closing_time) {
+      if (formData.opening_time >= formData.closing_time) {
+        newErrors.closing_time = "Closing time must be after opening time";
+        isValid = false;
+      }
     }
 
     setErrors(newErrors);
@@ -351,7 +399,7 @@ export default function Settings() {
           <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium flex items-center gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 mb-1">
                 <Building className="h-4 w-4" />
                 Restaurant Name*
               </label>
@@ -360,6 +408,7 @@ export default function Settings() {
                 value={formData.restaurant_name}
                 onChange={handleChange}
                 placeholder="Enter restaurant name"
+                className={errors.restaurant_name ? "border-red-500" : ""}
               />
               {errors.restaurant_name && (
                 <p className="text-xs text-red-500 mt-1">
@@ -369,7 +418,7 @@ export default function Settings() {
             </div>
 
             <div>
-              <label className="text-sm font-medium flex items-center gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 mb-1">
                 <User className="h-4 w-4" />
                 Owner Name
               </label>
@@ -378,11 +427,15 @@ export default function Settings() {
                 value={formData.owner_name}
                 onChange={handleChange}
                 placeholder="Enter owner name"
+                className={errors.owner_name ? "border-red-500" : ""}
               />
+              {errors.owner_name && (
+                <p className="text-xs text-red-500 mt-1">{errors.owner_name}</p>
+              )}
             </div>
 
             <div>
-              <label className="text-sm font-medium flex items-center gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 mb-1">
                 <Mail className="h-4 w-4" />
                 Email*
               </label>
@@ -392,6 +445,7 @@ export default function Settings() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="restaurant@example.com"
+                className={errors.email ? "border-red-500" : ""}
               />
               {errors.email && (
                 <p className="text-xs text-red-500 mt-1">{errors.email}</p>
@@ -399,7 +453,7 @@ export default function Settings() {
             </div>
 
             <div>
-              <label className="text-sm font-medium flex items-center gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 mb-1">
                 <Phone className="h-4 w-4" />
                 Phone
               </label>
@@ -408,7 +462,8 @@ export default function Settings() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="+1 234 567 8900"
+                placeholder="+977 9812345678"
+                className={errors.phone ? "border-red-500" : ""}
               />
               {errors.phone && (
                 <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
@@ -416,7 +471,7 @@ export default function Settings() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-medium flex items-center gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 mb-1">
                 <MapPin className="h-4 w-4" />
                 Location*
               </label>
@@ -425,6 +480,7 @@ export default function Settings() {
                 value={formData.location}
                 onChange={handleChange}
                 placeholder="Enter restaurant address"
+                className={errors.location ? "border-red-500" : ""}
               />
               {errors.location && (
                 <p className="text-xs text-red-500 mt-1">{errors.location}</p>
@@ -432,14 +488,22 @@ export default function Settings() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-medium">Description</label>
+              <label className="text-sm font-medium mb-1 block">
+                Description
+              </label>
               <Textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Tell customers about your restaurant..."
+                placeholder="Tell customers about your restaurant... (minimum 20 characters)"
                 rows={4}
+                className={errors.description ? "border-red-500" : ""}
               />
+              {errors.description && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.description}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -452,23 +516,39 @@ export default function Settings() {
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium">Opening Time</label>
+              <label className="text-sm font-medium mb-1 block">
+                Opening Time
+              </label>
               <Input
                 type="time"
                 name="opening_time"
                 value={formData.opening_time}
                 onChange={handleChange}
+                className={errors.opening_time ? "border-red-500" : ""}
               />
+              {errors.opening_time && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.opening_time}
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="text-sm font-medium">Closing Time</label>
+              <label className="text-sm font-medium mb-1 block">
+                Closing Time
+              </label>
               <Input
                 type="time"
                 name="closing_time"
                 value={formData.closing_time}
                 onChange={handleChange}
+                className={errors.closing_time ? "border-red-500" : ""}
               />
+              {errors.closing_time && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.closing_time}
+                </p>
+              )}
             </div>
           </div>
         </div>

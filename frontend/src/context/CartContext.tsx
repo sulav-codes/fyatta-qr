@@ -197,8 +197,9 @@ export const CartProvider = ({
             status === "delivered" ||
             status === "completed"
           ) {
-            // If order is confirmed (paid) or later stages, clear the cart
+            // If order is confirmed (paid) or later stages, clear the cart and pending order
             clearCart();
+            setPendingOrder(null);
             // Only show status update toasts for non-payment related statuses
             if (status !== "confirmed") {
               let message = `Order #${orderId} is now ${status}!`;
