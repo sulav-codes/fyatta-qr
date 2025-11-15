@@ -206,10 +206,10 @@ const MenuContent: React.FC<MenuContentProps> = ({
       }));
 
       setMenuItems((prevItems) => {
-        const nonMatchingItems = prevItems.filter(
-          (item) => !searchResults.some((result) => result.id === item.id)
-        );
-        return [...searchResults, ...nonMatchingItems];
+        // Always include all items, even if unavailable
+        const allIds = new Set(searchResults.map((result) => result.id));
+        const restItems = prevItems.filter((item) => !allIds.has(item.id));
+        return [...searchResults, ...restItems];
       });
     } catch (error) {
       console.error("Error during search:", error);
