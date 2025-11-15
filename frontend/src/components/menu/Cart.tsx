@@ -205,7 +205,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           e: React.SyntheticEvent<HTMLImageElement>
                         ) => {
                           e.currentTarget.src =
-                            "/images/default-food-image.jpg";
+                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect fill='%23f3f4f6' width='80' height='80'/%3E%3Cpath d='M40 25 L50 35 L40 45 L30 35 Z' fill='%23d1d5db'/%3E%3C/svg%3E";
                         }}
                       />
                     )}
@@ -473,7 +473,7 @@ export const MobileCartButton: React.FC<CartProps> = ({
                           e: React.SyntheticEvent<HTMLImageElement>
                         ) => {
                           e.currentTarget.src =
-                            "/images/default-food-image.jpg";
+                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect fill='%23f3f4f6' width='80' height='80'/%3E%3Cpath d='M40 25 L50 35 L40 45 L30 35 Z' fill='%23d1d5db'/%3E%3C/svg%3E";
                         }}
                       />
                     )}

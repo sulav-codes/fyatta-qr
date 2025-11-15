@@ -86,6 +86,7 @@ exports.getOrders = async (req, res) => {
         totalAmount: order.totalAmount,
         tableName: tableName,
         tableId: order.table ? order.table.id : null,
+        tableIdentifier: order.tableIdentifier,
         qrCode: order.table ? order.table.qrCode : order.tableIdentifier,
         invoiceNo: order.invoiceNo,
         createdAt:
@@ -206,6 +207,30 @@ exports.createCustomerOrder = async (req, res) => {
 
     console.log("[createCustomerOrder] Order items created");
 
+    // Fetch the created order with items for notification
+    const orderWithItems = await orders.findByPk(order.id, {
+      include: [
+        {
+          model: orderItems,
+          as: "items",
+          include: [
+            {
+              model: menuItems,
+              as: "menuItem",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+      ],
+    });
+
+    // Prepare items array for notification
+    const itemsForNotification = orderWithItems.items.map((item) => ({
+      name: item.menuItem ? item.menuItem.name : "Unknown Item",
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
     // Emit socket event for new order
     const io = req.app.get("io");
     if (io) {
@@ -234,6 +259,7 @@ exports.createCustomerOrder = async (req, res) => {
           table_name: table ? table.name : null,
           total_amount: order.totalAmount,
           status: order.status,
+          items: itemsForNotification,
         },
       });
 

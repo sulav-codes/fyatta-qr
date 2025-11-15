@@ -180,6 +180,7 @@ export default function OrdersPage() {
 
   const { user, token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
+  const localUpdateRef = useRef<Set<number>>(new Set());
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
@@ -277,16 +278,29 @@ export default function OrdersPage() {
     socket.on("order-status-changed", (data: any) => {
       console.log("[Orders] Order status changed:", data);
       const orderId = data.orderId || data.order_id;
-      const newStatus = data.newStatus || data.status;
+      const newStatus = data.newStatus || data.new_status || data.status;
 
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
+          order.id === orderId
+            ? {
+                ...order,
+                status: newStatus,
+                updated_at: new Date().toISOString(),
+              }
+            : order
         )
       );
-      toast.success(
-        `Order #${orderId} status updated to ${formatStatus(newStatus)}`
-      );
+
+      // Only show toast if this wasn't a local update
+      if (!localUpdateRef.current.has(orderId)) {
+        toast.success(
+          `Order #${orderId} status updated to ${formatStatus(newStatus)}`
+        );
+      } else {
+        // Remove from tracking after handling
+        localUpdateRef.current.delete(orderId);
+      }
     });
 
     // Handle customer verification
@@ -335,29 +349,11 @@ export default function OrdersPage() {
       toast.error(`⚠️ Customer reported issue with order #${orderId}`);
     });
 
-    // Handle vendor notifications
-    socket.on("vendor_notification", (data: any) => {
-      console.log("[Orders] Vendor notification:", data);
-
-      if (data.type === "new_order" || data.data?.type === "new_order") {
-        fetchOrders();
-        toast.success("New order received!");
-      } else if (
-        data.type === "order_status" ||
-        data.data?.type === "order_status"
-      ) {
-        const orderData = data.data?.data || data;
-        const orderId = orderData.order_id || orderData.orderId;
-        const newStatus = orderData.status;
-
-        if (orderId && newStatus) {
-          setOrders((prevOrders) =>
-            prevOrders.map((order) =>
-              order.id === orderId ? { ...order, status: newStatus } : order
-            )
-          );
-        }
-      }
+    // Handle notifications (general purpose)
+    socket.on("notification", (data: any) => {
+      console.log("[Orders] Notification received:", data);
+      // Notifications are handled by specific event listeners above
+      // This listener is kept for any future general notifications
     });
 
     socket.on("connect_error", (error) => {
@@ -368,6 +364,17 @@ export default function OrdersPage() {
     socket.on("disconnect", (reason) => {
       console.log("[Orders] WebSocket disconnected:", reason);
       setSocketConnected(false);
+    });
+
+    socket.on("reconnect", (attemptNumber) => {
+      console.log(
+        "[Orders] WebSocket reconnected after",
+        attemptNumber,
+        "attempts"
+      );
+      setSocketConnected(true);
+      socket.emit("join-vendor", user.id);
+      fetchOrders(); // Refresh orders on reconnection
     });
 
     return () => {
@@ -386,6 +393,9 @@ export default function OrdersPage() {
     try {
       setUpdating(orderId);
 
+      // Mark this as a local update to prevent duplicate toast from socket
+      localUpdateRef.current.add(orderId);
+
       const response = await fetch(
         `${getApiBaseUrl()}/api/orders/${orderId}/status`,
         {
@@ -399,6 +409,8 @@ export default function OrdersPage() {
       );
 
       if (!response.ok) {
+        // Remove from tracking if API call fails
+        localUpdateRef.current.delete(orderId);
         throw new Error("Failed to update order status");
       }
 
@@ -407,12 +419,18 @@ export default function OrdersPage() {
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId
-            ? { ...order, status: updatedOrder.status }
+            ? {
+                ...order,
+                status:
+                  updatedOrder.status || updatedOrder.newStatus || newStatus,
+                updated_at: new Date().toISOString(),
+              }
             : order
         )
       );
 
-      toast.success(`Order status updated to ${formatStatus(newStatus)}`);
+      // Don't show toast here - NotificationContext will show the 🔔 notification
+      // toast.success(`Order status updated to ${formatStatus(newStatus)}`);
     } catch (err) {
       console.error("Error updating order:", err);
       toast.error("Failed to update order status");
