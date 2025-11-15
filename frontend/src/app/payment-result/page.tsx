@@ -110,26 +110,20 @@ function PaymentResultContent() {
         {/* Status Card */}
         <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
           {/* Header */}
-          <div className={`text-center py-8 px-6 border-b ${statusConfig.borderColor} ${statusConfig.bgColor}`}>
+          <div
+            className={`text-center py-8 px-6 border-b ${statusConfig.borderColor} ${statusConfig.bgColor}`}
+          >
             <div className="flex justify-center mb-4">
-              <div className={statusConfig.iconColor}>
-                {statusConfig.icon}
-              </div>
+              <div className={statusConfig.iconColor}>{statusConfig.icon}</div>
             </div>
-            <h1 className="text-3xl font-bold mb-2">
-              {statusConfig.title}
-            </h1>
-            <p className="text-muted-foreground">
-              {statusConfig.message}
-            </p>
+            <h1 className="text-3xl font-bold mb-2">{statusConfig.title}</h1>
+            <p className="text-muted-foreground">{statusConfig.message}</p>
           </div>
 
           {/* Order Details */}
           {orderDetails && (
             <div className="px-6 py-6">
-              <h2 className="text-xl font-semibold mb-4">
-                Order Details
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">Order Details</h2>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b">
@@ -150,10 +144,10 @@ function PaymentResultContent() {
 
                 {transactionId && (
                   <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-muted-foreground">Transaction ID</span>
-                    <span className="font-mono text-sm">
-                      {transactionId}
+                    <span className="text-muted-foreground">
+                      Transaction ID
                     </span>
+                    <span className="font-mono text-sm">{transactionId}</span>
                   </div>
                 )}
 
@@ -178,11 +172,9 @@ function PaymentResultContent() {
                 </div>
 
                 <div className="flex justify-between items-center py-2 pt-4">
-                  <span className="text-lg font-semibold">
-                    Total Amount
-                  </span>
+                  <span className="text-lg font-semibold">Total Amount</span>
                   <span className="text-2xl font-bold text-[var(--orange)]">
-                    रू {orderDetails.total_amount.toFixed(2)}
+                    रू {Number(orderDetails.total_amount).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -190,9 +182,7 @@ function PaymentResultContent() {
               {/* Items List */}
               {orderDetails.items && orderDetails.items.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold mb-3">
-                    Order Items
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-3">Order Items</h3>
                   <div className="bg-muted rounded-lg p-4 space-y-2">
                     {orderDetails.items.map((item) => (
                       <div
@@ -200,9 +190,7 @@ function PaymentResultContent() {
                         className="flex justify-between items-center py-2 border-b last:border-0"
                       >
                         <div className="flex-1">
-                          <p className="font-medium">
-                            {item.name}
-                          </p>
+                          <p className="font-medium">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
                             Qty: {item.quantity}
                           </p>
@@ -221,7 +209,10 @@ function PaymentResultContent() {
           {/* Action Buttons */}
           <div className="px-6 py-6 bg-muted/50 space-y-3 border-t">
             {status === "success" && (
-              <Link href={`/order-tracking?orderId=${orderId}`} className="block">
+              <Link
+                href={`/order-tracking?orderId=${orderId}`}
+                className="block"
+              >
                 <Button className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
                   Track Your Order
                 </Button>
@@ -247,10 +238,7 @@ function PaymentResultContent() {
             )}
 
             <Link href="/" className="block">
-              <Button
-                variant="outline"
-                className="w-full"
-              >
+              <Button variant="outline" className="w-full">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Home
               </Button>

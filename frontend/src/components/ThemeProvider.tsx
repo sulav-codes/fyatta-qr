@@ -27,29 +27,31 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Prevent multiple initializations
-    if (isLoaded) return;
-
+    // Load theme from localStorage on client side only
     try {
       const storedTheme = localStorage.getItem("theme");
 
-      if (storedTheme && (storedTheme === "light" || storedTheme === "dark")) {
-        setTheme(storedTheme as Theme);
-        document.documentElement.classList.toggle(
-          "dark",
-          storedTheme === "dark"
-        );
+      if (storedTheme === "dark") {
+        setTheme("dark");
+        document.documentElement.classList.add("dark");
       } else {
-        // Set default and save to localStorage
-        localStorage.setItem("theme", "light");
+        // Default to light theme
+        setTheme("light");
         document.documentElement.classList.remove("dark");
+        // Save default to localStorage if not set
+        if (!storedTheme) {
+          localStorage.setItem("theme", "light");
+        }
       }
     } catch (error) {
       console.warn("Failed to load theme from localStorage:", error);
+      // Fallback to light theme
+      setTheme("light");
+      document.documentElement.classList.remove("dark");
     } finally {
       setIsLoaded(true);
     }
-  }, [isLoaded]);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme: Theme = theme === "light" ? "dark" : "light";

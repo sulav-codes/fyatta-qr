@@ -22,8 +22,27 @@ export default function RootLayout({
   children,
 }: RootLayoutProps): React.ReactNode {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const theme = localStorage.getItem('theme');
+                if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  if (!theme) {
+                    localStorage.setItem('theme', 'light');
+                  }
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
+      <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider>
             <Toaster />

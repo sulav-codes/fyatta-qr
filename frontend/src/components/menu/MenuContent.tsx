@@ -481,15 +481,22 @@ const MenuContent: React.FC<MenuContentProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to call waiter");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to call waiter");
       }
+
+      const result = await response.json();
 
       // Show success animation
       setWaiterCallSuccess(true);
-      toast.success("Waiter has been notified! They'll be with you shortly.", {
-        duration: 4000,
-        icon: "🔔",
-      });
+      toast.success(
+        result.message ||
+          "Waiter has been notified! They'll be with you shortly.",
+        {
+          duration: 4000,
+          icon: "🔔",
+        }
+      );
 
       // Reset success state after animation
       setTimeout(() => {
