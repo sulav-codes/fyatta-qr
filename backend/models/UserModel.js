@@ -62,6 +62,25 @@ const MakeUserModel = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      role: {
+        type: DataTypes.ENUM("vendor", "staff", "admin"),
+        defaultValue: "vendor",
+        allowNull: false,
+        comment:
+          "User role: vendor (restaurant owner), staff (employee), admin (system admin)",
+      },
+      vendorId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "vendor_id",
+        references: {
+          model: "users",
+          key: "id",
+        },
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE",
+        comment: "For staff users: references the vendor they work for",
+      },
       isStaff: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
@@ -116,6 +135,24 @@ const MakeUserModel = (sequelize, DataTypes) => {
     const values = { ...this.get() };
     delete values.password;
     return values;
+  };
+
+  // Helper methods for role checking
+  User.prototype.isVendor = function () {
+    return this.role === "vendor";
+  };
+
+  User.prototype.isStaffMember = function () {
+    return this.role === "staff";
+  };
+
+  User.prototype.isAdmin = function () {
+    return this.role === "admin";
+  };
+
+  // Get the effective vendor ID (for staff, return their vendorId; for vendors, return their own id)
+  User.prototype.getVendorId = function () {
+    return this.role === "staff" ? this.vendorId : this.id;
   };
 
   return User;

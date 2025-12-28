@@ -65,6 +65,9 @@ exports.register = async (req, res) => {
       description: description ? description.trim() : null,
       openingTime: openingTime || null,
       closingTime: closingTime || null,
+      role: "vendor", // New registrations are always vendors
+      vendorId: null, // Vendors don't have a parent vendor
+      isActive: true,
     });
 
     res.status(201).json({
