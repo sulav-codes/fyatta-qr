@@ -20,7 +20,7 @@ export default function Hero() {
   ];
 
   return (
-    <section className="relative pt-12 md:pt-16 pb-16 md:pb-24 min-h-screen overflow-hidden bg-white dark:bg-gray-950">
+    <section className="relative pt-8 pb-16 md:pb-24 min-h-screen overflow-hidden bg-white dark:bg-gray-950">
       {/* Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-orange-200/20 dark:bg-orange-900/10 blur-3xl"></div>
