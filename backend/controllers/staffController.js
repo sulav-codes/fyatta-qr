@@ -112,7 +112,8 @@ const createStaff = async (req, res) => {
     // Ensure user can only create staff for themselves
     if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
-        error: "Access denied. You can only create staff for your own restaurant.",
+        error:
+          "Access denied. You can only create staff for your own restaurant.",
       });
     }
 
@@ -342,7 +343,9 @@ const toggleStaffStatus = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Staff member ${staff.isActive ? "activated" : "deactivated"} successfully`,
+      message: `Staff member ${
+        staff.isActive ? "activated" : "deactivated"
+      } successfully`,
       staff: staff.toJSON(),
     });
   } catch (error) {

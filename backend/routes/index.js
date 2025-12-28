@@ -15,6 +15,7 @@ router.use("/api", require("./waiterRoutes"));
 // because orderRoutes has public customer endpoints
 router.use("/api", require("./orderRoutes"));
 router.use("/api", require("./vendorRoutes"));
+router.use("/api", require("./staffRoutes"));
 router.use("/api", require("./menuRoutes"));
 router.use("/api", require("./tableRoutes"));
 

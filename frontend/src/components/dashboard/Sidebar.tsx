@@ -16,6 +16,7 @@ import {
   PlusSquare,
   Menu,
   Bell,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,7 @@ const navItems = [
   { icon: FileEdit, label: "Manage Menu", href: "/dashboard/manage-menu" },
   { icon: QrCode, label: "Generate QR", href: "/dashboard/qr-code" },
   { icon: ShoppingBag, label: "Orders", href: "/dashboard/orders" },
+  { icon: Users, label: "Staff", href: "/dashboard/staff" },
   { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
