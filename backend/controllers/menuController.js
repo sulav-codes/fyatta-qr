@@ -9,8 +9,10 @@ exports.createMenuItems = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -140,8 +142,10 @@ exports.getMenuItems = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -188,8 +192,10 @@ exports.getMenuItemsByCategory = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -246,8 +252,10 @@ exports.getMenuItem = async (req, res) => {
   try {
     const { vendorId, itemId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -285,8 +293,10 @@ exports.updateMenuItem = async (req, res) => {
   try {
     const { vendorId, itemId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -345,8 +355,10 @@ exports.deleteMenuItem = async (req, res) => {
   try {
     const { vendorId, itemId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -380,8 +392,10 @@ exports.toggleAvailability = async (req, res) => {
   try {
     const { vendorId, itemId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 

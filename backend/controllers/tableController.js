@@ -8,8 +8,10 @@ exports.getTables = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });
@@ -49,8 +51,10 @@ exports.createTable = async (req, res) => {
     const { vendorId } = req.params;
     const { name } = req.body;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
@@ -106,8 +110,10 @@ exports.updateTable = async (req, res) => {
     const { vendorId, tableId } = req.params;
     const { name, isActive } = req.body;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
@@ -176,8 +182,10 @@ exports.deleteTable = async (req, res) => {
   try {
     const { vendorId, tableId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
@@ -216,8 +224,10 @@ exports.regenerateQRCode = async (req, res) => {
   try {
     const { vendorId, tableId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
@@ -334,8 +344,10 @@ exports.getTableDetails = async (req, res) => {
   try {
     const { vendorId, tableId } = req.params;
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });

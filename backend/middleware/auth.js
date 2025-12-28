@@ -75,6 +75,66 @@ const requireStaff = (req, res, next) => {
 };
 
 /**
+ * Middleware to check if user is a vendor (restaurant owner)
+ */
+const requireVendor = (req, res, next) => {
+  if (req.user.role !== "vendor" && req.user.role !== "admin") {
+    return res.status(403).json({
+      error: "Access denied. Vendor privileges required.",
+    });
+  }
+  next();
+};
+
+/**
+ * Middleware to check if user is an admin
+ */
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      error: "Access denied. Admin privileges required.",
+    });
+  }
+  next();
+};
+
+/**
+ * Middleware to ensure staff can only access their vendor's data
+ * Attaches effective vendorId to request
+ */
+const ensureTenantAccess = (req, res, next) => {
+  // For vendors, they access their own data
+  if (req.user.role === "vendor") {
+    req.effectiveVendorId = req.user.id;
+  }
+  // For staff, they access their vendor's data
+  else if (req.user.role === "staff") {
+    req.effectiveVendorId = req.user.vendorId;
+  }
+  // Admins can access any data
+  else if (req.user.role === "admin") {
+    req.effectiveVendorId = req.params.vendorId || null;
+  } else {
+    return res.status(403).json({
+      error: "Access denied. Invalid user role.",
+    });
+  }
+
+  // Validate that staff/vendor can only access their own tenant data
+  if (
+    req.params.vendorId &&
+    req.user.role !== "admin" &&
+    parseInt(req.params.vendorId) !== req.effectiveVendorId
+  ) {
+    return res.status(403).json({
+      error: "Access denied. You can only access your own restaurant's data.",
+    });
+  }
+
+  next();
+};
+
+/**
  * Optional authentication - doesn't fail if no token
  * Used for public endpoints that can benefit from user context
  */
@@ -125,5 +185,8 @@ const optionalAuth = async (req, res, next) => {
 module.exports = {
   authenticate,
   requireStaff,
+  requireVendor,
+  requireAdmin,
+  ensureTenantAccess,
   optionalAuth,
 };

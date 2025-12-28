@@ -17,14 +17,18 @@ exports.getOrders = async (req, res) => {
     console.log(
       `[getOrders] Request from user:`,
       req.user?.id,
+      `role:`,
+      req.user?.role,
       `for vendorId:`,
       vendorId
     );
 
-    // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
       console.log(
-        `[getOrders] Authorization failed - user ${req.user.id} tried to access vendor ${vendorId}`
+        `[getOrders] Authorization failed - user ${req.user.id} (role: ${req.user.role}) tried to access vendor ${vendorId}`
       );
       return res.status(403).json({ error: "Unauthorized" });
     }
@@ -433,7 +437,10 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -565,8 +572,12 @@ exports.getOrderDetails = async (req, res) => {
     }
 
     // Check authorization - only if user is authenticated
-    if (req.user && req.user.id !== order.vendorId && !req.user.isStaff) {
-      return res.status(403).json({ error: "Unauthorized" });
+    if (req.user) {
+      const effectiveVendorId =
+        req.user.role === "staff" ? req.user.vendorId : req.user.id;
+      if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     res.status(200).json({
@@ -685,8 +696,10 @@ exports.updatePaymentStatus = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization
-    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -784,8 +797,10 @@ exports.resolveDeliveryIssue = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization
-    if (req.user.id !== order.vendorId && !req.user.isStaff) {
+    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    const effectiveVendorId =
+      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
