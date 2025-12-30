@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 import { Plus, Edit, Trash2, UserCheck, UserX, Eye } from "lucide-react";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface StaffMember {
   id: number;
@@ -16,7 +19,7 @@ interface StaffMember {
   lastLogin: string | null;
 }
 
-export default function StaffManagementPage() {
+function StaffManagementContent() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -30,20 +33,20 @@ export default function StaffManagementPage() {
     phone: "",
   });
 
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "{}")
-      : {};
+  const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
 
   useEffect(() => {
-    fetchStaff();
-  }, []);
+    if (vendorId && token) {
+      fetchStaff();
+    }
+  }, [vendorId, token]);
 
   const fetchStaff = async () => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/staff`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -53,7 +56,7 @@ export default function StaffManagementPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setStaff(data.staff);
+        setStaff(data.staff || []);
       }
     } catch (error) {
       console.error("Error fetching staff:", error);
@@ -65,9 +68,8 @@ export default function StaffManagementPage() {
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/staff`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff`,
         {
           method: "POST",
           headers: {
@@ -104,21 +106,20 @@ export default function StaffManagementPage() {
     if (!selectedStaff) return;
 
     try {
-      const token = localStorage.getItem("token");
       const updateData: any = {
         username: formData.username,
         email: formData.email,
         ownerName: formData.ownerName,
         phone: formData.phone,
       };
-      
+
       // Only include password if it's been entered
       if (formData.password) {
         updateData.password = formData.password;
       }
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/staff/${selectedStaff.id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${selectedStaff.id}`,
         {
           method: "PUT",
           headers: {
@@ -155,9 +156,8 @@ export default function StaffManagementPage() {
     if (!confirm("Are you sure you want to delete this staff member?")) return;
 
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/staff/${staffId}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${staffId}`,
         {
           method: "DELETE",
           headers: {
@@ -181,9 +181,8 @@ export default function StaffManagementPage() {
 
   const handleToggleStatus = async (staffId: number) => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/staff/${staffId}/toggle-status`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${staffId}/toggle-status`,
         {
           method: "PATCH",
           headers: {
@@ -277,8 +276,12 @@ export default function StaffManagementPage() {
             <tbody className="divide-y divide-border">
               {staff.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
-                    No staff members yet. Click "Add Staff Member" to get started.
+                  <td
+                    colSpan={7}
+                    className="px-6 py-8 text-center text-muted-foreground"
+                  >
+                    No staff members yet. Click "Add Staff Member" to get
+                    started.
                   </td>
                 </tr>
               ) : (
@@ -555,5 +558,14 @@ export default function StaffManagementPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Wrap the page with ProtectedRoute to restrict access to vendors and admins only
+export default function StaffManagementPage() {
+  return (
+    <ProtectedRoute allowedRoles={["vendor", "admin"]}>
+      <StaffManagementContent />
+    </ProtectedRoute>
   );
 }

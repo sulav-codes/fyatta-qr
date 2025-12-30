@@ -9,6 +9,20 @@ const { Op } = require("sequelize");
 const sequelize = require("../models/index").sequelize;
 
 /**
+ * Helper to check if user is authorized to access vendor data
+ * @param {Object} user - The authenticated user
+ * @param {number} vendorId - The vendor ID being accessed
+ * @returns {boolean} Whether the user is authorized
+ */
+const isAuthorizedForVendor = (user, vendorId) => {
+  const vid = parseInt(vendorId);
+  if (user.role === "admin") return true;
+  if (user.role === "vendor" && user.id === vid) return true;
+  if (user.role === "staff" && user.vendorId === vid) return true;
+  return false;
+};
+
+/**
  * Get vendor profile details
  */
 exports.getProfile = async (req, res) => {
@@ -16,7 +30,7 @@ exports.getProfile = async (req, res) => {
     const { vendorId } = req.params;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });
@@ -64,7 +78,7 @@ exports.updateProfile = async (req, res) => {
     const { vendorId } = req.params;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to update this data",
       });
@@ -146,7 +160,7 @@ exports.getDashboardStats = async (req, res) => {
     const { vendorId } = req.params;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
@@ -224,10 +238,10 @@ exports.getDashboardStats = async (req, res) => {
 exports.getSalesReport = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { timeframe = "week" } = req.query; // day, week, month, year
+    const { timeframe = "week" } = req.query;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
@@ -235,53 +249,60 @@ exports.getSalesReport = async (req, res) => {
 
     // Calculate date range based on timeframe
     const now = new Date();
-    let startDate;
+    let startDate = new Date();
 
     switch (timeframe) {
       case "day":
-        startDate = new Date(now.setHours(0, 0, 0, 0));
+        startDate.setHours(0, 0, 0, 0);
         break;
       case "week":
-        startDate = new Date(now.setDate(now.getDate() - 7));
+        startDate.setDate(startDate.getDate() - 7);
         break;
       case "month":
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
+        startDate.setMonth(startDate.getMonth() - 1);
         break;
       case "year":
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        startDate.setFullYear(startDate.getFullYear() - 1);
         break;
       default:
-        startDate = new Date(now.setDate(now.getDate() - 7));
+        startDate.setDate(startDate.getDate() - 7);
     }
 
-    // Get sales data
-    const salesData = await orders.findAll({
+    // Get completed orders for this vendor
+    const completedOrders = await orders.findAll({
       where: {
-        vendorId,
+        vendorId: parseInt(vendorId),
         status: "completed",
-        paymentStatus: "paid",
-        createdAt: {
-          [Op.gte]: startDate,
-        },
       },
-      attributes: [
-        [sequelize.fn("DATE", sequelize.col("created_at")), "date"],
-        [sequelize.fn("COUNT", sequelize.col("id")), "orderCount"],
-        [sequelize.fn("SUM", sequelize.col("total_amount")), "revenue"],
-      ],
-      group: [sequelize.fn("DATE", sequelize.col("created_at"))],
-      order: [[sequelize.fn("DATE", sequelize.col("created_at")), "ASC"]],
+      attributes: ["id", "totalAmount", ["created_at", "createdAt"]],
       raw: true,
     });
 
-    // Calculate totals
-    const totalRevenue = salesData.reduce(
-      (sum, day) => sum + parseFloat(day.revenue || 0),
+    // Filter by date and calculate totals
+    const filteredOrders = completedOrders.filter((order) => {
+      const orderDate = new Date(order.createdAt);
+      return orderDate >= startDate;
+    });
+
+    const totalRevenue = filteredOrders.reduce(
+      (sum, order) => sum + parseFloat(order.totalAmount || 0),
       0
     );
-    const totalOrders = salesData.reduce(
-      (sum, day) => sum + parseInt(day.orderCount || 0),
-      0
+    const totalOrders = filteredOrders.length;
+
+    // Group by date for salesData
+    const salesByDate = {};
+    filteredOrders.forEach((order) => {
+      const dateStr = new Date(order.createdAt).toISOString().split("T")[0];
+      if (!salesByDate[dateStr]) {
+        salesByDate[dateStr] = { date: dateStr, orderCount: 0, revenue: 0 };
+      }
+      salesByDate[dateStr].orderCount++;
+      salesByDate[dateStr].revenue += parseFloat(order.totalAmount || 0);
+    });
+
+    const salesData = Object.values(salesByDate).sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
     );
 
     res.status(200).json({
@@ -309,61 +330,69 @@ exports.getPopularItems = async (req, res) => {
     const { limit = 10 } = req.query;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
     }
 
-    // Get popular items based on order frequency
-    const popularItems = await orderItems.findAll({
-      attributes: [
-        "menuItemId",
-        [sequelize.fn("COUNT", sequelize.col("order_item.id")), "orderCount"],
-        [
-          sequelize.fn("SUM", sequelize.col("order_item.quantity")),
-          "totalQuantity",
-        ],
-        [
-          sequelize.fn(
-            "SUM",
-            sequelize.literal("order_item.price * order_item.quantity")
-          ),
-          "totalRevenue",
-        ],
-      ],
+    // Get all menu items for this vendor
+    const allMenuItems = await menuItems.findAll({
+      where: { vendorId: parseInt(vendorId) },
+      attributes: ["id", "name", "category", "price"],
+      raw: true,
+    });
+
+    // Get order items with their order info
+    const allOrderItems = await orderItems.findAll({
       include: [
-        {
-          model: menuItems,
-          as: "menuItem",
-          attributes: ["id", "name", "category", "price"],
-          where: { vendorId },
-        },
         {
           model: orders,
           as: "order",
-          attributes: [],
+          attributes: ["status"],
           where: {
+            vendorId: parseInt(vendorId),
             status: "completed",
-            paymentStatus: "paid",
           },
+          required: true,
         },
       ],
-      group: ["menuItemId", "menuItem.id"],
-      order: [[sequelize.literal("orderCount"), "DESC"]],
-      limit: parseInt(limit),
-      raw: false,
+      attributes: ["menuItemId", "quantity", "price"],
+      raw: true,
     });
 
-    const itemsData = popularItems.map((item) => ({
-      id: item.menuItem.id,
-      name: item.menuItem.name,
-      category: item.menuItem.category,
-      price: item.menuItem.price,
-      orderCount: parseInt(item.get("orderCount")),
-      totalQuantity: parseInt(item.get("totalQuantity")),
-      totalRevenue: parseFloat(parseFloat(item.get("totalRevenue")).toFixed(2)),
-    }));
+    // Calculate popularity for each menu item
+    const itemStats = {};
+    allOrderItems.forEach((orderItem) => {
+      const menuItemId = orderItem.menuItemId;
+      if (!itemStats[menuItemId]) {
+        itemStats[menuItemId] = {
+          orderCount: 0,
+          totalQuantity: 0,
+          totalRevenue: 0,
+        };
+      }
+      itemStats[menuItemId].orderCount++;
+      itemStats[menuItemId].totalQuantity += parseInt(orderItem.quantity || 0);
+      itemStats[menuItemId].totalRevenue +=
+        parseFloat(orderItem.price || 0) * parseInt(orderItem.quantity || 0);
+    });
+
+    // Merge with menu items and sort by popularity
+    const itemsData = allMenuItems
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        orderCount: itemStats[item.id]?.orderCount || 0,
+        totalQuantity: itemStats[item.id]?.totalQuantity || 0,
+        totalRevenue: parseFloat(
+          (itemStats[item.id]?.totalRevenue || 0).toFixed(2)
+        ),
+      }))
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, parseInt(limit));
 
     res.status(200).json({
       popularItems: itemsData,
@@ -386,7 +415,7 @@ exports.getRecentOrders = async (req, res) => {
     const { limit = 10 } = req.query;
 
     // Check authorization
-    if (req.user.id !== parseInt(vendorId) && !req.user.isStaff) {
+    if (!isAuthorizedForVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
@@ -402,7 +431,7 @@ exports.getRecentOrders = async (req, res) => {
           attributes: ["id", "name"],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
       limit: parseInt(limit),
     });
 
@@ -412,7 +441,7 @@ exports.getRecentOrders = async (req, res) => {
       status: order.status,
       totalAmount: order.totalAmount,
       tableName: order.table ? order.table.name : order.tableIdentifier,
-      createdAt: order.createdAt,
+      createdAt: order.created_at,
       paymentStatus: order.paymentStatus,
     }));
 

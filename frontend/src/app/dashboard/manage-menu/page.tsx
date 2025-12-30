@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Types
 interface MenuItem {
@@ -42,18 +43,20 @@ export default function ManageMenu() {
     []
   );
   const { user, token } = useAuth();
+  const { canCreateDeleteMenuItems, getEffectiveVendorId } = usePermissions();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const vendorId = getEffectiveVendorId();
 
   // Fetch menu items
   useEffect(() => {
-    if (user?.id && token) {
+    if (vendorId && token) {
       fetchMenuItems();
     } else {
       setIsLoading(false);
     }
-  }, [user, token]);
+  }, [vendorId, token]);
 
   // Filter menu items when search term changes
   useEffect(() => {
@@ -91,7 +94,7 @@ export default function ManageMenu() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/categories`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/categories`,
         {
           method: "GET",
           headers: {
@@ -123,7 +126,7 @@ export default function ManageMenu() {
     setActionInProgress(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${itemId}/toggle`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${itemId}/toggle`,
         {
           method: "PATCH",
           headers: {
@@ -166,7 +169,7 @@ export default function ManageMenu() {
     setActionInProgress(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${itemToDelete.id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${itemToDelete.id}`,
         {
           method: "DELETE",
           headers: {
@@ -231,13 +234,15 @@ export default function ManageMenu() {
                 </button>
               )}
             </div>
-            <Button
-              onClick={() => router.push("/dashboard/create-menu")}
-              className="bg-orange-500 hover:bg-orange-600 text-white whitespace-nowrap"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Items
-            </Button>
+            {canCreateDeleteMenuItems() && (
+              <Button
+                onClick={() => router.push("/dashboard/create-menu")}
+                className="bg-orange-500 hover:bg-orange-600 text-white whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Items
+              </Button>
+            )}
           </div>
         </div>
 
@@ -368,15 +373,17 @@ export default function ManageMenu() {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
-                                onClick={() => confirmDeleteItem(item)}
-                                disabled={actionInProgress}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {canCreateDeleteMenuItems() && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                  onClick={() => confirmDeleteItem(item)}
+                                  disabled={actionInProgress}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>

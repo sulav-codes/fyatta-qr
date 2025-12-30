@@ -123,14 +123,32 @@ exports.login = async (req, res) => {
     // Update last login
     await user.update({ lastLogin: new Date() });
 
+    // For staff users, fetch the vendor's restaurant info
+    let vendorInfo = null;
+    if (user.role === "staff" && user.vendorId) {
+      const vendor = await users.findByPk(user.vendorId, {
+        attributes: ["restaurantName", "location", "logo"],
+      });
+      if (vendor) {
+        vendorInfo = {
+          restaurantName: vendor.restaurantName,
+          location: vendor.location,
+          logo: vendor.logo,
+        };
+      }
+    }
+
     // User data to return in the response
     const userData = {
       id: user.id,
       email: user.email,
       username: user.username,
       name: user.ownerName,
-      restaurantName: user.restaurantName,
-      location: user.location,
+      restaurantName: vendorInfo?.restaurantName || user.restaurantName,
+      location: vendorInfo?.location || user.location,
+      role: user.role,
+      vendorId: user.vendorId,
+      isActive: user.isActive,
     };
 
     // Generate a JWT token

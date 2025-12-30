@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { AlertCircle } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Types
 interface Table {
@@ -39,7 +41,7 @@ interface Table {
   isActive: boolean;
 }
 
-export default function GenerateQR() {
+function GenerateQRContent() {
   const [tables, setTables] = useState<Table[]>([]);
   const [newTableName, setNewTableName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -59,18 +61,20 @@ export default function GenerateQR() {
   const [isRenamingTable, setIsRenamingTable] = useState<number | null>(null);
 
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const hostUrl =
     typeof window !== "undefined"
       ? `${window.location.protocol}//${window.location.host}`
       : "";
 
   useEffect(() => {
-    if (user?.id && token) {
+    if (vendorId && token) {
       fetchTables();
     } else {
       setIsLoading(false);
     }
-  }, [user, token]);
+  }, [vendorId, token]);
 
   const fetchTables = async () => {
     try {
@@ -78,7 +82,7 @@ export default function GenerateQR() {
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -113,7 +117,7 @@ export default function GenerateQR() {
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables`,
         {
           method: "POST",
           headers: {
@@ -148,7 +152,7 @@ export default function GenerateQR() {
       setIsDeletingTable(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -180,7 +184,7 @@ export default function GenerateQR() {
       setIsTogglingAvailability(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
         {
           method: "PUT",
           headers: {
@@ -269,7 +273,7 @@ export default function GenerateQR() {
       setIsRenamingTable(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
         {
           method: "PUT",
           headers: {
@@ -312,7 +316,7 @@ export default function GenerateQR() {
       setIsRegeneratingQR(id);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/tables/${id}/regenerate-qr`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}/regenerate-qr`,
         {
           method: "PUT",
           headers: {
@@ -346,11 +350,11 @@ export default function GenerateQR() {
   const getTableUrl = useCallback(
     (table: Table) => {
       if (!hostUrl) {
-        return `${window.location.protocol}//${window.location.host}/menu/${user?.id}/${table.qrCode}`;
+        return `${window.location.protocol}//${window.location.host}/menu/${vendorId}/${table.qrCode}`;
       }
-      return `${hostUrl}/menu/${user?.id}/${table.qrCode}`;
+      return `${hostUrl}/menu/${vendorId}/${table.qrCode}`;
     },
-    [hostUrl, user?.id]
+    [hostUrl, vendorId]
   );
 
   const downloadQRCode = (table: Table) => {
@@ -616,5 +620,14 @@ export default function GenerateQR() {
         </div>
       )}
     </main>
+  );
+}
+
+// Wrap the page with ProtectedRoute to restrict access to vendors and admins only
+export default function GenerateQR() {
+  return (
+    <ProtectedRoute allowedRoles={["vendor", "admin"]}>
+      <GenerateQRContent />
+    </ProtectedRoute>
   );
 }

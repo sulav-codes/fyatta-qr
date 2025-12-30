@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { io, Socket } from "socket.io-client";
 import {
   DropdownMenu,
@@ -179,19 +180,21 @@ export default function OrdersPage() {
   const [socketConnected, setSocketConnected] = useState(false);
 
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const socketRef = useRef<Socket | null>(null);
   const localUpdateRef = useRef<Set<number>>(new Set());
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
-    if (!user?.id || !token) return;
+    if (!vendorId || !token) return;
 
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/orders`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/orders`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -237,11 +240,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, token]);
+  }, [vendorId, token]);
 
   // WebSocket for real-time updates
   useEffect(() => {
-    if (!user?.id || !token) {
+    if (!vendorId || !token) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -264,7 +267,7 @@ export default function OrdersPage() {
     socket.on("connect", () => {
       console.log("[Orders] WebSocket connected:", socket.id);
       setSocketConnected(true);
-      socket.emit("join-vendor", user.id);
+      socket.emit("join-vendor", vendorId);
     });
 
     // Handle new orders
@@ -373,18 +376,18 @@ export default function OrdersPage() {
         "attempts"
       );
       setSocketConnected(true);
-      socket.emit("join-vendor", user.id);
+      socket.emit("join-vendor", vendorId);
       fetchOrders(); // Refresh orders on reconnection
     });
 
     return () => {
       if (socket) {
-        socket.emit("leave-vendor", user.id);
+        socket.emit("leave-vendor", vendorId);
         socket.disconnect();
       }
       socketRef.current = null;
     };
-  }, [user?.id, token, fetchOrders]);
+  }, [vendorId, token, fetchOrders]);
 
   // Update order status
   const updateOrderStatus = async (orderId: number, newStatus: string) => {

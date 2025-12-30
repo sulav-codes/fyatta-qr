@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Upload, X, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Types
 interface MenuItem {
@@ -31,6 +32,8 @@ export default function EditMenuItem({
   const { id } = unwrappedParams;
 
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,16 +51,16 @@ export default function EditMenuItem({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.id && token && id) {
+    if (vendorId && token && id) {
       fetchMenuItem();
     }
-  }, [user, token, id]);
+  }, [vendorId, token, id]);
 
   const fetchMenuItem = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${id}`,
         {
           method: "GET",
           headers: {
@@ -159,7 +162,7 @@ export default function EditMenuItem({
       }
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/menu/${id}`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${id}`,
         {
           method: "PUT",
           headers: {
