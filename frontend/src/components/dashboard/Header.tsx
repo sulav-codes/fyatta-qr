@@ -17,10 +17,14 @@ import { useNotifications } from "@/context/NotificationContext";
 import OrderNotification from "@/components/notifications/OrderNotification";
 import { getApiBaseUrl } from "@/lib/api";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const { logout, user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const [logo, setLogo] = useState<string | null>(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [orderNotifications, setOrderNotifications] = useState<any[]>([]);
@@ -44,11 +48,11 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
   // Fetch logo
   const fetchLogo = useCallback(async () => {
-    if (!user?.id || !token || logoLoaded) return;
+    if (!vendorId || !token || logoLoaded) return;
 
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/profile`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -71,11 +75,11 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     } finally {
       setLogoLoaded(true);
     }
-  }, [user?.id, token, logoLoaded]);
+  }, [vendorId, token, logoLoaded]);
 
   // Logo display
   const LogoDisplay = useMemo(() => {
-    if (!logoLoaded && user?.id && token) {
+    if (!logoLoaded && vendorId && token) {
       return (
         <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
           <span className="text-orange-500 text-xs animate-pulse">...</span>
@@ -105,13 +109,13 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
         </span>
       </div>
     );
-  }, [logo, logoLoaded, user?.id, token, restaurantName]);
+  }, [logo, logoLoaded, vendorId, token, restaurantName]);
 
   useEffect(() => {
-    if (user?.id && token && !logoLoaded) {
+    if (vendorId && token && !logoLoaded) {
       fetchLogo();
     }
-  }, [user?.id, token, fetchLogo, logoLoaded]);
+  }, [vendorId, token, fetchLogo, logoLoaded]);
 
   // Track new order notifications
   useEffect(() => {
@@ -315,18 +319,40 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <span>My Account</span>
+                  {user?.role && (
+                    <Badge
+                      variant="secondary"
+                      className={`w-fit text-xs ${
+                        user.role === "vendor"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                          : user.role === "admin"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                          : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                      }`}
+                    >
+                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                    </Badge>
+                  )}
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/dashboard/settings"
-                  className="flex items-center cursor-pointer"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {(user?.role === "vendor" || user?.role === "admin") && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/dashboard/settings"
+                      className="flex items-center cursor-pointer"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem
                 className="text-red-500 cursor-pointer"
                 onClick={handleLogout}

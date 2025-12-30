@@ -16,6 +16,19 @@ interface User {
   name?: string;
   restaurantName: string;
   location: string;
+  role: "vendor" | "staff" | "admin";
+  vendorId?: number;
+  isActive: boolean;
+  isStaff?: boolean;
+  isSuperuser?: boolean;
+  ownerName?: string;
+  phone?: string;
+  description?: string;
+  openingTime?: string;
+  closingTime?: string;
+  logo?: string;
+  dateJoined?: string;
+  lastLogin?: string | null;
   // Add other user properties as needed
 }
 
@@ -48,7 +61,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (storedToken && storedUser) {
           setToken(storedToken);
-          setUser(JSON.parse(storedUser) as User);
+          const parsedUser = JSON.parse(storedUser);
+
+          // Ensure user has a role - existing users without role are vendors
+          if (!parsedUser.role) {
+            parsedUser.role = "vendor";
+            // Update localStorage with the role
+            localStorage.setItem("user", JSON.stringify(parsedUser));
+          }
+
+          setUser(parsedUser as User);
         }
       } catch (error) {
         console.error("Error restoring auth state:", error);

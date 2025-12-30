@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Order {
   id: number;
@@ -49,6 +50,8 @@ interface SalesData {
 
 export default function Dashboard() {
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [popularItems, setPopularItems] = useState<MenuItem[]>([]);
   const [salesData, setSalesData] = useState<SalesData | null>(null);
@@ -57,12 +60,12 @@ export default function Dashboard() {
   const [loadingSales, setLoadingSales] = useState(true);
 
   useEffect(() => {
-    if (user?.id && token) {
+    if (vendorId && token) {
       fetchRecentOrders();
       fetchPopularItems();
       fetchSalesReport();
     }
-  }, [user, token]);
+  }, [vendorId, token]);
 
   const getTimeElapsed = (createdAt: string) => {
     const now = new Date();
@@ -81,9 +84,7 @@ export default function Dashboard() {
   const fetchRecentOrders = async () => {
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${
-          user?.id
-        }/dashboard/recent-orders?limit=5`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/recent-orders?limit=5`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -111,9 +112,7 @@ export default function Dashboard() {
   const fetchPopularItems = async () => {
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${
-          user?.id
-        }/dashboard/popular-items?limit=5`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/popular-items?limit=5`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -142,9 +141,7 @@ export default function Dashboard() {
   const fetchSalesReport = async () => {
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${
-          user?.id
-        }/dashboard/sales?timeframe=week`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/sales?timeframe=week`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

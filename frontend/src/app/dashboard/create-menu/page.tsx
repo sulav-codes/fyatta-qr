@@ -9,6 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Types
 interface MenuItem {
@@ -20,8 +22,11 @@ interface MenuItem {
   imagePreview: string | null;
 }
 
-export default function CreateMenu() {
+function CreateMenuContent() {
   const router = useRouter();
+  const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     {
       name: "",
@@ -33,7 +38,6 @@ export default function CreateMenu() {
     },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, token } = useAuth();
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const triggerFileSelect = (index: number) => {
@@ -141,7 +145,7 @@ export default function CreateMenu() {
       return;
     }
 
-    if (!user?.id || !token) {
+    if (!vendorId || !token) {
       toast.error("You must be logged in to create a menu");
       return;
     }
@@ -166,7 +170,7 @@ export default function CreateMenu() {
       });
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/menu`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu`,
         {
           method: "POST",
           headers: {
@@ -364,5 +368,14 @@ export default function CreateMenu() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap the page with ProtectedRoute to restrict access to vendors and admins only
+export default function CreateMenu() {
+  return (
+    <ProtectedRoute allowedRoles={["vendor", "admin"]}>
+      <CreateMenuContent />
+    </ProtectedRoute>
   );
 }

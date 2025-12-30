@@ -18,8 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Types
 interface FormData {
@@ -44,13 +46,15 @@ interface FormErrors {
   closing_time: string;
 }
 
-export default function Settings() {
+function SettingsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
+  const vendorId = getEffectiveVendorId();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<FormData>({
@@ -76,7 +80,7 @@ export default function Settings() {
   });
 
   const fetchVendorData = async () => {
-    if (!user?.id || !token) {
+    if (!vendorId || !token) {
       setIsLoading(false);
       return;
     }
@@ -86,7 +90,7 @@ export default function Settings() {
 
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user.id}/profile`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -295,7 +299,7 @@ export default function Settings() {
       }
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${user?.id}/profile`,
+        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
         {
           method: "PUT",
           headers: {
@@ -575,5 +579,14 @@ export default function Settings() {
         </div>
       </form>
     </main>
+  );
+}
+
+// Wrap the page with ProtectedRoute to restrict access to vendors and admins only
+export default function Settings() {
+  return (
+    <ProtectedRoute allowedRoles={["vendor", "admin"]}>
+      <SettingsContent />
+    </ProtectedRoute>
   );
 }

@@ -14,33 +14,31 @@ exports.getOrders = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    console.log(
-      `[getOrders] Request from user:`,
-      req.user?.id,
-      `role:`,
-      req.user?.role,
-      `for vendorId:`,
-      vendorId
-    );
-
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
+    let effectiveVendorId;
+    if (req.user.role === "staff") {
+      effectiveVendorId = req.user.vendorId;
+      // If staff doesn't have vendorId set, they can't access any vendor data
+      if (!effectiveVendorId) {
+        return res
+          .status(403)
+          .json({
+            error: "Staff user not properly configured - missing vendorId",
+          });
+      }
+    } else {
+      effectiveVendorId = req.user.id;
+    }
+
     if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
-      console.log(
-        `[getOrders] Authorization failed - user ${req.user.id} (role: ${req.user.role}) tried to access vendor ${vendorId}`
-      );
       return res.status(403).json({ error: "Unauthorized" });
     }
 
     // Verify vendor exists
     const vendor = await users.findByPk(vendorId);
     if (!vendor) {
-      console.log(`[getOrders] Vendor ${vendorId} not found`);
       return res.status(404).json({ error: "Vendor not found" });
     }
-
-    console.log(`[getOrders] Fetching orders for vendor ${vendorId}`);
 
     // Get all orders for this vendor with related data
     const vendorOrders = await orders.findAll({
@@ -66,16 +64,7 @@ exports.getOrders = async (req, res) => {
       order: [["created_at", "DESC"]],
     });
 
-    console.log(`[getOrders] Found ${vendorOrders.length} orders`);
-
     const ordersData = vendorOrders.map((order) => {
-      console.log("[getOrders] Order raw data:", {
-        id: order.id,
-        createdAt: order.createdAt,
-        created_at: order.created_at,
-        dataValues: order.dataValues,
-      });
-
       const timeElapsed = getTimeElapsed(order.createdAt || order.created_at);
       const tableName = order.table
         ? order.table.name

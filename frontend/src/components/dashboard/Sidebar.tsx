@@ -21,15 +21,58 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: PlusSquare, label: "Create Menu", href: "/dashboard/create-menu" },
-  { icon: FileEdit, label: "Manage Menu", href: "/dashboard/manage-menu" },
-  { icon: QrCode, label: "Generate QR", href: "/dashboard/qr-code" },
-  { icon: ShoppingBag, label: "Orders", href: "/dashboard/orders" },
-  { icon: Users, label: "Staff", href: "/dashboard/staff" },
-  { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+// Define nav items with role-based access
+type Role = "vendor" | "staff" | "admin";
+
+const navItems: { icon: any; label: string; href: string; roles: Role[] }[] = [
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    href: "/dashboard",
+    roles: ["vendor", "staff", "admin"],
+  },
+  {
+    icon: PlusSquare,
+    label: "Create Menu",
+    href: "/dashboard/create-menu",
+    roles: ["vendor", "admin"],
+  },
+  {
+    icon: FileEdit,
+    label: "Manage Menu",
+    href: "/dashboard/manage-menu",
+    roles: ["vendor", "staff", "admin"],
+  },
+  {
+    icon: QrCode,
+    label: "Generate QR",
+    href: "/dashboard/qr-code",
+    roles: ["vendor", "admin"],
+  },
+  {
+    icon: ShoppingBag,
+    label: "Orders",
+    href: "/dashboard/orders",
+    roles: ["vendor", "staff", "admin"],
+  },
+  {
+    icon: Users,
+    label: "Staff",
+    href: "/dashboard/staff",
+    roles: ["vendor", "admin"],
+  },
+  {
+    icon: Bell,
+    label: "Notifications",
+    href: "/dashboard/notifications",
+    roles: ["vendor", "staff", "admin"],
+  },
+  {
+    icon: Settings,
+    label: "Settings",
+    href: "/dashboard/settings",
+    roles: ["vendor", "admin"],
+  },
 ];
 
 // Memoized navigation item component
@@ -93,7 +136,7 @@ export default function DashboardSidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user: authUser, isLoading } = useAuth();
   const router = useRouter();
 
   const handleLogout = useCallback(() => {
@@ -111,14 +154,32 @@ export default function DashboardSidebar({
     [pathname]
   );
 
+  // Filter navigation items based on user role
+  const filteredNavItems = useMemo(() => {
+    // Still loading auth state - show nothing yet
+    if (isLoading) {
+      return [];
+    }
+
+    // User loaded but no role - default to vendor for existing users
+    if (!authUser) {
+      return [];
+    }
+
+    // Use role or default to vendor
+    const userRole: Role = (authUser.role as Role) || "vendor";
+
+    return navItems.filter((item) => item.roles.includes(userRole));
+  }, [authUser, isLoading]);
+
   // Memoize navigation items with active state
   const navigationItems = useMemo(
     () =>
-      navItems.map((item) => ({
+      filteredNavItems.map((item) => ({
         ...item,
         isActive: isActive(item.href),
       })),
-    [isActive]
+    [isActive, filteredNavItems]
   );
 
   // Memoize sidebar classes
