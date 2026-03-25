@@ -71,15 +71,27 @@ function verifyEsewaSignature(
   }
 }
 
+function buildTransactionUuid(orderId) {
+  const ts = Date.now();
+  const rand = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0");
+  return `INV-${orderId}-${ts}-${rand}`;
+}
+
 /**
  * Initiate eSewa payment for an order
  */
 exports.initiateEsewaPayment = async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const orderId = parseInt(req.body.orderId, 10);
 
     if (!orderId) {
       return res.status(400).json({ error: "Order ID is required" });
+    }
+
+    if (Number.isNaN(orderId)) {
+      return res.status(400).json({ error: "Order ID must be a valid number" });
     }
 
     // Get the order with vendor details
@@ -96,9 +108,33 @@ exports.initiateEsewaPayment = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    if (order.paymentStatus === "paid") {
+      return res.status(400).json({
+        error: "Order is already paid",
+      });
+    }
+
+    // eSewa requires transaction_uuid to be unique per payment attempt.
+    // Update invoiceNo for each initiation so retries don't fail with duplicate UUID.
+    let transactionUuid;
+    let updatedOrder;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        transactionUuid = buildTransactionUuid(order.id);
+        updatedOrder = await prisma.order.update({
+          where: { id: order.id },
+          data: { invoiceNo: transactionUuid },
+        });
+        break;
+      } catch (updateError) {
+        if (attempt === 2) {
+          throw updateError;
+        }
+      }
+    }
+
     // Generate signature
-    const totalAmount = Number(order.totalAmount).toFixed(2);
-    const transactionUuid = order.invoiceNo;
+    const totalAmount = Number(updatedOrder.totalAmount).toFixed(2);
     const signature = generateEsewaSignature(
       totalAmount,
       transactionUuid,
@@ -127,7 +163,7 @@ exports.initiateEsewaPayment = async (req, res) => {
       success: true,
       paymentUrl: ESEWA_CONFIG.PAYMENT_URL,
       paymentData,
-      orderId: order.id,
+      orderId: updatedOrder.id,
       invoiceNo: transactionUuid,
     });
   } catch (error) {
