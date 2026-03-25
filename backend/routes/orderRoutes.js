@@ -7,7 +7,7 @@ const orderController = require("../controllers/orderController");
 router.get(
   "/vendors/:vendorId/orders",
   authenticate,
-  orderController.getOrders
+  orderController.getOrders,
 );
 
 // Public customer order creation endpoint - no authentication required
@@ -16,7 +16,7 @@ router.post("/customer/orders", orderController.createCustomerOrder);
 // Public customer order details endpoint - no authentication required
 router.get(
   "/customer/orders/:orderId",
-  orderController.getCustomerOrderDetails
+  orderController.getCustomerOrderDetails,
 );
 
 // Protected vendor order creation
@@ -25,23 +25,23 @@ router.get("/orders/:orderId", orderController.getOrderDetails);
 router.patch(
   "/orders/:orderId/status",
   authenticate,
-  orderController.updateOrderStatus
+  orderController.updateOrderStatus,
 );
 router.patch(
   "/orders/:orderId/payment",
   authenticate,
-  orderController.updatePaymentStatus
+  orderController.updatePaymentStatus,
 );
 router.post(
   "/orders/:orderId/resolve-issue",
   authenticate,
-  orderController.resolveDeliveryIssue
+  orderController.resolveDeliveryIssue,
 );
 
 // Public/semi-public routes for customers
 router.post(
   "/orders/:orderId/report-issue",
-  orderController.reportDeliveryIssue
+  orderController.reportDeliveryIssue,
 );
 router.post("/orders/:orderId/verify", orderController.verifyDelivery);
 

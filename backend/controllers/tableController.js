@@ -1,26 +1,25 @@
-const { tables, orders, users } = require("../models/index");
+const prisma = require("../config/prisma");
 const { v4: uuidv4 } = require("uuid");
+const { canAccessVendor } = require("../utils/helpers");
 
 /**
  * Get all tables for a vendor
  */
 exports.getTables = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });
     }
 
     // Get all tables for this vendor
-    const vendorTables = await tables.findAll({
+    const vendorTables = await prisma.table.findMany({
       where: { vendorId },
-      order: [["name", "ASC"]],
+      orderBy: { name: "asc" },
     });
 
     const tablesData = vendorTables.map((table) => ({
@@ -48,13 +47,11 @@ exports.getTables = async (req, res) => {
  */
 exports.createTable = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
     const { name } = req.body;
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
@@ -68,8 +65,13 @@ exports.createTable = async (req, res) => {
     }
 
     // Check if table name already exists for this vendor
-    const existingTable = await tables.findOne({
-      where: { vendorId, name: name.trim() },
+    const existingTable = await prisma.table.findUnique({
+      where: {
+        vendorId_name: {
+          vendorId,
+          name: name.trim(),
+        },
+      },
     });
 
     if (existingTable) {
@@ -79,9 +81,12 @@ exports.createTable = async (req, res) => {
     }
 
     // Create the table
-    const table = await tables.create({
-      vendorId,
-      name: name.trim(),
+    const table = await prisma.table.create({
+      data: {
+        vendorId,
+        name: name.trim(),
+        qrCode: uuidv4(),
+      },
     });
 
     res.status(201).json({
@@ -107,21 +112,23 @@ exports.createTable = async (req, res) => {
  */
 exports.updateTable = async (req, res) => {
   try {
-    const { vendorId, tableId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const tableId = parseInt(req.params.tableId, 10);
     const { name, isActive } = req.body;
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
     }
 
     // Find the table
-    const table = await tables.findOne({
-      where: { id: tableId, vendorId },
+    const table = await prisma.table.findFirst({
+      where: {
+        id: tableId,
+        vendorId,
+      },
     });
 
     if (!table) {
@@ -133,12 +140,14 @@ exports.updateTable = async (req, res) => {
     // Update fields
     const updates = {};
     if (name) {
-      // Check if new name already exists for this vendor
-      const existingTable = await tables.findOne({
+      // Check if new name already exists for this vendor (excluding current table)
+      const existingTable = await prisma.table.findFirst({
         where: {
           vendorId,
           name: name.trim(),
-          id: { [require("sequelize").Op.ne]: tableId },
+          NOT: {
+            id: tableId,
+          },
         },
       });
 
@@ -155,15 +164,18 @@ exports.updateTable = async (req, res) => {
       updates.isActive = isActive;
     }
 
-    await table.update(updates);
+    const updatedTable = await prisma.table.update({
+      where: { id: tableId },
+      data: updates,
+    });
 
     res.status(200).json({
       message: "Table updated successfully",
       table: {
-        id: table.id,
-        name: table.name,
-        qrCode: table.qrCode,
-        isActive: table.isActive,
+        id: updatedTable.id,
+        name: updatedTable.name,
+        qrCode: updatedTable.qrCode,
+        isActive: updatedTable.isActive,
       },
     });
   } catch (error) {
@@ -180,20 +192,22 @@ exports.updateTable = async (req, res) => {
  */
 exports.deleteTable = async (req, res) => {
   try {
-    const { vendorId, tableId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const tableId = parseInt(req.params.tableId, 10);
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
     }
 
     // Find the table
-    const table = await tables.findOne({
-      where: { id: tableId, vendorId },
+    const table = await prisma.table.findFirst({
+      where: {
+        id: tableId,
+        vendorId,
+      },
     });
 
     if (!table) {
@@ -203,7 +217,9 @@ exports.deleteTable = async (req, res) => {
     }
 
     // Delete the table
-    await table.destroy();
+    await prisma.table.delete({
+      where: { id: tableId },
+    });
 
     res.status(200).json({
       message: "Table deleted successfully",
@@ -222,20 +238,22 @@ exports.deleteTable = async (req, res) => {
  */
 exports.regenerateQRCode = async (req, res) => {
   try {
-    const { vendorId, tableId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const tableId = parseInt(req.params.tableId, 10);
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
       });
     }
 
     // Find the table
-    const table = await tables.findOne({
-      where: { id: tableId, vendorId },
+    const table = await prisma.table.findFirst({
+      where: {
+        id: tableId,
+        vendorId,
+      },
     });
 
     if (!table) {
@@ -244,15 +262,19 @@ exports.regenerateQRCode = async (req, res) => {
       });
     }
 
-    // Regenerate QR code using model method
-    const newQrCode = await table.regenerateQrCode();
+    // Regenerate QR code with new UUID
+    const newQrCode = uuidv4();
+    const updatedTable = await prisma.table.update({
+      where: { id: tableId },
+      data: { qrCode: newQrCode },
+    });
 
     res.status(200).json({
       message: "QR code regenerated successfully",
       table: {
-        id: table.id,
-        name: table.name,
-        qrCode: newQrCode,
+        id: updatedTable.id,
+        name: updatedTable.name,
+        qrCode: updatedTable.qrCode,
       },
     });
   } catch (error) {
@@ -270,7 +292,8 @@ exports.regenerateQRCode = async (req, res) => {
  */
 exports.getTableStatus = async (req, res) => {
   try {
-    const { vendorId, tableIdentifier } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const { tableIdentifier } = req.params;
 
     // Validate inputs
     if (!vendorId || !tableIdentifier) {
@@ -280,7 +303,7 @@ exports.getTableStatus = async (req, res) => {
     }
 
     // Find table by QR code
-    const table = await tables.findOne({
+    const table = await prisma.table.findFirst({
       where: {
         vendorId,
         qrCode: tableIdentifier,
@@ -294,16 +317,11 @@ exports.getTableStatus = async (req, res) => {
     }
 
     // Check for active orders at this table
-    const activeOrder = await orders.findOne({
+    const activeOrder = await prisma.order.findFirst({
       where: {
         tableId: table.id,
         status: {
-          [require("sequelize").Op.in]: [
-            "pending",
-            "accepted",
-            "confirmed",
-            "preparing",
-          ],
+          in: ["pending", "accepted", "confirmed", "preparing"],
         },
       },
     });
@@ -323,7 +341,7 @@ exports.getTableStatus = async (req, res) => {
     if (io) {
       io.to(`table-${table.vendorId}-${table.name}`).emit(
         "table-status-update",
-        response
+        response,
       );
     }
 
@@ -342,37 +360,31 @@ exports.getTableStatus = async (req, res) => {
  */
 exports.getTableDetails = async (req, res) => {
   try {
-    const { vendorId, tableId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const tableId = parseInt(req.params.tableId, 10);
 
     // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });
     }
 
-    // Find the table
-    const table = await tables.findOne({
-      where: { id: tableId, vendorId },
-      include: [
-        {
-          model: orders,
-          as: "orders",
+    // Find the table with active orders
+    const table = await prisma.table.findFirst({
+      where: {
+        id: tableId,
+        vendorId,
+      },
+      include: {
+        orders: {
           where: {
             status: {
-              [require("sequelize").Op.in]: [
-                "pending",
-                "accepted",
-                "confirmed",
-                "preparing",
-              ],
+              in: ["pending", "accepted", "confirmed", "preparing"],
             },
           },
-          required: false,
         },
-      ],
+      },
     });
 
     if (!table) {

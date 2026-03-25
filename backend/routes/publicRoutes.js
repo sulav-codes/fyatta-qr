@@ -1,29 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const { tables, users, menuItems, orders } = require("../models/index");
-const { Op } = require("sequelize");
+const prisma = require("../config/prisma");
 
 /**
  * Get public menu for a vendor (no authentication required)
  */
 router.get("/public-menu/:vendorId/", async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
     // Get vendor info
-    const vendor = await users.findByPk(vendorId, {
-      attributes: [
-        "id",
-        "restaurantName",
-        "ownerName",
-        "email",
-        "phone",
-        "location",
-        "openingTime",
-        "closingTime",
-        "description",
-        "logo",
-      ],
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: {
+        id: true,
+        restaurantName: true,
+        ownerName: true,
+        email: true,
+        phone: true,
+        location: true,
+        openingTime: true,
+        closingTime: true,
+        description: true,
+        logo: true,
+      },
     });
 
     if (!vendor) {
@@ -31,15 +31,12 @@ router.get("/public-menu/:vendorId/", async (req, res) => {
     }
 
     // Get all available menu items grouped by category
-    const items = await menuItems.findAll({
+    const items = await prisma.menuItem.findMany({
       where: {
         vendorId,
         isAvailable: true,
       },
-      order: [
-        ["category", "ASC"],
-        ["name", "ASC"],
-      ],
+      orderBy: [{ category: "asc" }, { name: "asc" }],
     });
 
     // Group items by category
@@ -56,7 +53,7 @@ router.get("/public-menu/:vendorId/", async (req, res) => {
         id: item.id,
         name: item.name,
         description: item.description,
-        price: item.price,
+        price: Number(item.price),
         category: item.category,
         image_url: item.image ? `/uploads/${item.image}` : null,
         is_available: item.isAvailable,
@@ -94,10 +91,11 @@ router.get("/public-menu/:vendorId/", async (req, res) => {
  */
 router.get("/public-table/:vendorId/:tableIdentifier/", async (req, res) => {
   try {
-    const { vendorId, tableIdentifier } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const { tableIdentifier } = req.params;
 
     // Find table by QR code identifier
-    const table = await tables.findOne({
+    const table = await prisma.table.findFirst({
       where: {
         vendorId,
         qrCode: tableIdentifier,
@@ -109,14 +107,14 @@ router.get("/public-table/:vendorId/:tableIdentifier/", async (req, res) => {
     }
 
     // Check for active orders at this table
-    const activeOrder = await orders.findOne({
+    const activeOrder = await prisma.order.findFirst({
       where: {
         tableId: table.id,
         status: {
-          [Op.in]: ["pending", "accepted", "confirmed", "preparing"],
+          in: ["pending", "accepted", "confirmed", "preparing"],
         },
       },
-      order: [["created_at", "DESC"]],
+      orderBy: { createdAt: "desc" },
     });
 
     res.status(200).json({

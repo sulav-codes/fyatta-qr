@@ -13,19 +13,19 @@ router.put("/vendors/:vendorId/profile", vendorController.updateProfile);
 // Dashboard and analytics routes
 router.get(
   "/vendors/:vendorId/dashboard/stats",
-  vendorController.getDashboardStats
+  vendorController.getDashboardStats,
 );
 router.get(
   "/vendors/:vendorId/dashboard/sales",
-  vendorController.getSalesReport
+  vendorController.getSalesReport,
 );
 router.get(
   "/vendors/:vendorId/dashboard/popular-items",
-  vendorController.getPopularItems
+  vendorController.getPopularItems,
 );
 router.get(
   "/vendors/:vendorId/dashboard/recent-orders",
-  vendorController.getRecentOrders
+  vendorController.getRecentOrders,
 );
 
 module.exports = router;

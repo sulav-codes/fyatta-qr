@@ -1,5 +1,18 @@
-const { menuItems, users } = require("../models/index");
-const { Op } = require("sequelize");
+const prisma = require("../config/prisma");
+const { canAccessVendor } = require("../utils/helpers");
+
+function mapMenuItem(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    price: Number(item.price),
+    description: item.description,
+    category: item.category,
+    imageUrl: item.image ? `/uploads/${item.image}` : null,
+    isAvailable: item.isAvailable,
+    createdAt: item.createdAt,
+  };
+}
 
 /**
  * Create menu items for a vendor
@@ -7,17 +20,18 @@ const { Op } = require("sequelize");
  */
 exports.createMenuItems = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
     // Verify vendor exists
-    const vendor = await users.findByPk(vendorId);
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true },
+    });
+
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
@@ -36,22 +50,19 @@ exports.createMenuItems = async (req, res) => {
       });
     }
 
-    // Validate items
     const validatedItems = [];
     const validationErrors = [];
 
     for (let index = 0; index < itemsData.length; index++) {
-      const item = itemsData[index];
+      const item = itemsData[index] || {};
       const itemErrors = [];
 
-      // Validate name
       if (!item.name || item.name.trim() === "") {
         itemErrors.push("Name is required");
       } else if (item.name.length > 100) {
         itemErrors.push("Name too long (max 100 characters)");
       }
 
-      // Validate price
       if (
         item.price === undefined ||
         item.price === null ||
@@ -64,19 +75,16 @@ exports.createMenuItems = async (req, res) => {
         itemErrors.push("Price too high (max 99999.99)");
       }
 
-      // Validate category
       if (!item.category || item.category.trim() === "") {
         itemErrors.push("Category is required");
       } else if (item.category.length > 50) {
         itemErrors.push("Category too long (max 50 characters)");
       }
 
-      // Validate description (optional)
       if (item.description && item.description.length > 1000) {
         itemErrors.push("Description too long (max 1000 characters)");
       }
 
-      // Get image file if uploaded
       const imageKey = `image_${index}`;
       const image =
         req.files && req.files[imageKey] && req.files[imageKey][0]
@@ -85,7 +93,7 @@ exports.createMenuItems = async (req, res) => {
 
       if (itemErrors.length > 0) {
         validationErrors.push(
-          ...itemErrors.map((err) => `Item ${index + 1}: ${err}`)
+          ...itemErrors.map((err) => `Item ${index + 1}: ${err}`),
         );
       } else {
         validatedItems.push({
@@ -94,13 +102,12 @@ exports.createMenuItems = async (req, res) => {
           price: parseFloat(item.price),
           category: item.category.trim(),
           description: item.description ? item.description.trim() : "",
-          image: image,
+          image,
           isAvailable: true,
         });
       }
     }
 
-    // Return validation errors if any
     if (validationErrors.length > 0) {
       return res.status(400).json({
         error: "Validation failed",
@@ -108,13 +115,14 @@ exports.createMenuItems = async (req, res) => {
       });
     }
 
-    // Create menu items in database
-    const createdItems = await menuItems.bulkCreate(validatedItems);
+    const createdItems = await prisma.$transaction(
+      validatedItems.map((data) => prisma.menuItem.create({ data })),
+    );
 
     const itemsResponse = createdItems.map((item) => ({
       id: item.id,
       name: item.name,
-      price: item.price,
+      price: Number(item.price),
       description: item.description,
       category: item.category,
       imageUrl: item.image ? `/uploads/${item.image}` : null,
@@ -140,37 +148,27 @@ exports.createMenuItems = async (req, res) => {
  */
 exports.getMenuItems = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Verify vendor exists
-    const vendor = await users.findByPk(vendorId);
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true },
+    });
+
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Get all menu items for this vendor
-    const items = await menuItems.findAll({
+    const items = await prisma.menuItem.findMany({
       where: { vendorId },
-      order: [["createdAt", "DESC"]],
+      orderBy: { createdAt: "desc" },
     });
 
-    const itemsData = items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description,
-      category: item.category,
-      imageUrl: item.image ? `/uploads/${item.image}` : null,
-      isAvailable: item.isAvailable,
-      createdAt: item.createdAt,
-    }));
+    const itemsData = items.map(mapMenuItem);
 
     res.status(200).json({
       menuItems: itemsData,
@@ -190,46 +188,39 @@ exports.getMenuItems = async (req, res) => {
  */
 exports.getMenuItemsByCategory = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Get all menu items for this vendor
-    const items = await menuItems.findAll({
+    const items = await prisma.menuItem.findMany({
       where: { vendorId },
-      order: [
-        ["category", "ASC"],
-        ["name", "ASC"],
-      ],
+      orderBy: [{ category: "asc" }, { name: "asc" }],
     });
 
-    // Group by category
     const categories = {};
-    items.forEach((item) => {
+
+    for (const item of items) {
       const category = item.category;
       if (!categories[category]) {
         categories[category] = [];
       }
+
       categories[category].push({
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: Number(item.price),
         description: item.description || "",
         category: item.category,
         imageUrl: item.image ? `/uploads/${item.image}` : null,
         isAvailable: item.isAvailable,
       });
-    });
+    }
 
-    // Format for response
-    const formattedCategories = Object.keys(categories).map((categoryName) => ({
-      name: categoryName,
-      items: categories[categoryName],
+    const formattedCategories = Object.keys(categories).map((name) => ({
+      name,
+      items: categories[name],
     }));
 
     res.status(200).json({
@@ -250,17 +241,14 @@ exports.getMenuItemsByCategory = async (req, res) => {
  */
 exports.getMenuItem = async (req, res) => {
   try {
-    const { vendorId, itemId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Find the menu item
-    const item = await menuItems.findOne({
+    const item = await prisma.menuItem.findFirst({
       where: { id: itemId, vendorId },
     });
 
@@ -271,7 +259,7 @@ exports.getMenuItem = async (req, res) => {
     res.status(200).json({
       id: item.id,
       name: item.name,
-      price: item.price,
+      price: Number(item.price),
       description: item.description,
       category: item.category,
       imageUrl: item.image ? `/uploads/${item.image}` : null,
@@ -291,17 +279,14 @@ exports.getMenuItem = async (req, res) => {
  */
 exports.updateMenuItem = async (req, res) => {
   try {
-    const { vendorId, itemId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Find the menu item
-    const item = await menuItems.findOne({
+    const item = await prisma.menuItem.findFirst({
       where: { id: itemId, vendorId },
     });
 
@@ -309,34 +294,41 @@ exports.updateMenuItem = async (req, res) => {
       return res.status(404).json({ error: "Menu item not found" });
     }
 
-    // Update fields
     const updates = {};
     if (req.body.name) updates.name = req.body.name.trim();
     if (req.body.price) updates.price = parseFloat(req.body.price);
     if (req.body.category) updates.category = req.body.category.trim();
-    if (req.body.description !== undefined)
-      updates.description = req.body.description.trim();
+
+    if (req.body.description !== undefined) {
+      updates.description = req.body.description
+        ? req.body.description.trim()
+        : "";
+    }
+
     if (req.body.isAvailable !== undefined) {
-      // Handle both boolean and string values
       updates.isAvailable =
         req.body.isAvailable === true ||
         req.body.isAvailable === "true" ||
         req.body.isAvailable === 1;
     }
+
     if (req.file) updates.image = req.file.filename;
 
-    await item.update(updates);
+    const updated = await prisma.menuItem.update({
+      where: { id: itemId },
+      data: updates,
+    });
 
     res.status(200).json({
       message: "Menu item updated successfully",
       item: {
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        category: item.category,
-        description: item.description,
-        imageUrl: item.image ? `/uploads/${item.image}` : null,
-        isAvailable: item.isAvailable,
+        id: updated.id,
+        name: updated.name,
+        price: Number(updated.price),
+        category: updated.category,
+        description: updated.description,
+        imageUrl: updated.image ? `/uploads/${updated.image}` : null,
+        isAvailable: updated.isAvailable,
       },
     });
   } catch (error) {
@@ -353,25 +345,23 @@ exports.updateMenuItem = async (req, res) => {
  */
 exports.deleteMenuItem = async (req, res) => {
   try {
-    const { vendorId, itemId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Find and delete the menu item
-    const item = await menuItems.findOne({
+    const item = await prisma.menuItem.findFirst({
       where: { id: itemId, vendorId },
+      select: { id: true },
     });
 
     if (!item) {
       return res.status(404).json({ error: "Menu item not found" });
     }
 
-    await item.destroy();
+    await prisma.menuItem.delete({ where: { id: itemId } });
 
     res.status(200).json({
       message: "Menu item deleted successfully",
@@ -390,30 +380,31 @@ exports.deleteMenuItem = async (req, res) => {
  */
 exports.toggleAvailability = async (req, res) => {
   try {
-    const { vendorId, itemId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
-    const effectiveVendorId =
-      req.user.role === "staff" ? req.user.vendorId : req.user.id;
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Find the menu item
-    const item = await menuItems.findOne({
+    const item = await prisma.menuItem.findFirst({
       where: { id: itemId, vendorId },
+      select: { id: true, isAvailable: true },
     });
 
     if (!item) {
       return res.status(404).json({ error: "Menu item not found" });
     }
 
-    // Toggle availability
-    await item.update({ isAvailable: !item.isAvailable });
+    const nextAvailability = !item.isAvailable;
+    await prisma.menuItem.update({
+      where: { id: itemId },
+      data: { isAvailable: nextAvailability },
+    });
 
     res.status(200).json({
-      message: `Menu item ${item.isAvailable ? "enabled" : "disabled"}`,
-      isAvailable: item.isAvailable,
+      message: `Menu item ${nextAvailability ? "enabled" : "disabled"}`,
+      isAvailable: nextAvailability,
     });
   } catch (error) {
     console.error("Error toggling menu item availability:", error);

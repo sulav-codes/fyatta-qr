@@ -1,5 +1,9 @@
-const { users } = require("../models/index");
-const { Op } = require("sequelize");
+const prisma = require("../config/prisma");
+const {
+  hashPassword,
+  sanitizeUser,
+  canAccessVendor,
+} = require("../utils/helpers");
 
 /**
  * Get all staff members for a vendor
@@ -9,29 +13,31 @@ const getStaff = async (req, res) => {
     const { vendorId } = req.params;
 
     // Ensure user can only access their own staff
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Access denied. You can only view your own staff members.",
       });
     }
 
-    const staff = await users.findAll({
+    const staff = await prisma.user.findMany({
       where: {
-        vendorId: vendorId,
+        vendorId: parseInt(vendorId),
         role: "staff",
       },
-      attributes: [
-        "id",
-        "username",
-        "email",
-        "ownerName",
-        "phone",
-        "isActive",
-        "role",
-        "dateJoined",
-        "lastLogin",
-      ],
-      order: [["dateJoined", "DESC"]],
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        ownerName: true,
+        phone: true,
+        isActive: true,
+        role: true,
+        dateJoined: true,
+        lastLogin: true,
+      },
+      orderBy: {
+        dateJoined: "desc",
+      },
     });
 
     res.json({
@@ -56,30 +62,30 @@ const getStaffMember = async (req, res) => {
     const { vendorId, staffId } = req.params;
 
     // Ensure user can only access their own staff
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Access denied.",
       });
     }
 
-    const staff = await users.findOne({
+    const staff = await prisma.user.findFirst({
       where: {
-        id: staffId,
-        vendorId: vendorId,
+        id: parseInt(staffId),
+        vendorId: parseInt(vendorId),
         role: "staff",
       },
-      attributes: [
-        "id",
-        "username",
-        "email",
-        "ownerName",
-        "phone",
-        "isActive",
-        "role",
-        "vendorId",
-        "dateJoined",
-        "lastLogin",
-      ],
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        ownerName: true,
+        phone: true,
+        isActive: true,
+        role: true,
+        vendorId: true,
+        dateJoined: true,
+        lastLogin: true,
+      },
     });
 
     if (!staff) {
@@ -110,7 +116,7 @@ const createStaff = async (req, res) => {
     const { username, email, password, ownerName, phone } = req.body;
 
     // Ensure user can only create staff for themselves
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error:
           "Access denied. You can only create staff for your own restaurant.",
@@ -132,52 +138,57 @@ const createStaff = async (req, res) => {
     }
 
     // Check if username or email already exists
-    const existingUser = await users.findOne({
+    const existingUser = await prisma.user.findFirst({
       where: {
-        [Op.or]: [{ username }, { email }],
+        OR: [{ username: username.trim() }, { email: email.trim() }],
       },
     });
 
     if (existingUser) {
       return res.status(400).json({
         error:
-          existingUser.username === username
+          existingUser.username === username.trim()
             ? "Username already exists"
             : "Email already exists",
       });
     }
 
     // Get vendor details to use as defaults
-    const vendor = await users.findByPk(vendorId);
+    const vendor = await prisma.user.findUnique({
+      where: { id: parseInt(vendorId) },
+    });
+
     if (!vendor) {
       return res.status(404).json({
         error: "Vendor not found",
       });
     }
 
-    // Create staff member
-    const staff = await users.create({
-      username,
-      email,
-      password, // Will be hashed by beforeCreate hook
-      ownerName: ownerName || username,
-      phone,
-      role: "staff",
-      vendorId: vendorId,
-      restaurantName: vendor.restaurantName,
-      location: vendor.location,
-      isActive: true,
-      isStaff: true,
-      isSuperuser: false,
-    });
+    // Hash password
+    const hashedPassword = await hashPassword(password);
 
-    // Remove password from response
-    const staffData = staff.toJSON();
+    // Create staff member
+    const staff = await prisma.user.create({
+      data: {
+        username: username.trim(),
+        email: email.trim(),
+        password: hashedPassword,
+        ownerName: ownerName || username,
+        phone: phone || null,
+        role: "staff",
+        vendorId: parseInt(vendorId),
+        restaurantName: vendor.restaurantName,
+        location: vendor.location,
+        isActive: true,
+        isStaff: true,
+        isSuperuser: false,
+      },
+    });
 
     res.status(201).json({
       success: true,
       message: "Staff member created successfully",
-      staff: staffData,
+      staff: sanitizeUser(staff),
     });
   } catch (error) {
     console.error("Error creating staff member:", error);
@@ -197,17 +208,17 @@ const updateStaff = async (req, res) => {
     const { username, email, ownerName, phone, isActive, password } = req.body;
 
     // Ensure user can only update their own staff
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Access denied.",
       });
     }
 
     // Find staff member
-    const staff = await users.findOne({
+    const staff = await prisma.user.findFirst({
       where: {
-        id: staffId,
-        vendorId: vendorId,
+        id: parseInt(staffId),
+        vendorId: parseInt(vendorId),
         role: "staff",
       },
     });
@@ -220,13 +231,15 @@ const updateStaff = async (req, res) => {
 
     // Check for duplicate username/email (excluding current staff)
     if (username || email) {
-      const existingUser = await users.findOne({
+      const existingUser = await prisma.user.findFirst({
         where: {
-          [Op.or]: [
-            ...(username ? [{ username }] : []),
-            ...(email ? [{ email }] : []),
+          OR: [
+            ...(username ? [{ username: username.trim() }] : []),
+            ...(email ? [{ email: email.trim() }] : []),
           ],
-          id: { [Op.ne]: staffId },
+          NOT: {
+            id: parseInt(staffId),
+          },
         },
       });
 
@@ -240,21 +253,27 @@ const updateStaff = async (req, res) => {
       }
     }
 
-    // Update staff member
+    // Build update data
     const updateData = {};
-    if (username !== undefined) updateData.username = username;
-    if (email !== undefined) updateData.email = email;
+    if (username !== undefined) updateData.username = username.trim();
+    if (email !== undefined) updateData.email = email.trim();
     if (ownerName !== undefined) updateData.ownerName = ownerName;
     if (phone !== undefined) updateData.phone = phone;
     if (isActive !== undefined) updateData.isActive = isActive;
-    if (password !== undefined) updateData.password = password; // Will be hashed by beforeUpdate hook
+    if (password !== undefined) {
+      updateData.password = await hashPassword(password);
+    }
 
-    await staff.update(updateData);
+    // Update staff member
+    const updatedStaff = await prisma.user.update({
+      where: { id: parseInt(staffId) },
+      data: updateData,
+    });
 
     res.json({
       success: true,
       message: "Staff member updated successfully",
-      staff: staff.toJSON(),
+      staff: sanitizeUser(updatedStaff),
     });
   } catch (error) {
     console.error("Error updating staff member:", error);
@@ -273,17 +292,17 @@ const deleteStaff = async (req, res) => {
     const { vendorId, staffId } = req.params;
 
     // Ensure user can only delete their own staff
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Access denied.",
       });
     }
 
     // Find and delete staff member
-    const staff = await users.findOne({
+    const staff = await prisma.user.findFirst({
       where: {
-        id: staffId,
-        vendorId: vendorId,
+        id: parseInt(staffId),
+        vendorId: parseInt(vendorId),
         role: "staff",
       },
     });
@@ -294,7 +313,9 @@ const deleteStaff = async (req, res) => {
       });
     }
 
-    await staff.destroy();
+    await prisma.user.delete({
+      where: { id: parseInt(staffId) },
+    });
 
     res.json({
       success: true,
@@ -317,16 +338,16 @@ const toggleStaffStatus = async (req, res) => {
     const { vendorId, staffId } = req.params;
 
     // Ensure user can only update their own staff
-    if (req.user.id !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Access denied.",
       });
     }
 
-    const staff = await users.findOne({
+    const staff = await prisma.user.findFirst({
       where: {
-        id: staffId,
-        vendorId: vendorId,
+        id: parseInt(staffId),
+        vendorId: parseInt(vendorId),
         role: "staff",
       },
     });
@@ -337,16 +358,19 @@ const toggleStaffStatus = async (req, res) => {
       });
     }
 
-    await staff.update({
-      isActive: !staff.isActive,
+    const updatedStaff = await prisma.user.update({
+      where: { id: parseInt(staffId) },
+      data: {
+        isActive: !staff.isActive,
+      },
     });
 
     res.json({
       success: true,
       message: `Staff member ${
-        staff.isActive ? "activated" : "deactivated"
+        updatedStaff.isActive ? "activated" : "deactivated"
       } successfully`,
-      staff: staff.toJSON(),
+      staff: sanitizeUser(updatedStaff),
     });
   } catch (error) {
     console.error("Error toggling staff status:", error);

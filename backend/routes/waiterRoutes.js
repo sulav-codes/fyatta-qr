@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { tables, users } = require("../models/index");
+const prisma = require("../config/prisma");
 
 // Call waiter endpoint
 router.post("/call-waiter", async (req, res) => {
@@ -21,8 +21,9 @@ router.post("/call-waiter", async (req, res) => {
     }
 
     // Get vendor details
-    const vendor = await users.findByPk(vendor_id, {
-      attributes: ["id", "email", "restaurantName"],
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendor_id },
+      select: { id: true, email: true, restaurantName: true },
     });
 
     if (!vendor) {
@@ -33,12 +34,12 @@ router.post("/call-waiter", async (req, res) => {
     }
 
     // Get table details
-    const table = await tables.findOne({
+    const table = await prisma.table.findFirst({
       where: {
         vendorId: vendor_id,
         qrCode: table_identifier,
       },
-      attributes: ["id", "name"],
+      select: { id: true, name: true },
     });
 
     const tableName = table ? table.name : table_name || "Unknown Table";
@@ -63,11 +64,11 @@ router.post("/call-waiter", async (req, res) => {
           message: `Customer at ${tableName} is calling for assistance`,
         });
         console.log(
-          `[Waiter Call] Socket notification sent to vendor-${vendor_id}`
+          `[Waiter Call] Socket notification sent to vendor-${vendor_id}`,
         );
       } else {
         console.warn(
-          "[Waiter Call] Socket.io not available, notification not sent via socket"
+          "[Waiter Call] Socket.io not available, notification not sent via socket",
         );
       }
     } catch (socketError) {
@@ -76,7 +77,7 @@ router.post("/call-waiter", async (req, res) => {
     }
 
     console.log(
-      `[Waiter Call] ${tableName} called waiter at ${vendor.restaurant_name}`
+      `[Waiter Call] ${tableName} called waiter at ${vendor.restaurantName}`,
     );
 
     return res.status(200).json({

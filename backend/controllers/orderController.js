@@ -1,71 +1,64 @@
-const {
-  orders,
-  orderItems,
-  menuItems,
-  tables,
-  users,
-} = require("../models/index");
-const { Op } = require("sequelize");
+const prisma = require("../config/prisma");
 
 /**
  * Get all orders for a vendor
  */
 exports.getOrders = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
     let effectiveVendorId;
     if (req.user.role === "staff") {
       effectiveVendorId = req.user.vendorId;
-      // If staff doesn't have vendorId set, they can't access any vendor data
       if (!effectiveVendorId) {
-        return res
-          .status(403)
-          .json({
-            error: "Staff user not properly configured - missing vendorId",
-          });
+        return res.status(403).json({
+          error: "Staff user not properly configured - missing vendorId",
+        });
       }
     } else {
       effectiveVendorId = req.user.id;
     }
 
-    if (effectiveVendorId !== parseInt(vendorId) && req.user.role !== "admin") {
+    if (effectiveVendorId !== vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Verify vendor exists
-    const vendor = await users.findByPk(vendorId);
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true },
+    });
+
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Get all orders for this vendor with related data
-    const vendorOrders = await orders.findAll({
+    const vendorOrders = await prisma.order.findMany({
       where: { vendorId },
-      include: [
-        {
-          model: tables,
-          as: "table",
-          attributes: ["id", "name", "qrCode"],
+      include: {
+        table: {
+          select: {
+            id: true,
+            name: true,
+            qrCode: true,
+          },
         },
-        {
-          model: orderItems,
-          as: "items",
-          include: [
-            {
-              model: menuItems,
-              as: "menuItem",
-              attributes: ["id", "name"],
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
-          ],
+          },
         },
-      ],
-      order: [["created_at", "DESC"]],
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     const ordersData = vendorOrders.map((order) => {
-      const timeElapsed = getTimeElapsed(order.createdAt || order.created_at);
+      const createdAt = order.createdAt;
+      const timeElapsed = getTimeElapsed(createdAt);
       const tableName = order.table
         ? order.table.name
         : order.tableIdentifier || "Unknown";
@@ -76,27 +69,26 @@ exports.getOrders = async (req, res) => {
         status: order.status,
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
-        totalAmount: order.totalAmount,
-        tableName: tableName,
+        totalAmount: Number(order.totalAmount),
+        tableName,
         tableId: order.table ? order.table.id : null,
         tableIdentifier: order.tableIdentifier,
         qrCode: order.table ? order.table.qrCode : order.tableIdentifier,
         invoiceNo: order.invoiceNo,
-        createdAt:
-          order.createdAt || order.created_at || order.dataValues?.created_at,
-        timestamp:
-          order.createdAt || order.created_at || order.dataValues?.created_at,
-        timeElapsed: timeElapsed,
+        createdAt,
+        timestamp: createdAt,
+        timeElapsed,
         items: order.items.map((item) => ({
           id: item.id,
           name: item.menuItem ? item.menuItem.name : "Deleted Item",
-          price: item.price,
+          price: Number(item.price),
           quantity: item.quantity,
         })),
-        customerVerified: order.customerVerified,
-        verificationTimestamp: order.verificationTimestamp,
-        deliveryIssueReported: order.deliveryIssueReported,
-        issueReportTimestamp: order.issueReportTimestamp,
+        // Backward-compatible response keys
+        customerVerified: order.deliveryVerified,
+        verificationTimestamp: order.deliveryVerifiedAt,
+        deliveryIssueReported: order.issueReported,
+        issueReportTimestamp: order.issueReportedAt,
         issueDescription: order.issueDescription,
       };
     });
@@ -123,47 +115,49 @@ exports.createCustomerOrder = async (req, res) => {
   try {
     const { vendor_id, table_identifier, items: orderItemsData } = req.body;
 
-    // Validate required fields
     if (!vendor_id || !orderItemsData || orderItemsData.length === 0) {
       return res.status(400).json({
         error: "Vendor ID and order items are required",
       });
     }
 
-    // Verify vendor exists
-    const vendor = await users.findByPk(vendor_id);
+    const vendorId = parseInt(vendor_id, 10);
+
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true, restaurantName: true },
+    });
+
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Find table by QR code/identifier if provided
     let table = null;
     if (table_identifier) {
-      table = await tables.findOne({
+      table = await prisma.table.findFirst({
         where: {
-          vendorId: vendor_id,
-          [Op.or]: [{ qrCode: table_identifier }, { name: table_identifier }],
+          vendorId,
+          OR: [{ qrCode: table_identifier }, { name: table_identifier }],
         },
       });
       console.log(
         "[createCustomerOrder] Table lookup result:",
-        table ? table.name : "not found"
+        table ? table.name : "not found",
       );
     }
 
-    // Calculate total from items
     let calculatedTotal = 0;
     const validItems = [];
 
     for (const itemData of orderItemsData) {
-      const menuItem = await menuItems.findByPk(itemData.id);
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id: parseInt(itemData.id, 10) },
+      });
+
       if (menuItem) {
         const quantity = itemData.quantity || 1;
-        calculatedTotal += parseFloat(menuItem.price) * quantity;
-        validItems.push({
-          menuItem,
-          quantity,
-        });
+        calculatedTotal += Number(menuItem.price) * quantity;
+        validItems.push({ menuItem, quantity });
       }
     }
 
@@ -171,73 +165,68 @@ exports.createCustomerOrder = async (req, res) => {
       return res.status(400).json({ error: "No valid menu items found" });
     }
 
-    // Generate invoice number
     const invoiceNo = await generateInvoiceNumber();
 
-    // Create order
-    const order = await orders.create({
-      vendorId: vendor_id,
-      tableId: table ? table.id : null,
-      tableIdentifier: table_identifier || null,
-      status: "pending",
-      totalAmount: calculatedTotal,
-      invoiceNo,
-      paymentStatus: "pending",
-      paymentMethod: "cash",
+    const order = await prisma.order.create({
+      data: {
+        vendorId,
+        tableId: table ? table.id : null,
+        tableIdentifier: table_identifier || null,
+        status: "pending",
+        totalAmount: calculatedTotal,
+        invoiceNo,
+        paymentStatus: "pending",
+        paymentMethod: "cash",
+      },
     });
 
     console.log("[createCustomerOrder] Order created:", order.id);
 
-    // Create order items
-    for (const { menuItem, quantity } of validItems) {
-      await orderItems.create({
-        orderId: order.id,
-        menuItemId: menuItem.id,
-        quantity,
-        price: menuItem.price,
-      });
-    }
+    await prisma.$transaction(
+      validItems.map(({ menuItem, quantity }) =>
+        prisma.orderItem.create({
+          data: {
+            orderId: order.id,
+            menuItemId: menuItem.id,
+            quantity,
+            price: menuItem.price,
+          },
+        }),
+      ),
+    );
 
     console.log("[createCustomerOrder] Order items created");
 
-    // Fetch the created order with items for notification
-    const orderWithItems = await orders.findByPk(order.id, {
-      include: [
-        {
-          model: orderItems,
-          as: "items",
-          include: [
-            {
-              model: menuItems,
-              as: "menuItem",
-              attributes: ["id", "name"],
+    const orderWithItems = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        items: {
+          include: {
+            menuItem: {
+              select: { id: true, name: true },
             },
-          ],
+          },
         },
-      ],
+      },
     });
 
-    // Prepare items array for notification
-    const itemsForNotification = orderWithItems.items.map((item) => ({
+    const itemsForNotification = (orderWithItems?.items || []).map((item) => ({
       name: item.menuItem ? item.menuItem.name : "Unknown Item",
       quantity: item.quantity,
-      price: item.price,
+      price: Number(item.price),
     }));
 
-    // Emit socket event for new order
     const io = req.app.get("io");
     if (io) {
-      // Emit order created event to vendor
-      io.to(`vendor-${vendor_id}`).emit("order-created", {
+      io.to(`vendor-${vendorId}`).emit("order-created", {
         orderId: order.id,
         status: order.status,
-        totalAmount: order.totalAmount,
+        totalAmount: Number(order.totalAmount),
         tableIdentifier: table ? table.name : table_identifier,
         tableName: table ? table.name : null,
       });
 
-      // Emit notification to vendor
-      io.to(`vendor-${vendor_id}`).emit("notification", {
+      io.to(`vendor-${vendorId}`).emit("notification", {
         id: `order-${order.id}-created`,
         type: "order",
         title: "New Order Received",
@@ -250,21 +239,17 @@ exports.createCustomerOrder = async (req, res) => {
         data: {
           order_id: order.id,
           table_name: table ? table.name : null,
-          total_amount: order.totalAmount,
+          total_amount: Number(order.totalAmount),
           status: order.status,
           items: itemsForNotification,
         },
       });
 
-      // Emit to table room if exists
       if (table) {
-        io.to(`table-${vendor_id}-${table.qrCode}`).emit(
-          "order-status-update",
-          {
-            orderId: order.id,
-            status: order.status,
-          }
-        );
+        io.to(`table-${vendorId}-${table.qrCode}`).emit("order-status-update", {
+          orderId: order.id,
+          status: order.status,
+        });
       }
     }
 
@@ -297,78 +282,90 @@ exports.createOrder = async (req, res) => {
   try {
     const { vendorId, tableId, items: orderItemsData, totalAmount } = req.body;
 
-    // Validate required fields
     if (!vendorId || !orderItemsData || orderItemsData.length === 0) {
       return res.status(400).json({
         error: "Vendor ID and order items are required",
       });
     }
 
-    // Verify vendor exists
-    const vendor = await users.findByPk(vendorId);
+    const parsedVendorId = parseInt(vendorId, 10);
+
+    const vendor = await prisma.user.findUnique({
+      where: { id: parsedVendorId },
+      select: { id: true },
+    });
+
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
 
-    // Find table if tableId provided
     let table = null;
     if (tableId) {
-      table = await tables.findOne({
-        where: { id: tableId, vendorId },
+      table = await prisma.table.findFirst({
+        where: {
+          id: parseInt(tableId, 10),
+          vendorId: parsedVendorId,
+        },
       });
+
       if (!table) {
         return res.status(404).json({ error: "Table not found" });
       }
     }
 
-    // Generate invoice number
     const invoiceNo = await generateInvoiceNumber();
 
-    // Create order
-    const order = await orders.create({
-      vendorId,
-      tableId: table ? table.id : null,
-      tableIdentifier: table ? table.name : null,
-      status: "pending",
-      totalAmount: totalAmount || 0,
-      invoiceNo,
-      paymentStatus: "pending",
-      paymentMethod: "cash",
+    const order = await prisma.order.create({
+      data: {
+        vendorId: parsedVendorId,
+        tableId: table ? table.id : null,
+        tableIdentifier: table ? table.name : null,
+        status: "pending",
+        totalAmount: totalAmount || 0,
+        invoiceNo,
+        paymentStatus: "pending",
+        paymentMethod: "cash",
+      },
     });
 
-    // Create order items
     let calculatedTotal = 0;
+
     for (const itemData of orderItemsData) {
-      const menuItem = await menuItems.findByPk(itemData.id);
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id: parseInt(itemData.id, 10) },
+      });
+
       if (menuItem) {
-        await orderItems.create({
-          orderId: order.id,
-          menuItemId: menuItem.id,
-          quantity: itemData.quantity || 1,
-          price: menuItem.price,
+        const quantity = itemData.quantity || 1;
+        await prisma.orderItem.create({
+          data: {
+            orderId: order.id,
+            menuItemId: menuItem.id,
+            quantity,
+            price: menuItem.price,
+          },
         });
-        calculatedTotal += menuItem.price * (itemData.quantity || 1);
+        calculatedTotal += Number(menuItem.price) * quantity;
       }
     }
 
-    // Update total amount if not provided
     if (!totalAmount) {
-      await order.update({ totalAmount: calculatedTotal });
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { totalAmount: calculatedTotal },
+      });
     }
 
-    // Emit socket event for new order
     const io = req.app.get("io");
     if (io) {
-      // Emit order created event
-      io.to(`vendor-${vendorId}`).emit("order-created", {
+      io.to(`vendor-${parsedVendorId}`).emit("order-created", {
         orderId: order.id,
         status: order.status,
-        totalAmount: order.totalAmount,
+        totalAmount: totalAmount || calculatedTotal,
         tableIdentifier: table ? table.name : null,
       });
 
-      // Emit notification to vendor
-      io.to(`vendor-${vendorId}`).emit("notification", {
+      io.to(`vendor-${parsedVendorId}`).emit("notification", {
         id: `order-${order.id}-created`,
         type: "order",
         title: "New Order Received",
@@ -381,16 +378,19 @@ exports.createOrder = async (req, res) => {
         data: {
           order_id: order.id,
           table_name: table ? table.name : null,
-          total_amount: order.totalAmount,
+          total_amount: totalAmount || calculatedTotal,
           status: order.status,
         },
       });
 
       if (table) {
-        io.to(`table-${vendorId}-${table.name}`).emit("order-status-update", {
-          orderId: order.id,
-          status: order.status,
-        });
+        io.to(`table-${parsedVendorId}-${table.name}`).emit(
+          "order-status-update",
+          {
+            orderId: order.id,
+            status: order.status,
+          },
+        );
       }
     }
 
@@ -414,26 +414,29 @@ exports.createOrder = async (req, res) => {
  */
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
     const { status: newStatus } = req.body;
 
-    // Check authorization
-    const order = await orders.findByPk(orderId, {
-      include: [{ model: users, as: "vendor" }],
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        vendor: {
+          select: { id: true },
+        },
+      },
     });
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
     const effectiveVendorId =
       req.user.role === "staff" ? req.user.vendorId : req.user.id;
+
     if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Validate status
     const validStatuses = [
       "pending",
       "accepted",
@@ -454,19 +457,20 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     const oldStatus = order.status;
-    await order.update({ status: newStatus });
 
-    // Emit socket event for status update
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: newStatus },
+    });
+
     const io = req.app.get("io");
     if (io) {
-      // Notify vendor
       io.to(`vendor-${order.vendorId}`).emit("order-status-changed", {
         orderId: order.id,
         oldStatus,
         newStatus,
       });
 
-      // Emit notification for significant status changes
       const notificationMessages = {
         accepted: "Order has been accepted",
         rejected: "Order has been rejected",
@@ -496,14 +500,13 @@ exports.updateOrderStatus = async (req, res) => {
         });
       }
 
-      // Notify customer at table
       if (order.tableIdentifier) {
         io.to(`table-${order.vendorId}-${order.tableIdentifier}`).emit(
           "order-status-update",
           {
             orderId: order.id,
             status: newStatus,
-          }
+          },
         );
       }
     }
@@ -528,42 +531,48 @@ exports.updateOrderStatus = async (req, res) => {
  */
 exports.getOrderDetails = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
 
-    const order = await orders.findByPk(orderId, {
-      include: [
-        {
-          model: tables,
-          as: "table",
-          attributes: ["id", "name", "qrCode"],
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        table: {
+          select: {
+            id: true,
+            name: true,
+            qrCode: true,
+          },
         },
-        {
-          model: orderItems,
-          as: "items",
-          include: [
-            {
-              model: menuItems,
-              as: "menuItem",
-              attributes: ["id", "name", "category", "price"],
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                price: true,
+              },
             },
-          ],
+          },
         },
-        {
-          model: users,
-          as: "vendor",
-          attributes: ["id", "restaurantName", "ownerName"],
+        vendor: {
+          select: {
+            id: true,
+            restaurantName: true,
+            ownerName: true,
+          },
         },
-      ],
+      },
     });
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization - only if user is authenticated
     if (req.user) {
       const effectiveVendorId =
         req.user.role === "staff" ? req.user.vendorId : req.user.id;
+
       if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
         return res.status(403).json({ error: "Unauthorized" });
       }
@@ -575,7 +584,7 @@ exports.getOrderDetails = async (req, res) => {
       status: order.status,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
-      totalAmount: order.totalAmount,
+      totalAmount: Number(order.totalAmount),
       invoiceNo: order.invoiceNo,
       transactionId: order.transactionId,
       table: order.table,
@@ -584,13 +593,14 @@ exports.getOrderDetails = async (req, res) => {
         id: item.id,
         name: item.menuItem ? item.menuItem.name : "Deleted Item",
         category: item.menuItem ? item.menuItem.category : null,
-        price: item.price,
+        price: Number(item.price),
         quantity: item.quantity,
-        subtotal: item.price * item.quantity,
+        subtotal: Number(item.price) * item.quantity,
       })),
-      customerVerified: order.customerVerified,
-      verificationTimestamp: order.verificationTimestamp,
-      deliveryIssueReported: order.deliveryIssueReported,
+      // Backward-compatible response keys
+      customerVerified: order.deliveryVerified,
+      verificationTimestamp: order.deliveryVerifiedAt,
+      deliveryIssueReported: order.issueReported,
       issueDescription: order.issueDescription,
       issueResolved: order.issueResolved,
       resolutionMessage: order.resolutionMessage,
@@ -611,32 +621,37 @@ exports.getOrderDetails = async (req, res) => {
  */
 exports.getCustomerOrderDetails = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
 
-    const order = await orders.findByPk(orderId, {
-      include: [
-        {
-          model: tables,
-          as: "table",
-          attributes: ["id", "name", "qrCode"],
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        table: {
+          select: {
+            id: true,
+            name: true,
+            qrCode: true,
+          },
         },
-        {
-          model: users,
-          as: "vendor",
-          attributes: ["id", "restaurantName"],
+        vendor: {
+          select: {
+            id: true,
+            restaurantName: true,
+          },
         },
-        {
-          model: orderItems,
-          as: "items",
-          include: [
-            {
-              model: menuItems,
-              as: "menuItem",
-              attributes: ["id", "name", "category", "price"],
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                price: true,
+              },
             },
-          ],
+          },
         },
-      ],
+      },
     });
 
     if (!order) {
@@ -649,7 +664,7 @@ exports.getCustomerOrderDetails = async (req, res) => {
       status: order.status,
       payment_status: order.paymentStatus,
       payment_method: order.paymentMethod,
-      total_amount: order.totalAmount,
+      total_amount: Number(order.totalAmount),
       table_name: order.table ? order.table.name : order.tableIdentifier,
       table_identifier: order.tableIdentifier,
       vendor_id: order.vendorId,
@@ -659,7 +674,7 @@ exports.getCustomerOrderDetails = async (req, res) => {
       items: order.items.map((item) => ({
         id: item.id,
         name: item.menuItem ? item.menuItem.name : "Deleted Item",
-        price: item.price,
+        price: Number(item.price),
         quantity: item.quantity,
       })),
     });
@@ -677,17 +692,20 @@ exports.getCustomerOrderDetails = async (req, res) => {
  */
 exports.updatePaymentStatus = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
     const { paymentStatus, paymentMethod, transactionId } = req.body;
 
-    const order = await orders.findByPk(orderId);
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
     const effectiveVendorId =
       req.user.role === "staff" ? req.user.vendorId : req.user.id;
+
     if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
@@ -697,14 +715,17 @@ exports.updatePaymentStatus = async (req, res) => {
     if (paymentMethod) updates.paymentMethod = paymentMethod;
     if (transactionId) updates.transactionId = transactionId;
 
-    await order.update(updates);
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: updates,
+    });
 
     res.status(200).json({
       message: "Payment status updated successfully",
-      orderId: order.id,
-      paymentStatus: order.paymentStatus,
-      paymentMethod: order.paymentMethod,
-      transactionId: order.transactionId,
+      orderId: updated.id,
+      paymentStatus: updated.paymentStatus,
+      paymentMethod: updated.paymentMethod,
+      transactionId: updated.transactionId,
     });
   } catch (error) {
     console.error("Error updating payment status:", error);
@@ -720,29 +741,34 @@ exports.updatePaymentStatus = async (req, res) => {
  */
 exports.reportDeliveryIssue = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
     const { issueDescription } = req.body;
 
-    const order = await orders.findByPk(orderId);
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    await order.update({
-      deliveryIssueReported: true,
-      issueReportTimestamp: new Date(),
-      issueDescription:
-        issueDescription || "Customer reported not receiving order",
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        issueReported: true,
+        issueReportedAt: new Date(),
+        issueDescription:
+          issueDescription || "Customer reported not receiving order",
+      },
     });
 
-    // Emit socket event to vendor
     const io = req.app.get("io");
     if (io) {
       io.to(`vendor-${order.vendorId}`).emit("delivery-issue", {
         orderId: order.id,
         issueDescription:
           issueDescription || "Customer reported not receiving order",
-        issueReportTimestamp: order.issueReportTimestamp,
+        issueReportTimestamp: updated.issueReportedAt,
       });
 
       io.to(`vendor-${order.vendorId}`).emit("notification", {
@@ -778,25 +804,31 @@ exports.reportDeliveryIssue = async (req, res) => {
  */
 exports.resolveDeliveryIssue = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
     const { resolutionMessage } = req.body;
 
-    const order = await orders.findByPk(orderId);
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
     const effectiveVendorId =
       req.user.role === "staff" ? req.user.vendorId : req.user.id;
+
     if (effectiveVendorId !== order.vendorId && req.user.role !== "admin") {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    await order.update({
-      issueResolved: true,
-      issueResolutionTimestamp: new Date(),
-      resolutionMessage: resolutionMessage || "Issue has been resolved",
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        issueResolved: true,
+        issueResolutionTimestamp: new Date(),
+        resolutionMessage: resolutionMessage || "Issue has been resolved",
+      },
     });
 
     res.status(200).json({
@@ -817,24 +849,29 @@ exports.resolveDeliveryIssue = async (req, res) => {
  */
 exports.verifyDelivery = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
 
-    const order = await orders.findByPk(orderId);
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    await order.update({
-      customerVerified: true,
-      verificationTimestamp: new Date(),
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        deliveryVerified: true,
+        deliveryVerifiedAt: new Date(),
+      },
     });
 
-    // Emit socket event to vendor
     const io = req.app.get("io");
     if (io) {
       io.to(`vendor-${order.vendorId}`).emit("order-verified", {
         orderId: order.id,
-        verificationTimestamp: order.verificationTimestamp,
+        verificationTimestamp: updated.deliveryVerifiedAt,
       });
 
       io.to(`vendor-${order.vendorId}`).emit("notification", {
@@ -864,11 +901,6 @@ exports.verifyDelivery = async (req, res) => {
   }
 };
 
-// Helper functions
-
-/**
- * Calculate time elapsed since order creation
- */
 function getTimeElapsed(createdAt) {
   const now = new Date();
   const diffMs = now - new Date(createdAt);
@@ -878,25 +910,22 @@ function getTimeElapsed(createdAt) {
 
   if (diffDays > 0) {
     return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-  } else if (diffHours > 0) {
-    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-  } else if (diffMins > 0) {
-    return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
-  } else {
-    return "Just now";
   }
+  if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  }
+  if (diffMins > 0) {
+    return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+  }
+  return "Just now";
 }
 
-/**
- * Generate unique invoice number
- */
 async function generateInvoiceNumber() {
-  const lastOrder = await orders.findOne({
-    order: [["id", "DESC"]],
+  const lastOrder = await prisma.order.findFirst({
+    orderBy: { id: "desc" },
+    select: { id: true },
   });
 
   const nextId = lastOrder ? lastOrder.id + 1 : 1;
   return `INV-${String(nextId).padStart(6, "0")}`;
 }
-
-module.exports = exports;

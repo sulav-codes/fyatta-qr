@@ -22,12 +22,12 @@ router.post(
     { name: "image_8", maxCount: 1 },
     { name: "image_9", maxCount: 1 },
   ]),
-  menuController.createMenuItems
+  menuController.createMenuItems,
 );
 router.get("/vendors/:vendorId/menu", menuController.getMenuItems);
 router.get(
   "/vendors/:vendorId/menu/categories",
-  menuController.getMenuItemsByCategory
+  menuController.getMenuItemsByCategory,
 );
 
 // Individual menu item routes
@@ -35,12 +35,12 @@ router.get("/vendors/:vendorId/menu/:itemId", menuController.getMenuItem);
 router.put(
   "/vendors/:vendorId/menu/:itemId",
   upload.single("image"),
-  menuController.updateMenuItem
+  menuController.updateMenuItem,
 );
 router.delete("/vendors/:vendorId/menu/:itemId", menuController.deleteMenuItem);
 router.patch(
   "/vendors/:vendorId/menu/:itemId/toggle",
-  menuController.toggleAvailability
+  menuController.toggleAvailability,
 );
 
 module.exports = router;

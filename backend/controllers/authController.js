@@ -1,5 +1,11 @@
-const { users } = require("../models/index");
+const prisma = require("../config/prisma");
 const jwt = require("jsonwebtoken");
+const {
+  hashPassword,
+  comparePassword,
+  sanitizeUser,
+} = require("../utils/helpers");
+
 const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
 
 /**
@@ -38,57 +44,63 @@ exports.register = async (req, res) => {
     }
 
     // Check if email already exists
-    const existingUser = await users.findOne({ where: { email } });
-    if (existingUser) {
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    });
+
+    if (existingEmail) {
       return res.status(400).json({
         error: "An account with this email already exists",
       });
     }
 
     // Check if username already exists
-    const existingUsername = await users.findOne({ where: { username } });
+    const existingUsername = await prisma.user.findUnique({
+      where: { username: username.trim() },
+    });
+
     if (existingUsername) {
       return res.status(400).json({
         error: "This username is already taken",
       });
     }
 
-    // Create the new vendor (password hashing handled by model hooks)
-    const user = await users.create({
-      username: username.trim(),
-      email: email.trim(),
-      password,
-      restaurantName: restaurantName.trim(),
-      ownerName: ownerName ? ownerName.trim() : null,
-      phone: phone ? phone.trim() : null,
-      location: location.trim(),
-      description: description ? description.trim() : null,
-      openingTime: openingTime || null,
-      closingTime: closingTime || null,
-      role: "vendor", // New registrations are always vendors
-      vendorId: null, // Vendors don't have a parent vendor
-      isActive: true,
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create the new vendor
+    const user = await prisma.user.create({
+      data: {
+        username: username.trim(),
+        email: email.trim(),
+        password: hashedPassword,
+        restaurantName: restaurantName.trim(),
+        ownerName: ownerName ? ownerName.trim() : null,
+        phone: phone ? phone.trim() : null,
+        location: location.trim(),
+        description: description ? description.trim() : null,
+        openingTime: openingTime || null,
+        closingTime: closingTime || null,
+        role: "vendor",
+        isActive: true,
+      },
     });
 
     res.status(201).json({
       message: "Vendor registered successfully",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        restaurantName: user.restaurantName,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
     console.error("Registration error:", error);
-    res.status(400).json({
-      error: error.message || "User registration failed",
+    res.status(500).json({
+      error: "Registration failed. Please try again.",
+      details: error.message,
     });
   }
 };
 
 /**
- * Login a vendor
+ * Login user
  * Validates credentials and returns JWT token
  */
 exports.login = async (req, res) => {
@@ -102,17 +114,26 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Find the user by email
-    const user = await users.findOne({ where: { email } });
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    });
 
     if (!user) {
-      return res.status(404).json({
-        error: "User does not exist",
+      return res.status(401).json({
+        error: "Invalid email or password",
       });
     }
 
-    // Validate password using the model method
-    const isValidPassword = await user.validatePassword(password);
+    // Check if account is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        error: "Your account has been deactivated. Please contact support.",
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await comparePassword(password, user.password);
 
     if (!isValidPassword) {
       return res.status(401).json({
@@ -121,57 +142,83 @@ exports.login = async (req, res) => {
     }
 
     // Update last login
-    await user.update({ lastLogin: new Date() });
-
-    // For staff users, fetch the vendor's restaurant info
-    let vendorInfo = null;
-    if (user.role === "staff" && user.vendorId) {
-      const vendor = await users.findByPk(user.vendorId, {
-        attributes: ["restaurantName", "location", "logo"],
-      });
-      if (vendor) {
-        vendorInfo = {
-          restaurantName: vendor.restaurantName,
-          location: vendor.location,
-          logo: vendor.logo,
-        };
-      }
-    }
-
-    // User data to return in the response
-    const userData = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      name: user.ownerName,
-      restaurantName: vendorInfo?.restaurantName || user.restaurantName,
-      location: vendorInfo?.location || user.location,
-      role: user.role,
-      vendorId: user.vendorId,
-      isActive: user.isActive,
-    };
-
-    // Generate a JWT token
-    const token = jwt.sign({ userId: user.id, email: user.email }, jwtSecret, {
-      expiresIn: "24h",
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
     });
 
-    // Return success response with user data and token
-    res.status(200).json({
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      },
+      jwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    res.json({
+      message: "Login successful",
       token,
-      user: userData,
+      user: sanitizeUser(user),
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({
-      error: "An error occurred during login",
+      error: "Login failed. Please try again.",
       details: error.message,
     });
   }
 };
 
 /**
- * Logout a vendor (client-side token removal)
+ * Get current user profile
+ */
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        restaurantName: true,
+        ownerName: true,
+        phone: true,
+        location: true,
+        description: true,
+        openingTime: true,
+        closingTime: true,
+        logo: true,
+        role: true,
+        vendorId: true,
+        isActive: true,
+        dateJoined: true,
+        lastLogin: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    res.json({
+      user,
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({
+      error: "Failed to get profile",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Logout user (client-side token removal)
  */
 exports.logout = async (req, res) => {
   try {
@@ -184,3 +231,5 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+module.exports = exports;

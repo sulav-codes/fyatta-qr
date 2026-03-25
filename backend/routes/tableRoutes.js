@@ -6,7 +6,7 @@ const tableController = require("../controllers/tableController");
 // Public route - no auth required (for QR code scanning)
 router.get(
   "/vendors/:vendorId/tables/:tableIdentifier/status",
-  tableController.getTableStatus
+  tableController.getTableStatus,
 );
 
 // Protected routes - require authentication
@@ -16,16 +16,16 @@ router.get("/vendors/:vendorId/tables", tableController.getTables);
 router.post("/vendors/:vendorId/tables", tableController.createTable);
 router.get(
   "/vendors/:vendorId/tables/:tableId",
-  tableController.getTableDetails
+  tableController.getTableDetails,
 );
 router.put("/vendors/:vendorId/tables/:tableId", tableController.updateTable);
 router.delete(
   "/vendors/:vendorId/tables/:tableId",
-  tableController.deleteTable
+  tableController.deleteTable,
 );
 router.post(
   "/vendors/:vendorId/tables/:tableId/regenerate-qr",
-  tableController.regenerateQRCode
+  tableController.regenerateQRCode,
 );
 
 module.exports = router;

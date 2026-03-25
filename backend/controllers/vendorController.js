@@ -1,43 +1,24 @@
-const {
-  users,
-  orders,
-  menuItems,
-  tables,
-  orderItems,
-} = require("../models/index");
-const { Op } = require("sequelize");
-const sequelize = require("../models/index").sequelize;
-
-/**
- * Helper to check if user is authorized to access vendor data
- * @param {Object} user - The authenticated user
- * @param {number} vendorId - The vendor ID being accessed
- * @returns {boolean} Whether the user is authorized
- */
-const isAuthorizedForVendor = (user, vendorId) => {
-  const vid = parseInt(vendorId);
-  if (user.role === "admin") return true;
-  if (user.role === "vendor" && user.id === vid) return true;
-  if (user.role === "staff" && user.vendorId === vid) return true;
-  return false;
-};
+const prisma = require("../config/prisma");
+const { canAccessVendor } = require("../utils/helpers");
 
 /**
  * Get vendor profile details
  */
 exports.getProfile = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",
       });
     }
 
     // Get user details
-    const user = await users.findByPk(vendorId);
+    const user = await prisma.user.findUnique({
+      where: { id: vendorId },
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -45,7 +26,7 @@ exports.getProfile = async (req, res) => {
       });
     }
 
-    // Prepare user data (password excluded by model's toJSON)
+    // Prepare user data (password excluded)
     const userData = {
       id: user.id,
       username: user.username,
@@ -75,17 +56,20 @@ exports.getProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to update this data",
       });
     }
 
     // Get user
-    const user = await users.findByPk(vendorId);
+    const user = await prisma.user.findUnique({
+      where: { id: vendorId },
+    });
+
     if (!user) {
       return res.status(404).json({
         error: "Vendor not found",
@@ -95,28 +79,44 @@ exports.updateProfile = async (req, res) => {
     // Prepare updates
     const updates = {};
 
-    if (req.body.restaurantName)
+    if (req.body.restaurantName) {
       updates.restaurantName = req.body.restaurantName.trim();
-    if (req.body.ownerName !== undefined)
+    }
+
+    if (req.body.ownerName !== undefined) {
       updates.ownerName = req.body.ownerName ? req.body.ownerName.trim() : null;
-    if (req.body.phone !== undefined)
+    }
+
+    if (req.body.phone !== undefined) {
       updates.phone = req.body.phone ? req.body.phone.trim() : null;
-    if (req.body.location) updates.location = req.body.location.trim();
-    if (req.body.description !== undefined)
+    }
+
+    if (req.body.location) {
+      updates.location = req.body.location.trim();
+    }
+
+    if (req.body.description !== undefined) {
       updates.description = req.body.description
         ? req.body.description.trim()
         : null;
-    if (req.body.openingTime !== undefined)
+    }
+
+    if (req.body.openingTime !== undefined) {
       updates.openingTime = req.body.openingTime || null;
-    if (req.body.closingTime !== undefined)
+    }
+
+    if (req.body.closingTime !== undefined) {
       updates.closingTime = req.body.closingTime || null;
+    }
 
     // Handle email update with uniqueness check
     if (req.body.email) {
-      const existingUser = await users.findOne({
+      const existingUser = await prisma.user.findFirst({
         where: {
           email: req.body.email,
-          id: { [Op.ne]: vendorId },
+          NOT: {
+            id: vendorId,
+          },
         },
       });
 
@@ -135,11 +135,14 @@ exports.updateProfile = async (req, res) => {
     }
 
     // Update user
-    await user.update(updates);
+    const updatedUser = await prisma.user.update({
+      where: { id: vendorId },
+      data: updates,
+    });
 
     const responseData = {
       message: "Vendor details updated successfully",
-      logo: user.logo ? `/uploads/${user.logo}` : null,
+      logo: updatedUser.logo ? `/uploads/${updatedUser.logo}` : null,
     };
 
     res.status(200).json(responseData);
@@ -157,17 +160,20 @@ exports.updateProfile = async (req, res) => {
  */
 exports.getDashboardStats = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
     }
 
     // Verify vendor exists
-    const vendor = await users.findByPk(vendorId);
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+    });
+
     if (!vendor) {
       return res.status(404).json({
         error: "Vendor not found",
@@ -175,31 +181,36 @@ exports.getDashboardStats = async (req, res) => {
     }
 
     // Get total orders
-    const totalOrders = await orders.count({
+    const totalOrders = await prisma.order.count({
       where: { vendorId },
     });
 
     // Get active menu items
-    const activeItems = await menuItems.count({
+    const activeItems = await prisma.menuItem.count({
       where: {
         vendorId,
         isAvailable: true,
       },
     });
 
-    // Calculate total revenue
-    const revenueResult = await orders.sum("totalAmount", {
+    // Calculate total revenue (completed orders with paid status)
+    const revenueOrders = await prisma.order.findMany({
       where: {
         vendorId,
         status: "completed",
         paymentStatus: "paid",
       },
+      select: {
+        totalAmount: true,
+      },
     });
 
-    const totalRevenue = revenueResult || 0;
+    const totalRevenue = revenueOrders.reduce((sum, order) => {
+      return sum + Number(order.totalAmount || 0);
+    }, 0);
 
     // Get total active tables
-    const totalTables = await tables.count({
+    const totalTables = await prisma.table.count({
       where: {
         vendorId,
         isActive: true,
@@ -207,11 +218,11 @@ exports.getDashboardStats = async (req, res) => {
     });
 
     // Get pending orders count
-    const pendingOrders = await orders.count({
+    const pendingOrders = await prisma.order.count({
       where: {
         vendorId,
         status: {
-          [Op.in]: ["pending", "accepted", "confirmed"],
+          in: ["pending", "accepted", "confirmed"],
         },
       },
     });
@@ -237,11 +248,11 @@ exports.getDashboardStats = async (req, res) => {
  */
 exports.getSalesReport = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const vendorId = parseInt(req.params.vendorId, 10);
     const { timeframe = "week" } = req.query;
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
@@ -269,41 +280,46 @@ exports.getSalesReport = async (req, res) => {
     }
 
     // Get completed orders for this vendor
-    const completedOrders = await orders.findAll({
+    const completedOrders = await prisma.order.findMany({
       where: {
-        vendorId: parseInt(vendorId),
+        vendorId,
         status: "completed",
       },
-      attributes: ["id", "totalAmount", ["created_at", "createdAt"]],
-      raw: true,
+      select: {
+        id: true,
+        totalAmount: true,
+        createdAt: true,
+      },
     });
 
     // Filter by date and calculate totals
     const filteredOrders = completedOrders.filter((order) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= startDate;
+      return order.createdAt >= startDate;
     });
 
-    const totalRevenue = filteredOrders.reduce(
-      (sum, order) => sum + parseFloat(order.totalAmount || 0),
-      0
-    );
+    const totalRevenue = filteredOrders.reduce((sum, order) => {
+      return sum + Number(order.totalAmount || 0);
+    }, 0);
+
     const totalOrders = filteredOrders.length;
 
     // Group by date for salesData
     const salesByDate = {};
     filteredOrders.forEach((order) => {
-      const dateStr = new Date(order.createdAt).toISOString().split("T")[0];
+      const dateStr = order.createdAt.toISOString().split("T")[0];
       if (!salesByDate[dateStr]) {
         salesByDate[dateStr] = { date: dateStr, orderCount: 0, revenue: 0 };
       }
       salesByDate[dateStr].orderCount++;
-      salesByDate[dateStr].revenue += parseFloat(order.totalAmount || 0);
+      salesByDate[dateStr].revenue += Number(order.totalAmount || 0);
     });
 
-    const salesData = Object.values(salesByDate).sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
+    const salesData = Object.values(salesByDate)
+      .map((item) => ({
+        ...item,
+        revenue: parseFloat(item.revenue.toFixed(2)),
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     res.status(200).json({
       timeframe,
@@ -326,39 +342,46 @@ exports.getSalesReport = async (req, res) => {
  */
 exports.getPopularItems = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    const { limit = 10 } = req.query;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const limit = Math.min(parseInt(req.query.limit || 10), 100);
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
     }
 
     // Get all menu items for this vendor
-    const allMenuItems = await menuItems.findAll({
-      where: { vendorId: parseInt(vendorId) },
-      attributes: ["id", "name", "category", "price"],
-      raw: true,
+    const allMenuItems = await prisma.menuItem.findMany({
+      where: { vendorId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        price: true,
+      },
     });
 
-    // Get order items with their order info
-    const allOrderItems = await orderItems.findAll({
-      include: [
-        {
-          model: orders,
-          as: "order",
-          attributes: ["status"],
-          where: {
-            vendorId: parseInt(vendorId),
-            status: "completed",
-          },
-          required: true,
+    if (allMenuItems.length === 0) {
+      return res.status(200).json({
+        popularItems: [],
+      });
+    }
+
+    // Get order items for completed orders only
+    const allOrderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          vendorId,
+          status: "completed",
         },
-      ],
-      attributes: ["menuItemId", "quantity", "price"],
-      raw: true,
+      },
+      select: {
+        menuItemId: true,
+        quantity: true,
+        price: true,
+      },
     });
 
     // Calculate popularity for each menu item
@@ -373,9 +396,9 @@ exports.getPopularItems = async (req, res) => {
         };
       }
       itemStats[menuItemId].orderCount++;
-      itemStats[menuItemId].totalQuantity += parseInt(orderItem.quantity || 0);
+      itemStats[menuItemId].totalQuantity += orderItem.quantity || 0;
       itemStats[menuItemId].totalRevenue +=
-        parseFloat(orderItem.price || 0) * parseInt(orderItem.quantity || 0);
+        Number(orderItem.price || 0) * orderItem.quantity;
     });
 
     // Merge with menu items and sort by popularity
@@ -384,15 +407,15 @@ exports.getPopularItems = async (req, res) => {
         id: item.id,
         name: item.name,
         category: item.category,
-        price: item.price,
+        price: Number(item.price),
         orderCount: itemStats[item.id]?.orderCount || 0,
         totalQuantity: itemStats[item.id]?.totalQuantity || 0,
         totalRevenue: parseFloat(
-          (itemStats[item.id]?.totalRevenue || 0).toFixed(2)
+          (itemStats[item.id]?.totalRevenue || 0).toFixed(2),
         ),
       }))
       .sort((a, b) => b.orderCount - a.orderCount)
-      .slice(0, parseInt(limit));
+      .slice(0, limit);
 
     res.status(200).json({
       popularItems: itemsData,
@@ -411,37 +434,40 @@ exports.getPopularItems = async (req, res) => {
  */
 exports.getRecentOrders = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    const { limit = 10 } = req.query;
+    const vendorId = parseInt(req.params.vendorId, 10);
+    const limit = Math.min(parseInt(req.query.limit || 10), 100);
 
     // Check authorization
-    if (!isAuthorizedForVendor(req.user, vendorId)) {
+    if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "Unauthorized",
       });
     }
 
     // Get recent orders
-    const recentOrders = await orders.findAll({
+    const recentOrders = await prisma.order.findMany({
       where: { vendorId },
-      include: [
-        {
-          model: tables,
-          as: "table",
-          attributes: ["id", "name"],
+      include: {
+        table: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      ],
-      order: [["created_at", "DESC"]],
-      limit: parseInt(limit),
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: limit,
     });
 
     const ordersData = recentOrders.map((order) => ({
       id: order.id,
       orderId: `ORD${String(order.id).padStart(3, "0")}`,
       status: order.status,
-      totalAmount: order.totalAmount,
+      totalAmount: Number(order.totalAmount),
       tableName: order.table ? order.table.name : order.tableIdentifier,
-      createdAt: order.created_at,
+      createdAt: order.createdAt,
       paymentStatus: order.paymentStatus,
     }));
 

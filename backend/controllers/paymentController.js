@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { orders, orderItems, menuItems, users } = require("../models/index");
+const prisma = require("../config/prisma");
 
 // eSewa Configuration
 const ESEWA_CONFIG = {
@@ -41,7 +41,7 @@ function generateEsewaSignature(totalAmount, transactionUuid, productCode) {
 function verifyEsewaSignature(
   paymentData,
   receivedSignature,
-  signedFieldNames
+  signedFieldNames,
 ) {
   try {
     const fieldList = signedFieldNames.split(",");
@@ -82,15 +82,14 @@ exports.initiateEsewaPayment = async (req, res) => {
       return res.status(400).json({ error: "Order ID is required" });
     }
 
-    // Get the order
-    const order = await orders.findByPk(orderId, {
-      include: [
-        {
-          model: users,
-          as: "vendor",
-          attributes: ["id", "username", "email"],
+    // Get the order with vendor details
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        vendor: {
+          select: { id: true, username: true, email: true },
         },
-      ],
+      },
     });
 
     if (!order) {
@@ -98,12 +97,12 @@ exports.initiateEsewaPayment = async (req, res) => {
     }
 
     // Generate signature
-    const totalAmount = parseFloat(order.totalAmount).toFixed(2);
+    const totalAmount = Number(order.totalAmount).toFixed(2);
     const transactionUuid = order.invoiceNo;
     const signature = generateEsewaSignature(
       totalAmount,
       transactionUuid,
-      ESEWA_CONFIG.PRODUCT_CODE
+      ESEWA_CONFIG.PRODUCT_CODE,
     );
 
     // Prepare payment data
@@ -157,7 +156,7 @@ exports.verifyEsewaPayment = async (req, res) => {
       return res.redirect(
         `${
           process.env.CLIENT_URL || "http://localhost:3000"
-        }/payment-result?status=failed&reason=missing-data`
+        }/payment-result?status=failed&reason=missing-data`,
       );
     }
 
@@ -172,7 +171,7 @@ exports.verifyEsewaPayment = async (req, res) => {
       return res.redirect(
         `${
           process.env.CLIENT_URL || "http://localhost:3000"
-        }/payment-result?status=failed&reason=decode-error`
+        }/payment-result?status=failed&reason=decode-error`,
       );
     }
 
@@ -189,22 +188,22 @@ exports.verifyEsewaPayment = async (req, res) => {
       const isValid = verifyEsewaSignature(
         paymentData,
         receivedSignature,
-        signedFieldNames
+        signedFieldNames,
       );
       if (!isValid) {
         console.warn("[eSewa] Signature verification failed");
         return res.redirect(
           `${
             process.env.CLIENT_URL || "http://localhost:3000"
-          }/payment-result?status=failed&reason=invalid-signature`
+          }/payment-result?status=failed&reason=invalid-signature`,
         );
       }
     }
 
     // Find order by invoice number
-    const order = await orders.findOne({
+    const order = await prisma.order.findFirst({
       where: { invoiceNo: transactionUuid },
-      include: [{ model: users, as: "vendor" }],
+      include: { vendor: true },
     });
 
     if (!order) {
@@ -212,19 +211,22 @@ exports.verifyEsewaPayment = async (req, res) => {
       return res.redirect(
         `${
           process.env.CLIENT_URL || "http://localhost:3000"
-        }/payment-result?status=failed&reason=order-not-found&invoice_no=${transactionUuid}`
+        }/payment-result?status=failed&reason=order-not-found&invoice_no=${transactionUuid}`,
       );
     }
 
     // Check payment status
     if (status !== "COMPLETE") {
       if (status === "PENDING") {
-        await order.update({ paymentStatus: "pending" });
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { paymentStatus: "pending" },
+        });
         console.log("[eSewa] Payment pending for order:", order.id);
         return res.redirect(
           `${
             process.env.CLIENT_URL || "http://localhost:3000"
-          }/payment-result?status=pending&invoice_no=${transactionUuid}`
+          }/payment-result?status=pending&invoice_no=${transactionUuid}`,
         );
       }
 
@@ -232,7 +234,7 @@ exports.verifyEsewaPayment = async (req, res) => {
       return res.redirect(
         `${
           process.env.CLIENT_URL || "http://localhost:3000"
-        }/payment-result?status=failed&invoice_no=${transactionUuid}`
+        }/payment-result?status=failed&invoice_no=${transactionUuid}`,
       );
     }
 
@@ -240,30 +242,33 @@ exports.verifyEsewaPayment = async (req, res) => {
     const formattedTotalAmount = totalAmount.replace(",", "");
     if (
       Math.abs(
-        parseFloat(formattedTotalAmount) - parseFloat(order.totalAmount)
+        parseFloat(formattedTotalAmount) - parseFloat(order.totalAmount),
       ) > 0.01
     ) {
       console.warn(
-        `[eSewa] Amount mismatch: expected ${order.totalAmount}, got ${formattedTotalAmount}`
+        `[eSewa] Amount mismatch: expected ${order.totalAmount}, got ${formattedTotalAmount}`,
       );
       return res.redirect(
         `${
           process.env.CLIENT_URL || "http://localhost:3000"
-        }/payment-result?status=failed&reason=amount-mismatch&invoice_no=${transactionUuid}`
+        }/payment-result?status=failed&reason=amount-mismatch&invoice_no=${transactionUuid}`,
       );
     }
 
     // Update order
     const oldStatus = order.status;
-    await order.update({
-      paymentStatus: "paid",
-      status: "confirmed",
-      paymentMethod: "esewa",
-      transactionId: transactionCode,
+    const updatedOrder = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        paymentStatus: "paid",
+        status: "confirmed",
+        paymentMethod: "esewa",
+        transactionId: transactionCode,
+      },
     });
 
     console.log(
-      `[eSewa] Order ${order.id} payment verified. Transaction: ${transactionCode}`
+      `[eSewa] Order ${order.id} payment verified. Transaction: ${transactionCode}`,
     );
 
     // Emit socket events
@@ -288,7 +293,7 @@ exports.verifyEsewaPayment = async (req, res) => {
           order_id: order.id,
           transaction_code: transactionCode,
           payment_method: "esewa",
-          amount: order.totalAmount,
+          amount: Number(order.totalAmount),
         },
       });
 
@@ -296,7 +301,7 @@ exports.verifyEsewaPayment = async (req, res) => {
       io.to(`vendor-${order.vendorId}`).emit("order-created", {
         orderId: order.id,
         status: order.status,
-        totalAmount: order.totalAmount,
+        totalAmount: Number(order.totalAmount),
         tableIdentifier: order.tableIdentifier,
       });
     }
@@ -307,14 +312,14 @@ exports.verifyEsewaPayment = async (req, res) => {
         process.env.CLIENT_URL || "http://localhost:3000"
       }/payment-result?status=success&orderId=${
         order.id
-      }&invoice_no=${transactionUuid}`
+      }&invoice_no=${transactionUuid}`,
     );
   } catch (error) {
     console.error("[eSewa] Error verifying payment:", error);
     return res.redirect(
       `${
         process.env.CLIENT_URL || "http://localhost:3000"
-      }/payment-result?status=failed&reason=server-error`
+      }/payment-result?status=failed&reason=server-error`,
     );
   }
 };
@@ -324,17 +329,18 @@ exports.verifyEsewaPayment = async (req, res) => {
  */
 exports.getPaymentStatus = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const orderId = parseInt(req.params.orderId, 10);
 
-    const order = await orders.findByPk(orderId, {
-      attributes: [
-        "id",
-        "invoiceNo",
-        "paymentStatus",
-        "paymentMethod",
-        "transactionId",
-        "totalAmount",
-      ],
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        invoiceNo: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        transactionId: true,
+        totalAmount: true,
+      },
     });
 
     if (!order) {
@@ -347,7 +353,7 @@ exports.getPaymentStatus = async (req, res) => {
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
       transactionId: order.transactionId,
-      totalAmount: order.totalAmount,
+      totalAmount: Number(order.totalAmount),
     });
   } catch (error) {
     console.error("[Payment] Error getting payment status:", error);
