@@ -1,13 +1,28 @@
-import { useRef } from "react";
+import { ChangeEvent, useRef } from "react";
 import { Button } from "./button";
 import { Upload } from "lucide-react";
 
+interface FileUploadAreaProps {
+  index: number;
+  onFileChange?: (index: number, file: File | null) => void;
+}
+
 // Optimized component
-const FileUploadArea = ({ index, onFileChange }) => {
-  const fileInputRef = useRef(null);
+const FileUploadArea: React.FC<FileUploadAreaProps> = ({
+  index,
+  onFileChange,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (onFileChange) {
+      onFileChange(index, file);
+    }
   };
 
   return (
@@ -18,6 +33,7 @@ const FileUploadArea = ({ index, onFileChange }) => {
         accept="image/*"
         className="hidden"
         aria-label="Upload image file"
+        onChange={handleFileChange}
       />
       <Button
         variant="outline"

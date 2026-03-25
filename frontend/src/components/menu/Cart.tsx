@@ -28,7 +28,7 @@ interface CartProps {
 }
 
 // Helper function to construct full image URL
-const getImageUrl = (imagePath: string | null) => {
+const getImageUrl = (imagePath?: string | null) => {
   if (!imagePath) return "/images/default-food-image.svg";
   if (imagePath.startsWith("http")) return imagePath;
   return `${getApiBaseUrl()}${imagePath}`;
@@ -71,7 +71,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
     } catch (error) {
       console.error("Order creation error:", error);
       toast.error(
-        (error as Error).message || "Failed to create order. Please try again."
+        (error as Error).message || "Failed to create order. Please try again.",
       );
     } finally {
       setCheckoutLoading(false);
@@ -83,7 +83,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
       toast.error("Invalid order. Please try creating a new order.");
       console.error(
         "Attempted to proceed to payment with invalid order:",
-        pendingOrder
+        pendingOrder,
       );
       return;
     }
@@ -91,13 +91,13 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
     if (pendingOrder.status !== "accepted") {
       toast.error("Order must be accepted before payment");
       console.error(
-        `Order ${pendingOrder.id} has status ${pendingOrder.status}, not accepted`
+        `Order ${pendingOrder.id} has status ${pendingOrder.status}, not accepted`,
       );
       return;
     }
 
     console.log(
-      `Proceeding to payment for order ${pendingOrder.id} with status ${pendingOrder.status}`
+      `Proceeding to payment for order ${pendingOrder.id} with status ${pendingOrder.status}`,
     );
     console.log("Current cart items:", cart);
 
@@ -155,7 +155,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
     } catch (error) {
       console.error("Payment error:", error);
       toast.error(
-        (error as Error).message || "Payment failed. Please try again."
+        (error as Error).message || "Payment failed. Please try again.",
       );
     } finally {
       setCheckoutLoading(false);
@@ -301,13 +301,13 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           setPendingOrder(null);
                           // Clear any invalid orders from localStorage
                           const trackedOrders = JSON.parse(
-                            localStorage.getItem("tracked_orders") || "[]"
+                            localStorage.getItem("tracked_orders") || "[]",
                           );
                           localStorage.setItem(
                             "tracked_orders",
                             JSON.stringify(
-                              trackedOrders.filter((order: any) => order.id)
-                            )
+                              trackedOrders.filter((order: any) => order.id),
+                            ),
                           );
                         }}
                       >
@@ -370,15 +370,15 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           setPendingOrder(null);
                           // Clear the rejected order from localStorage
                           const trackedOrders = JSON.parse(
-                            localStorage.getItem("tracked_orders") || "[]"
+                            localStorage.getItem("tracked_orders") || "[]",
                           );
                           const filteredOrders = trackedOrders.filter(
                             (order: any) =>
-                              !pendingOrder.id || order.id !== pendingOrder.id
+                              !pendingOrder.id || order.id !== pendingOrder.id,
                           );
                           localStorage.setItem(
                             "tracked_orders",
-                            JSON.stringify(filteredOrders)
+                            JSON.stringify(filteredOrders),
                           );
                         }}
                       >
