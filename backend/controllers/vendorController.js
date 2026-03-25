@@ -76,15 +76,22 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    // Accept both camelCase and snake_case keys for compatibility with existing frontend forms
+    const restaurantNameInput =
+      req.body.restaurantName ?? req.body.restaurant_name;
+    const ownerNameInput = req.body.ownerName ?? req.body.owner_name;
+    const openingTimeInput = req.body.openingTime ?? req.body.opening_time;
+    const closingTimeInput = req.body.closingTime ?? req.body.closing_time;
+
     // Prepare updates
     const updates = {};
 
-    if (req.body.restaurantName) {
-      updates.restaurantName = req.body.restaurantName.trim();
+    if (restaurantNameInput) {
+      updates.restaurantName = restaurantNameInput.trim();
     }
 
-    if (req.body.ownerName !== undefined) {
-      updates.ownerName = req.body.ownerName ? req.body.ownerName.trim() : null;
+    if (ownerNameInput !== undefined) {
+      updates.ownerName = ownerNameInput ? ownerNameInput.trim() : null;
     }
 
     if (req.body.phone !== undefined) {
@@ -101,12 +108,12 @@ exports.updateProfile = async (req, res) => {
         : null;
     }
 
-    if (req.body.openingTime !== undefined) {
-      updates.openingTime = req.body.openingTime || null;
+    if (openingTimeInput !== undefined) {
+      updates.openingTime = openingTimeInput || null;
     }
 
-    if (req.body.closingTime !== undefined) {
-      updates.closingTime = req.body.closingTime || null;
+    if (closingTimeInput !== undefined) {
+      updates.closingTime = closingTimeInput || null;
     }
 
     // Handle email update with uniqueness check
@@ -131,7 +138,14 @@ exports.updateProfile = async (req, res) => {
 
     // Handle logo file upload
     if (req.file) {
-      updates.logo = req.file.path;
+      updates.logo = req.file.filename;
+    }
+
+    // Avoid Prisma validation errors on empty updates
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        error: "No valid fields were provided for update",
+      });
     }
 
     // Update user

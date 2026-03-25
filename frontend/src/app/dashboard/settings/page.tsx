@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getApiBaseUrl } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -54,8 +55,10 @@ function SettingsContent() {
   const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
   const { user, token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
+  const searchParams = useSearchParams();
   const vendorId = getEffectiveVendorId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasShownCompleteProfilePrompt = useRef(false);
 
   const [formData, setFormData] = useState<FormData>({
     restaurant_name: "",
@@ -95,7 +98,7 @@ function SettingsContent() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -143,8 +146,18 @@ function SettingsContent() {
     fetchVendorData();
   }, [user, token]);
 
+  useEffect(() => {
+    if (
+      searchParams.get("completeProfile") === "1" &&
+      !hasShownCompleteProfilePrompt.current
+    ) {
+      toast("Please complete your restaurant profile to finish onboarding.");
+      hasShownCompleteProfilePrompt.current = true;
+    }
+  }, [searchParams]);
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -306,13 +319,15 @@ function SettingsContent() {
             Authorization: `Bearer ${token}`,
           },
           body: submitData,
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          errorData.message || "Failed to update profile settings"
+          errorData.error ||
+            errorData.message ||
+            "Failed to update profile settings",
         );
       }
 

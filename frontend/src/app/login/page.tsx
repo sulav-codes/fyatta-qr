@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl, getGoogleAuthStartUrl } from "@/lib/api";
 
 interface FormFieldProps {
   label: string;
@@ -89,7 +89,7 @@ export default function Login() {
         setErrors((prev) => ({ ...prev, [name]: "" }));
       }
     },
-    [errors]
+    [errors],
   );
 
   const validateForm = useCallback((): boolean => {
@@ -168,8 +168,12 @@ export default function Login() {
         setIsLoading(false);
       }
     },
-    [validateForm, router, formData, contextLogin]
+    [validateForm, router, formData, contextLogin],
   );
+
+  const handleGoogleSignIn = useCallback(() => {
+    window.location.href = getGoogleAuthStartUrl();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
@@ -260,6 +264,27 @@ export default function Login() {
                 ) : (
                   "Sign in"
                 )}
+              </Button>
+
+              <div className="relative my-1">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase tracking-wide">
+                  <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+              >
+                Sign in with Google
               </Button>
             </form>
 

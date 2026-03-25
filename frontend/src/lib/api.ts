@@ -8,4 +8,8 @@ export const getApiBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 };
 
+export const getGoogleAuthStartUrl = (): string => {
+  return `${getApiBaseUrl()}/auth/google/start`;
+};
+
 export const API_BASE_URL = getApiBaseUrl();

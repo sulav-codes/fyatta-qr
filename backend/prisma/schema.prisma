@@ -45,6 +45,10 @@ model User {
   username        String    @unique @db.VarChar(150)
   email           String    @unique
   password        String
+  authProvider    String    @default("local") @map("auth_provider") @db.VarChar(20)
+  googleId        String?   @unique @map("google_id") @db.VarChar(255)
+  googleEmail     String?   @map("google_email") @db.VarChar(255)
+  googlePicture   String?   @map("google_picture")
   restaurantName  String    @map("restaurant_name") @db.VarChar(100)
   ownerName       String?   @map("owner_name") @db.VarChar(100)
   phone           String?   @db.VarChar(20)
@@ -79,6 +83,7 @@ model User {
   @@index([vendorId])
   @@index([role])
   @@index([email])
+  @@index([authProvider])
 }
 
 model MenuItem {

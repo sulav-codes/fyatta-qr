@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
-import { getApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl, getGoogleAuthStartUrl } from "@/lib/api";
 
 interface FormData {
   restaurant_name: string;
@@ -97,7 +97,7 @@ export default function Signup() {
   }, []);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -285,6 +285,10 @@ export default function Signup() {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    window.location.href = getGoogleAuthStartUrl();
+  };
+
   // Basic form fields
   const basicFormFields: FormField[] = [
     {
@@ -379,6 +383,29 @@ export default function Signup() {
 
           {/* Form Card */}
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 md:p-10">
+            <div className="space-y-4 mb-8">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
+                onClick={handleGoogleSignUp}
+                disabled={isLoading}
+              >
+                Continue with Google
+              </Button>
+
+              <div className="relative my-1">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase tracking-wide">
+                  <span className="bg-white dark:bg-gray-900 px-2 text-gray-500">
+                    Or register with email
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Restaurant Information */}
               <div>
