@@ -55,16 +55,53 @@ const ORDER_STEPS = [
 
 function OrderTrackingContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId");
+  const orderIdParam = searchParams.get("orderId");
   const vendorIdParam = searchParams.get("vendorId");
   const tableIdentifierParam = searchParams.get("tableIdentifier");
   const { theme, toggleTheme } = useTheme();
 
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [orderId, setOrderId] = useState<string | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  useEffect(() => {
+    // Priority: URL query -> current_order_id -> latest tracked_orders item
+    if (orderIdParam) {
+      setOrderId(orderIdParam);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      setOrderId(null);
+      return;
+    }
+
+    const currentOrderId = localStorage.getItem("current_order_id");
+    if (currentOrderId) {
+      setOrderId(currentOrderId);
+      return;
+    }
+
+    try {
+      const trackedOrders = JSON.parse(
+        localStorage.getItem("tracked_orders") || "[]",
+      );
+      if (Array.isArray(trackedOrders) && trackedOrders.length > 0) {
+        const latestOrder = trackedOrders[0];
+        if (latestOrder?.id) {
+          setOrderId(String(latestOrder.id));
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to parse tracked_orders:", error);
+    }
+
+    setOrderId(null);
+  }, [orderIdParam]);
 
   // Fetch order details
   const fetchOrderDetails = async () => {
@@ -76,7 +113,7 @@ function OrderTrackingContent() {
     try {
       console.log("Fetching order details for:", orderId);
       const response = await fetch(
-        `${getApiBaseUrl()}/api/customer/orders/${orderId}`
+        `${getApiBaseUrl()}/api/customer/orders/${orderId}`,
       );
 
       if (!response.ok) {
@@ -101,6 +138,10 @@ function OrderTrackingContent() {
   };
 
   useEffect(() => {
+    if (orderId === undefined) {
+      return;
+    }
+
     if (!orderId) {
       setLoading(false);
       return;
@@ -125,20 +166,7 @@ function OrderTrackingContent() {
             tableIdentifier: data.table_identifier,
           });
           console.log(
-            `Joined room: table-${data.vendor_id}-${data.table_identifier}`
-          );
-        } else if (
-          orderDetails &&
-          orderDetails.vendor_id &&
-          orderDetails.table_identifier
-        ) {
-          // Use current orderDetails if data is null
-          newSocket.emit("join-table", {
-            vendorId: orderDetails.vendor_id,
-            tableIdentifier: orderDetails.table_identifier,
-          });
-          console.log(
-            `Joined room: table-${orderDetails.vendor_id}-${orderDetails.table_identifier}`
+            `Joined room: table-${data.vendor_id}-${data.table_identifier}`,
           );
         }
       });
@@ -152,7 +180,7 @@ function OrderTrackingContent() {
         console.log("Received order-status-update:", data);
         if (data.orderId === parseInt(orderId)) {
           setOrderDetails((prev) =>
-            prev ? { ...prev, status: data.status } : null
+            prev ? { ...prev, status: data.status } : null,
           );
           setLastUpdate(new Date());
           toast.success(`Order status: ${data.status}`);
@@ -163,7 +191,7 @@ function OrderTrackingContent() {
         console.log("Received order-status-changed:", data);
         if (data.orderId === parseInt(orderId)) {
           setOrderDetails((prev) =>
-            prev ? { ...prev, status: data.newStatus || data.status } : null
+            prev ? { ...prev, status: data.newStatus || data.status } : null,
           );
           setLastUpdate(new Date());
           toast.success(`Order status: ${data.newStatus || data.status}`);
@@ -181,7 +209,7 @@ function OrderTrackingContent() {
   const getCurrentStepIndex = () => {
     if (!orderDetails) return 0;
     const index = ORDER_STEPS.findIndex(
-      (step) => step.key === orderDetails.status
+      (step) => step.key === orderDetails.status,
     );
     return index >= 0 ? index : 0;
   };
@@ -191,7 +219,7 @@ function OrderTrackingContent() {
     return ((currentIndex + 1) / ORDER_STEPS.length) * 100;
   };
 
-  if (loading) {
+  if (loading || orderId === undefined) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-[var(--orange)]" />
