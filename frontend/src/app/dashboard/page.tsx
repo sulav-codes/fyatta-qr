@@ -89,7 +89,7 @@ export default function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       if (response.ok) {
         const data = await response.json();
@@ -117,7 +117,7 @@ export default function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       if (response.ok) {
         const data = await response.json();
@@ -146,7 +146,7 @@ export default function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       if (response.ok) {
         const data = await response.json();
@@ -240,8 +240,8 @@ export default function Dashboard() {
                         order.status === "completed"
                           ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           : order.status === "pending"
-                          ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                            ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                       }`}
                     >
                       {order.status}
@@ -257,7 +257,7 @@ export default function Dashboard() {
         <div className="bg-card rounded-xl p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Popular Items</h2>
-            <Link href="/dashboard/menu">
+            <Link href="/dashboard/manage-menu">
               <Button variant="ghost" size="sm">
                 View Menu
               </Button>
@@ -414,11 +414,11 @@ export default function Dashboard() {
                                 (day.revenue /
                                   Math.max(
                                     ...salesData.daily_breakdown.map(
-                                      (d) => d.revenue
-                                    )
+                                      (d) => d.revenue,
+                                    ),
                                   )) *
                                   100,
-                                5
+                                5,
                               )}%`,
                             }}
                           >
