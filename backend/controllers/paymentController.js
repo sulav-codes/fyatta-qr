@@ -22,15 +22,10 @@ const ESEWA_CONFIG = {
 function generateEsewaSignature(totalAmount, transactionUuid, productCode) {
   const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${productCode}`;
 
-  console.log("[eSewa] Signature message:", message);
-  console.log("[eSewa] Secret key:", ESEWA_CONFIG.SECRET_KEY);
-
   const hash = crypto
     .createHmac("sha256", ESEWA_CONFIG.SECRET_KEY)
     .update(message)
     .digest("base64");
-
-  console.log("[eSewa] Generated signature:", hash);
 
   return hash;
 }
@@ -54,15 +49,10 @@ function verifyEsewaSignature(
 
     const message = messageParts.join(",");
 
-    console.log("[eSewa] Verification message:", message);
-
     const calculatedSignature = crypto
       .createHmac("sha256", ESEWA_CONFIG.SECRET_KEY)
       .update(message)
       .digest("base64");
-
-    console.log("[eSewa] Calculated signature:", calculatedSignature);
-    console.log("[eSewa] Received signature:", receivedSignature);
 
     return receivedSignature === calculatedSignature;
   } catch (error) {
@@ -157,8 +147,6 @@ exports.initiateEsewaPayment = async (req, res) => {
       order_id: order.id,
     };
 
-    console.log("[eSewa] Payment initiation data:", paymentData);
-
     res.status(200).json({
       success: true,
       paymentUrl: ESEWA_CONFIG.PAYMENT_URL,
@@ -180,10 +168,6 @@ exports.initiateEsewaPayment = async (req, res) => {
  */
 exports.verifyEsewaPayment = async (req, res) => {
   try {
-    console.log("[eSewa] Payment verification received");
-    console.log("[eSewa] Query params:", req.query);
-    console.log("[eSewa] Body:", req.body);
-
     // eSewa sends data as base64 encoded in GET parameter
     const dataParam = req.query.data;
 
@@ -201,7 +185,6 @@ exports.verifyEsewaPayment = async (req, res) => {
     try {
       const decodedBytes = Buffer.from(dataParam, "base64");
       paymentData = JSON.parse(decodedBytes.toString("utf-8"));
-      console.log("[eSewa] Decoded payment data:", paymentData);
     } catch (error) {
       console.error("[eSewa] Error decoding payment data:", error);
       return res.redirect(
@@ -258,7 +241,6 @@ exports.verifyEsewaPayment = async (req, res) => {
           where: { id: order.id },
           data: { paymentStatus: "pending" },
         });
-        console.log("[eSewa] Payment pending for order:", order.id);
         return res.redirect(
           `${
             process.env.CLIENT_URL || "http://localhost:3000"
@@ -302,10 +284,6 @@ exports.verifyEsewaPayment = async (req, res) => {
         transactionId: transactionCode,
       },
     });
-
-    console.log(
-      `[eSewa] Order ${order.id} payment verified. Transaction: ${transactionCode}`,
-    );
 
     // Emit socket events
     const io = req.app.get("io");

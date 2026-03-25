@@ -37,7 +37,7 @@ app.use(
     origin: process.env.CLIENT_URL || "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
-  })
+  }),
 );
 
 // Routes
@@ -63,36 +63,26 @@ app.use((err, req, res, next) => {
 
 // WebSocket connection handling
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-
   // Join vendor room
   socket.on("join-vendor", (vendorId) => {
     socket.join(`vendor-${vendorId}`);
-    console.log(`Socket ${socket.id} joined vendor-${vendorId}`);
   });
 
   // Join table room
   socket.on("join-table", ({ vendorId, tableIdentifier }) => {
     const room = `table-${vendorId}-${tableIdentifier}`;
     socket.join(room);
-    console.log(`Socket ${socket.id} joined ${room}`);
   });
 
   // Leave vendor room
   socket.on("leave-vendor", (vendorId) => {
     socket.leave(`vendor-${vendorId}`);
-    console.log(`Socket ${socket.id} left vendor-${vendorId}`);
   });
 
   // Leave table room
   socket.on("leave-table", ({ vendorId, tableIdentifier }) => {
     const room = `table-${vendorId}-${tableIdentifier}`;
     socket.leave(room);
-    console.log(`Socket ${socket.id} left ${room}`);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
   });
 });
 

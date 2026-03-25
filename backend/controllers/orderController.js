@@ -93,7 +93,6 @@ exports.getOrders = async (req, res) => {
       };
     });
 
-    console.log(`[getOrders] Returning ${ordersData.length} orders`);
     res.status(200).json({
       orders: ordersData,
       count: ordersData.length,
