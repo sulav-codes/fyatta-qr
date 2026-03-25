@@ -1,0 +1,180 @@
+// Prisma schema for Supabase PostgreSQL
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  vendor
+  staff
+  admin
+}
+
+enum OrderStatus {
+  pending
+  accepted
+  confirmed
+  rejected
+  preparing
+  ready
+  delivered
+  completed
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
+enum PaymentMethod {
+  esewa
+  cash
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  username        String    @unique @db.VarChar(150)
+  email           String    @unique
+  password        String
+  restaurantName  String    @map("restaurant_name") @db.VarChar(100)
+  ownerName       String?   @map("owner_name") @db.VarChar(100)
+  phone           String?   @db.VarChar(20)
+  location        String    @db.VarChar(255)
+  description     String?   @db.Text
+  openingTime     String?   @map("opening_time") @db.VarChar(10)
+  closingTime     String?   @map("closing_time") @db.VarChar(10)
+  logo            String?
+  
+  // Role-based multi-tenant fields
+  role            UserRole  @default(vendor)
+  vendorId        Int?      @map("vendor_id")
+  vendor          User?     @relation("StaffToVendor", fields: [vendorId], references: [id], onDelete: Cascade)
+  staff           User[]    @relation("StaffToVendor")
+  
+  // Legacy fields for backward compatibility
+  isStaff         Boolean   @default(false) @map("is_staff")
+  isSuperuser     Boolean   @default(false) @map("is_superuser")
+  isActive        Boolean   @default(true) @map("is_active")
+  
+  lastLogin       DateTime? @map("last_login")
+  dateJoined      DateTime  @default(now()) @map("date_joined")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  menuItems       MenuItem[]
+  tables          Table[]
+  orders          Order[]
+  
+  @@map("users")
+  @@index([vendorId])
+  @@index([role])
+  @@index([email])
+}
+
+model MenuItem {
+  id            Int       @id @default(autoincrement())
+  vendorId      Int       @map("vendor_id")
+  vendor        User      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name          String    @db.VarChar(100)
+  description   String?   @db.Text
+  price         Decimal   @db.Decimal(8, 2)
+  category      String    @db.VarChar(50)
+  image         String?
+  isAvailable   Boolean   @default(true) @map("is_available")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  orderItems    OrderItem[]
+  
+  @@map("menu_items")
+  @@index([vendorId])
+  @@index([category])
+  @@index([isAvailable])
+}
+
+model Table {
+  id            Int       @id @default(autoincrement())
+  vendorId      Int       @map("vendor_id")
+  vendor        User      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name          String    @db.VarChar(100)
+  qrCode        String    @unique @default(uuid()) @map("qr_code") @db.Uuid
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  orders        Order[]
+  
+  @@unique([vendorId, name])
+  @@map("tables")
+  @@index([vendorId])
+  @@index([qrCode])
+}
+
+model Order {
+  id                          Int           @id @default(autoincrement())
+  vendorId                    Int           @map("vendor_id")
+  vendor                      User          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  tableId                     Int?          @map("table_id")
+  table                       Table?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  status                      OrderStatus   @default(pending)
+  totalAmount                 Decimal       @default(0) @map("total_amount") @db.Decimal(10, 2)
+  tableIdentifier             String?       @map("table_identifier") @db.VarChar(100)
+  invoiceNo                   String        @unique @default("INV-000000") @map("invoice_no") @db.VarChar(100)
+  transactionId               String?       @map("transaction_id") @db.VarChar(100)
+  paymentStatus               PaymentStatus @default(pending) @map("payment_status")
+  paymentMethod               PaymentMethod @default(cash) @map("payment_method")
+  
+  // Delivery verification fields
+  deliveryVerified            Boolean       @default(false) @map("delivery_verified")
+  deliveryVerificationCode    String?       @map("delivery_verification_code") @db.VarChar(10)
+  deliveryVerifiedAt          DateTime?     @map("delivery_verified_at")
+  
+  // Issue tracking fields
+  issueReported               Boolean       @default(false) @map("issue_reported")
+  issueDescription            String?       @map("issue_description") @db.Text
+  issueReportedAt             DateTime?     @map("issue_reported_at")
+  issueResolved               Boolean       @default(false) @map("issue_resolved")
+  issueResolutionTimestamp    DateTime?     @map("issue_resolution_timestamp")
+  resolutionMessage           String?       @map("resolution_message") @db.Text
+  
+  createdAt                   DateTime      @default(now()) @map("created_at")
+  updatedAt                   DateTime      @updatedAt @map("updated_at")
+  
+  // Relations
+  items                       OrderItem[]
+  
+  @@map("orders")
+  @@index([vendorId])
+  @@index([tableId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @map("order_id")
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId    Int?      @map("menu_item_id")
+  menuItem      MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  quantity      Int       @default(1)
+  price         Decimal   @db.Decimal(8, 2)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@map("order_items")
+  @@index([orderId])
+  @@index([menuItemId])
+}

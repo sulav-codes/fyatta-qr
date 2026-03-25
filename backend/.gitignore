@@ -13,8 +13,11 @@ logs
 # For .env file
 .env
 
-# For same file
+# For sample file
 /sample
 
 # Uploads folder
 uploads
+
+# for old controllers
+/controllers/*.old.js
