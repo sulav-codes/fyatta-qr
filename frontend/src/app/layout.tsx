@@ -4,12 +4,11 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
 import React, { ReactNode } from "react";
-import Navbar from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: { title: string; description: string } = {
-  title: "Smart QR Menu System",
+  title: "FyattaQR - Smart QR Menu for Restaurants",
   description:
     "Digitize your restaurant menu with QR codes. Help customers scan, browse, and order food easily.",
 };
