@@ -6,6 +6,7 @@ const prisma = require("../config/prisma");
 router.post("/call-waiter", async (req, res) => {
   try {
     const { vendor_id, table_identifier, table_name } = req.body;
+    const vendorId = parseInt(vendor_id, 10);
 
     console.log("[Waiter Call] Request received:", {
       vendor_id,
@@ -20,9 +21,16 @@ router.post("/call-waiter", async (req, res) => {
       });
     }
 
+    if (Number.isNaN(vendorId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor ID must be a valid number",
+      });
+    }
+
     // Get vendor details
     const vendor = await prisma.user.findUnique({
-      where: { id: vendor_id },
+      where: { id: vendorId },
       select: { id: true, email: true, restaurantName: true },
     });
 
@@ -36,7 +44,7 @@ router.post("/call-waiter", async (req, res) => {
     // Get table details
     const table = await prisma.table.findFirst({
       where: {
-        vendorId: vendor_id,
+        vendorId,
         qrCode: table_identifier,
       },
       select: { id: true, name: true },
@@ -58,13 +66,13 @@ router.post("/call-waiter", async (req, res) => {
     try {
       const io = req.app.get("io");
       if (io) {
-        io.emit(`vendor-${vendor_id}`, {
+        io.emit(`vendor-${vendorId}`, {
           type: "waiter_call",
           data: notificationData,
           message: `Customer at ${tableName} is calling for assistance`,
         });
         console.log(
-          `[Waiter Call] Socket notification sent to vendor-${vendor_id}`,
+          `[Waiter Call] Socket notification sent to vendor-${vendorId}`,
         );
       } else {
         console.warn(

@@ -8,10 +8,10 @@ router.use("/auth", require("./authRoutes"));
 router.use("/api", require("./publicRoutes"));
 router.use("/api", require("./waiterRoutes"));
 router.use("/api/payment", require("./paymentRoutes"));
+router.use("/api", require("./orderRoutes"));
 
 // PROTECTED routes (require authentication)
 router.use("/api", require("./staffRoutes"));
-router.use("/api", require("./orderRoutes"));
 router.use("/api", require("./vendorRoutes"));
 router.use("/api", require("./menuRoutes"));
 router.use("/api", require("./tableRoutes"));
