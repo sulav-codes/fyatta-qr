@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/lib/api";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface DashboardStats {
   totalOrders: number;
@@ -23,22 +24,25 @@ export const useDashboardStats = (): DashboardStats => {
   });
 
   const { user, token } = useAuth();
+  const { getEffectiveVendorId } = usePermissions();
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!user?.id || !token) {
+      const vendorId = getEffectiveVendorId();
+
+      if (!vendorId || !token) {
         setStats((prev) => ({ ...prev, isLoading: false }));
         return;
       }
 
       try {
         const response = await fetch(
-          `${getApiBaseUrl()}/api/vendors/${user.id}/dashboard/stats`,
+          `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/stats`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         if (!response.ok) {
@@ -72,7 +76,7 @@ export const useDashboardStats = (): DashboardStats => {
     const interval = setInterval(fetchStats, 30000);
 
     return () => clearInterval(interval);
-  }, [user, token]);
+  }, [token, user, getEffectiveVendorId]);
 
   return stats;
 };
