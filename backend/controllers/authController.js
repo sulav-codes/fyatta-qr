@@ -6,6 +6,14 @@ const {
   comparePassword,
   sanitizeUser,
 } = require("../utils/helpers");
+const {
+  REFRESH_TOKEN_COOKIE_NAME,
+  issueAccessToken,
+  generateRefreshToken,
+  hashToken,
+  getRefreshTokenExpiryDate,
+  getRefreshCookieOptions,
+} = require("../utils/tokenUtils");
 
 const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
 const GOOGLE_STATE_EXPIRES_IN = "10m";
@@ -31,15 +39,58 @@ const getGoogleConfig = () => {
 };
 
 const signAuthToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    jwtSecret,
-    { expiresIn: "7d" },
+  return issueAccessToken(user, jwtSecret);
+};
+
+const setRefreshTokenCookie = (res, refreshToken, expiresAt) => {
+  res.cookie(
+    REFRESH_TOKEN_COOKIE_NAME,
+    refreshToken,
+    getRefreshCookieOptions(expiresAt),
   );
+};
+
+const clearRefreshTokenCookie = (res) => {
+  res.clearCookie(
+    REFRESH_TOKEN_COOKIE_NAME,
+    getRefreshCookieOptions(new Date(0)),
+  );
+};
+
+const getRefreshTokenFromRequest = (req) => {
+  return req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] || null;
+};
+
+const issueSessionTokens = async (res, user) => {
+  const accessToken = signAuthToken(user);
+  const refreshToken = generateRefreshToken();
+  const refreshTokenHash = hashToken(refreshToken);
+  const refreshTokenExpiresAt = getRefreshTokenExpiryDate();
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash,
+      expiresAt: refreshTokenExpiresAt,
+    },
+  });
+
+  setRefreshTokenCookie(res, refreshToken, refreshTokenExpiresAt);
+  return accessToken;
+};
+
+const revokeAllActiveRefreshTokensForUser = async (userId) => {
+  if (!userId) return;
+
+  await prisma.refreshToken.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+    },
+    data: {
+      revokedAt: new Date(),
+    },
+  });
 };
 
 const redirectWithError = (res, baseUrl, code) => {
@@ -359,7 +410,7 @@ exports.login = async (req, res) => {
     });
 
     // Generate JWT token
-    const token = signAuthToken(user);
+    const token = await issueSessionTokens(res, user);
 
     res.json({
       message: "Login successful",
@@ -472,10 +523,10 @@ exports.googleCallback = async (req, res) => {
       },
     });
 
-    const token = signAuthToken(user);
+    const sessionToken = await issueSessionTokens(res, user);
     const safeUser = sanitizeUser(user);
     const successUrl = new URL(frontendSuccessUrl);
-    successUrl.searchParams.set("token", token);
+    successUrl.searchParams.set("token", sessionToken);
     successUrl.searchParams.set("user", encodeUserForRedirect(safeUser));
     successUrl.searchParams.set(
       "needsProfileCompletion",
@@ -486,6 +537,120 @@ exports.googleCallback = async (req, res) => {
   } catch (error) {
     console.error("Google OAuth callback error:", error);
     return redirectWithError(res, frontendFailureUrl, "google_auth_failed");
+  }
+};
+
+/**
+ * Rotate refresh token and return a fresh access token
+ */
+exports.refreshToken = async (req, res) => {
+  try {
+    const incomingRefreshToken = getRefreshTokenFromRequest(req);
+
+    if (!incomingRefreshToken) {
+      return res.status(401).json({
+        error: "Refresh token is missing",
+      });
+    }
+
+    const incomingHash = hashToken(incomingRefreshToken);
+
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { tokenHash: incomingHash },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!storedToken) {
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        error: "Invalid refresh token",
+      });
+    }
+
+    if (storedToken.revokedAt) {
+      if (storedToken.replacedByTokenHash) {
+        await revokeAllActiveRefreshTokensForUser(storedToken.userId);
+        clearRefreshTokenCookie(res);
+        return res.status(401).json({
+          error: "Refresh token reuse detected. Please sign in again.",
+          code: "TOKEN_REUSE_DETECTED",
+        });
+      }
+
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        error: "Refresh token has been revoked",
+        code: "TOKEN_REVOKED",
+      });
+    }
+
+    if (storedToken.expiresAt <= new Date()) {
+      await prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { revokedAt: new Date() },
+      });
+
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        error: "Refresh token has expired",
+        code: "TOKEN_EXPIRED",
+      });
+    }
+
+    if (!storedToken.user || !storedToken.user.isActive) {
+      await prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { revokedAt: new Date() },
+      });
+
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        error: "User account is inactive",
+        code: "USER_INACTIVE",
+      });
+    }
+
+    const replacementRefreshToken = generateRefreshToken();
+    const replacementHash = hashToken(replacementRefreshToken);
+    const replacementExpiry = getRefreshTokenExpiryDate();
+    const now = new Date();
+
+    await prisma.$transaction([
+      prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: {
+          revokedAt: now,
+          replacedByTokenHash: replacementHash,
+        },
+      }),
+      prisma.refreshToken.create({
+        data: {
+          userId: storedToken.userId,
+          tokenHash: replacementHash,
+          expiresAt: replacementExpiry,
+        },
+      }),
+      prisma.user.update({
+        where: { id: storedToken.userId },
+        data: { lastLogin: now },
+      }),
+    ]);
+
+    setRefreshTokenCookie(res, replacementRefreshToken, replacementExpiry);
+
+    return res.status(200).json({
+      message: "Token refreshed successfully",
+      token: signAuthToken(storedToken.user),
+      user: sanitizeUser(storedToken.user),
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(500).json({
+      error: "Failed to refresh token",
+      details: error.message,
+    });
   }
 };
 
@@ -535,10 +700,27 @@ exports.getProfile = async (req, res) => {
 };
 
 /**
- * Logout user (client-side token removal)
+ * Logout user and revoke refresh token
  */
 exports.logout = async (req, res) => {
   try {
+    const incomingRefreshToken = getRefreshTokenFromRequest(req);
+
+    if (incomingRefreshToken) {
+      const incomingHash = hashToken(incomingRefreshToken);
+      await prisma.refreshToken.updateMany({
+        where: {
+          tokenHash: incomingHash,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+    }
+
+    clearRefreshTokenCookie(res);
+
     res.status(200).json({
       message: "Logout successful",
     });

@@ -78,12 +78,30 @@ model User {
   menuItems       MenuItem[]
   tables          Table[]
   orders          Order[]
+  refreshTokens   RefreshToken[]
   
   @@map("users")
   @@index([vendorId])
   @@index([role])
   @@index([email])
   @@index([authProvider])
+}
+
+model RefreshToken {
+  id                  Int       @id @default(autoincrement())
+  userId              Int       @map("user_id")
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash           String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt           DateTime  @map("expires_at")
+  revokedAt           DateTime? @map("revoked_at")
+  replacedByTokenHash String?   @map("replaced_by_token_hash") @db.VarChar(255)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("refresh_tokens")
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model MenuItem {

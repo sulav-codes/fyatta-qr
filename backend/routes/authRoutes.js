@@ -4,18 +4,17 @@ const {
   register,
   login,
   logout,
+  refreshToken,
   googleStart,
   googleCallback,
 } = require("../controllers/authController");
-const { authenticate } = require("../middleware/auth");
 
 // Public routes
 router.post("/register", register);
 router.post("/login", login);
+router.post("/refresh", refreshToken);
+router.post("/logout", logout);
 router.get("/google/start", googleStart);
 router.get("/google/callback", googleCallback);
-
-// Protected routes
-router.post("/logout", authenticate, logout);
 
 module.exports = router;
