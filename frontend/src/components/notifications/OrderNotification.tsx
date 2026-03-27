@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, Eye, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 
 interface OrderNotificationProps {
   notification: {
@@ -75,24 +75,30 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
         return;
       }
 
+      if (!token) {
+        toast.error("Session expired. Please log in again.");
+        return;
+      }
+
       console.log(`Updating order ${order_id} status to ${action}`);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/orders/${order_id}/status`,
+      const response = await apiFetchWithAuth(
+        `/api/orders/${order_id}/status`,
+        token,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ status: action }),
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.error || `Failed to update order status: ${response.status}`
+          errorData.error ||
+            `Failed to update order status: ${response.status}`,
         );
       }
 
@@ -216,7 +222,7 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
             <span className="text-sm font-semibold">
               Rs.{" "}
               {parseFloat(
-                String(orderData?.total_amount || orderData?.total || 0)
+                String(orderData?.total_amount || orderData?.total || 0),
               ).toFixed(2)}
             </span>
           </div>

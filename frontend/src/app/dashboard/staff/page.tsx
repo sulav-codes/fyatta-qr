@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import { Plus, Edit, Trash2, UserCheck, UserX, Eye } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
@@ -45,13 +45,11 @@ function StaffManagementContent() {
 
   const fetchStaff = async () => {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/staff`,
+        token,
       );
 
       if (response.ok) {
@@ -68,16 +66,18 @@ function StaffManagementContent() {
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/staff`,
+        token,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(formData),
-        }
+        },
       );
 
       if (response.ok) {
@@ -118,16 +118,18 @@ function StaffManagementContent() {
         updateData.password = formData.password;
       }
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${selectedStaff.id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/staff/${selectedStaff.id}`,
+        token,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(updateData),
-        }
+        },
       );
 
       if (response.ok) {
@@ -156,14 +158,14 @@ function StaffManagementContent() {
     if (!confirm("Are you sure you want to delete this staff member?")) return;
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${staffId}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/staff/${staffId}`,
+        token,
         {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        },
       );
 
       if (response.ok) {
@@ -181,14 +183,14 @@ function StaffManagementContent() {
 
   const handleToggleStatus = async (staffId: number) => {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/staff/${staffId}/toggle-status`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/staff/${staffId}/toggle-status`,
+        token,
         {
           method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        },
       );
 
       if (response.ok) {

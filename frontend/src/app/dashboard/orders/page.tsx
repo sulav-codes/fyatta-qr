@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { io, Socket } from "socket.io-client";
@@ -193,14 +193,14 @@ export default function OrdersPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/orders`,
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/orders`,
+        token,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -291,14 +291,14 @@ export default function OrdersPage() {
                 status: newStatus,
                 updated_at: new Date().toISOString(),
               }
-            : order
-        )
+            : order,
+        ),
       );
 
       // Only show toast if this wasn't a local update
       if (!localUpdateRef.current.has(orderId)) {
         toast.success(
-          `Order #${orderId} status updated to ${formatStatus(newStatus)}`
+          `Order #${orderId} status updated to ${formatStatus(newStatus)}`,
         );
       } else {
         // Remove from tracking after handling
@@ -322,8 +322,8 @@ export default function OrdersPage() {
                   data.verification_timestamp ||
                   new Date().toISOString(),
               }
-            : order
-        )
+            : order,
+        ),
       );
       toast.success(`✅ Order #${orderId} verified by customer`);
     });
@@ -346,8 +346,8 @@ export default function OrdersPage() {
                   data.issue_report_timestamp ||
                   new Date().toISOString(),
               }
-            : order
-        )
+            : order,
+        ),
       );
       toast.error(`⚠️ Customer reported issue with order #${orderId}`);
     });
@@ -373,7 +373,7 @@ export default function OrdersPage() {
       console.log(
         "[Orders] WebSocket reconnected after",
         attemptNumber,
-        "attempts"
+        "attempts",
       );
       setSocketConnected(true);
       socket.emit("join-vendor", vendorId);
@@ -399,16 +399,16 @@ export default function OrdersPage() {
       // Mark this as a local update to prevent duplicate toast from socket
       localUpdateRef.current.add(orderId);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/orders/${orderId}/status`,
+      const response = await apiFetchWithAuth(
+        `/api/orders/${orderId}/status`,
+        token,
         {
           method: "PATCH",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: newStatus }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -428,8 +428,8 @@ export default function OrdersPage() {
                   updatedOrder.status || updatedOrder.newStatus || newStatus,
                 updated_at: new Date().toISOString(),
               }
-            : order
-        )
+            : order,
+        ),
       );
 
       // Don't show toast here - NotificationContext will show the 🔔 notification
@@ -506,19 +506,19 @@ export default function OrdersPage() {
     return {
       delivered: orders.filter((o) => o.status === "delivered").length,
       awaitingVerification: orders.filter(
-        (o) => o.status === "delivered" && !o.customer_verified
+        (o) => o.status === "delivered" && !o.customer_verified,
       ).length,
       verified: orders.filter((o) => o.customer_verified).length,
       activeIssues: orders.filter(
         (o) =>
           o.delivery_issue_reported &&
           o.status === "delivered" &&
-          !o.customer_verified
+          !o.customer_verified,
       ).length,
       active: orders.filter((o) =>
         ["pending", "accepted", "confirmed", "preparing", "ready"].includes(
-          o.status
-        )
+          o.status,
+        ),
       ).length,
     };
   }, [orders]);

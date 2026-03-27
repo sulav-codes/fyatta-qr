@@ -12,14 +12,24 @@ import React, {
   SetStateAction,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import { io, Socket } from "socket.io-client";
 
 // Types
 interface NotificationData {
   order_id?: number | string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface VendorEventData {
+  type?: string;
+  message?: string;
+  data?: {
+    table_name?: string;
+    timestamp?: string;
+    [key: string]: unknown;
+  };
 }
 
 interface Notification {
@@ -141,14 +151,14 @@ export const NotificationProvider = ({
           notification.type === "order"
             ? "🔔"
             : notification.type === "waiter_call"
-            ? "🙋"
-            : "ℹ️",
+              ? "🙋"
+              : "ℹ️",
         duration: notification.type === "waiter_call" ? 6000 : 4000,
       });
     });
 
     // Listen for waiter calls
-    socket.on(`vendor-${user.id}`, (data: any) => {
+    socket.on(`vendor-${user.id}`, (data: VendorEventData) => {
       console.log("[Notifications] Vendor event received:", data);
 
       if (data.type === "waiter_call") {
@@ -192,10 +202,10 @@ export const NotificationProvider = ({
     socket.on("notification-read", (notificationId: string | number) => {
       console.log(
         "[Notifications] Notification marked as read:",
-        notificationId
+        notificationId,
       );
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
       );
     });
 
@@ -253,41 +263,39 @@ export const NotificationProvider = ({
           prev.map((notification) =>
             notification.id === notificationId
               ? { ...notification, read: true }
-              : notification
-          )
+              : notification,
+          ),
         );
 
         if (token) {
-          await fetch(
-            `${getApiBaseUrl()}/api/notifications/${notificationId}/`,
+          await apiFetchWithAuth(
+            `/api/notifications/${notificationId}/`,
+            token,
             {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
               },
-            }
+            },
           );
         }
       } catch (error) {
         console.error("Error marking notification as read:", error);
       }
     },
-    [token]
+    [token],
   );
 
   const markAllAsRead = useCallback(async () => {
     try {
       setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, read: true }))
+        prev.map((notification) => ({ ...notification, read: true })),
       );
 
       if (token) {
-        const apiBaseUrl = getApiBaseUrl();
-        await fetch(`${apiBaseUrl}/api/notifications/bulk-actions/`, {
+        await apiFetchWithAuth(`/api/notifications/bulk-actions/`, token, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ action: "mark_all_read" }),
@@ -302,25 +310,23 @@ export const NotificationProvider = ({
     async (notificationId: string | number) => {
       try {
         setNotifications((prev) =>
-          prev.filter((notification) => notification.id !== notificationId)
+          prev.filter((notification) => notification.id !== notificationId),
         );
 
         if (token) {
-          await fetch(
-            `${getApiBaseUrl()}/api/notifications/${notificationId}/`,
+          await apiFetchWithAuth(
+            `/api/notifications/${notificationId}/`,
+            token,
             {
               method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
+            },
           );
         }
       } catch (error) {
         console.error("Error removing notification:", error);
       }
     },
-    [token]
+    [token],
   );
 
   const clearNotifications = useCallback(async () => {
@@ -328,11 +334,9 @@ export const NotificationProvider = ({
       setNotifications([]);
 
       if (token) {
-        const apiBaseUrl = getApiBaseUrl();
-        await fetch(`${apiBaseUrl}/api/notifications/bulk-actions/`, {
+        await apiFetchWithAuth(`/api/notifications/bulk-actions/`, token, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ action: "clear_all" }),
@@ -377,7 +381,7 @@ export const useNotifications = () => {
   const context = useContext(NotificationContext);
   if (!context) {
     throw new Error(
-      "useNotifications must be used within a NotificationProvider"
+      "useNotifications must be used within a NotificationProvider",
     );
   }
   return context;

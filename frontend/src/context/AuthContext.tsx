@@ -5,8 +5,11 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
+  useRef,
   ReactNode,
 } from "react";
+import { getApiBaseUrl } from "@/lib/api";
 
 // Define User type - adjust fields based on your actual user object
 interface User {
@@ -39,6 +42,17 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  refreshSession: () => Promise<boolean>;
+  authFetch: (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ) => Promise<Response>;
+}
+
+interface RefreshResponse {
+  token: string;
+  user: User;
+  error?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,44 +65,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshInFlightRef = useRef<Promise<boolean> | null>(null);
 
-  // Check for saved token on mount
-  useEffect(() => {
-    const loadAuthState = () => {
-      try {
-        const storedToken = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
-
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          const parsedUser = JSON.parse(storedUser);
-
-          // Ensure user has a role - existing users without role are vendors
-          if (!parsedUser.role) {
-            parsedUser.role = "vendor";
-            // Update localStorage with the role
-            localStorage.setItem("user", JSON.stringify(parsedUser));
-          }
-
-          setUser(parsedUser as User);
-        }
-      } catch (error) {
-        console.error("Error restoring auth state:", error);
-        // Clear potentially corrupted data
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Add a small delay to ensure the client is fully hydrated
-    if (typeof window !== "undefined") {
-      loadAuthState();
-    }
-  }, []);
-
-  const login = (newToken: string, newUser: User) => {
+  const persistAuthState = useCallback((newToken: string, newUser: User) => {
     try {
       setToken(newToken);
       setUser(newUser);
@@ -97,13 +76,247 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error("Error saving auth state:", error);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const clearAuthState = useCallback(() => {
     setToken(null);
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+  }, []);
+
+  const handleSessionExpired = useCallback(() => {
+    clearAuthState();
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const isGuardedRoute = window.location.pathname.startsWith("/dashboard");
+
+    if (isGuardedRoute) {
+      window.location.replace("/login?session=expired");
+    }
+  }, [clearAuthState]);
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const data: RefreshResponse = await response.json();
+
+        if (!data.token || !data.user) {
+          return false;
+        }
+
+        persistAuthState(data.token, data.user);
+        return true;
+      } catch (error) {
+        console.warn("Session refresh skipped:", error);
+        return false;
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+
+    try {
+      return await refreshPromise;
+    } finally {
+      refreshInFlightRef.current = null;
+    }
+  }, [persistAuthState]);
+
+  const authFetch = useCallback(
+    async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const currentToken = localStorage.getItem("token");
+      const initialHeaders = new Headers(init.headers || {});
+
+      if (currentToken && !initialHeaders.has("Authorization")) {
+        initialHeaders.set("Authorization", `Bearer ${currentToken}`);
+      }
+
+      const performFetch = async (overrideHeaders?: Headers) => {
+        const finalInit: RequestInit = {
+          ...init,
+          headers: overrideHeaders || initialHeaders,
+        };
+        return fetch(input, finalInit);
+      };
+
+      let response = await performFetch();
+
+      if (response.status !== 401 || !initialHeaders.has("Authorization")) {
+        return response;
+      }
+
+      const refreshed = await refreshSession();
+
+      if (!refreshed) {
+        handleSessionExpired();
+        return response;
+      }
+
+      const refreshedToken = localStorage.getItem("token");
+      if (!refreshedToken) {
+        handleSessionExpired();
+        return response;
+      }
+
+      const retryHeaders = new Headers(initialHeaders);
+      retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
+      response = await performFetch(retryHeaders);
+
+      return response;
+    },
+    [handleSessionExpired, refreshSession],
+  );
+
+  // Check for saved token and refresh cookie session on mount
+  useEffect(() => {
+    const loadAuthState = async () => {
+      let hasStoredState = false;
+
+      try {
+        const storedToken = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+
+        if (storedToken && storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+
+          // Ensure user has a role - existing users without role are vendors
+          if (!parsedUser.role) {
+            parsedUser.role = "vendor";
+            localStorage.setItem("user", JSON.stringify(parsedUser));
+          }
+
+          setToken(storedToken);
+          setUser(parsedUser as User);
+          hasStoredState = true;
+        }
+      } catch (error) {
+        console.error("Error restoring auth state:", error);
+        clearAuthState();
+      }
+
+      const refreshed = await refreshSession();
+
+      if (!refreshed) {
+        if (hasStoredState) {
+          handleSessionExpired();
+        } else {
+          clearAuthState();
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    if (typeof window !== "undefined") {
+      loadAuthState();
+    }
+  }, [clearAuthState, handleSessionExpired, refreshSession]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const originalFetch = window.fetch.bind(window);
+
+    const isAuthRoute = (url: string) => {
+      return /\/auth\/(login|refresh|logout|register|google\/start|google\/callback)/i.test(
+        url,
+      );
+    };
+
+    const patchedFetch: typeof window.fetch = async (input, init) => {
+      const requestUrl =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+
+      const headers = new Headers(
+        init?.headers || (input instanceof Request ? input.headers : undefined),
+      );
+      const hasAuthHeader = headers.has("Authorization");
+
+      let response = await originalFetch(input, init);
+
+      if (
+        response.status !== 401 ||
+        !hasAuthHeader ||
+        isAuthRoute(requestUrl)
+      ) {
+        return response;
+      }
+
+      const refreshed = await refreshSession();
+
+      if (!refreshed) {
+        handleSessionExpired();
+        return response;
+      }
+
+      const refreshedToken = localStorage.getItem("token");
+
+      if (!refreshedToken) {
+        handleSessionExpired();
+        return response;
+      }
+
+      const retryHeaders = new Headers(headers);
+      retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
+
+      if (input instanceof Request) {
+        const retryRequest = new Request(input, {
+          ...init,
+          headers: retryHeaders,
+        });
+        response = await originalFetch(retryRequest);
+      } else {
+        response = await originalFetch(input, {
+          ...init,
+          headers: retryHeaders,
+        });
+      }
+
+      return response;
+    };
+
+    window.fetch = patchedFetch;
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [handleSessionExpired, refreshSession]);
+
+  const login = (newToken: string, newUser: User) => {
+    persistAuthState(newToken, newUser);
+  };
+
+  const logout = () => {
+    fetch(`${getApiBaseUrl()}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch((error) => {
+      console.warn("Logout request failed:", error);
+    });
+
+    clearAuthState();
   };
 
   return (
@@ -115,6 +328,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isLoading,
         login,
         logout,
+        refreshSession,
+        authFetch,
       }}
     >
       {children}

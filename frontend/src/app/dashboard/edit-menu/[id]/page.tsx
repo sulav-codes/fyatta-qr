@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,15 +59,17 @@ export default function EditMenuItem({
   const fetchMenuItem = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/${id}`,
+        token,
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -77,7 +79,7 @@ export default function EditMenuItem({
       const data = await response.json();
       setMenuItem(data);
       setImagePreview(
-        data.imageUrl ? `${getApiBaseUrl()}${data.imageUrl}` : null
+        data.imageUrl ? `${getApiBaseUrl()}${data.imageUrl}` : null,
       );
     } catch (error) {
       console.error("Error fetching menu item:", error);
@@ -88,7 +90,7 @@ export default function EditMenuItem({
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setMenuItem((prev) => ({
@@ -150,6 +152,11 @@ export default function EditMenuItem({
     setIsSaving(true);
 
     try {
+      if (!token) {
+        toast.error("Session expired. Please log in again.");
+        return;
+      }
+
       const formData = new FormData();
       formData.append("name", menuItem.name);
       formData.append("price", menuItem.price);
@@ -161,15 +168,13 @@ export default function EditMenuItem({
         formData.append("image", newImage);
       }
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${id}`,
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/${id}`,
+        token,
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           body: formData,
-        }
+        },
       );
 
       const data = await response.json();

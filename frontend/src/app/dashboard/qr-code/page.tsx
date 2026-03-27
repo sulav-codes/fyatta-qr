@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   Dialog,
@@ -81,13 +81,11 @@ function GenerateQRContent() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables`,
+        token,
       );
 
       if (!response.ok) {
@@ -116,18 +114,20 @@ function GenerateQRContent() {
       setIsAddingTable(true);
       setError(null);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables`,
+        token,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: newTableName,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -151,14 +151,14 @@ function GenerateQRContent() {
     try {
       setIsDeletingTable(id);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables/${id}`,
+        token,
         {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -178,29 +178,31 @@ function GenerateQRContent() {
 
   const toggleTableAvailability = async (
     id: number,
-    currentStatus: boolean
+    currentStatus: boolean,
   ) => {
     try {
       setIsTogglingAvailability(id);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables/${id}`,
+        token,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             isActive: !currentStatus,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || "Failed to toggle table availability"
+          errorData.message || "Failed to toggle table availability",
         );
       }
 
@@ -210,14 +212,14 @@ function GenerateQRContent() {
         prevTables.map((table) =>
           table.id === id
             ? { ...table, isActive: data.table?.isActive ?? data.isActive }
-            : table
-        )
+            : table,
+        ),
       );
 
       toast.success(
         `Table ${
-          data.table?.isActive ?? data.isActive ? "activated" : "deactivated"
-        } successfully`
+          (data.table?.isActive ?? data.isActive) ? "activated" : "deactivated"
+        } successfully`,
       );
     } catch (error: any) {
       console.error("Error toggling table availability:", error);
@@ -261,7 +263,7 @@ function GenerateQRContent() {
     const nameExists = tables.some(
       (table) =>
         table.id !== id &&
-        table.name.toLowerCase() === trimmedName.toLowerCase()
+        table.name.toLowerCase() === trimmedName.toLowerCase(),
     );
 
     if (nameExists) {
@@ -272,18 +274,20 @@ function GenerateQRContent() {
     try {
       setIsRenamingTable(id);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables/${id}`,
+        token,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: trimmedName,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -297,8 +301,8 @@ function GenerateQRContent() {
         prevTables.map((table) =>
           table.id === id
             ? { ...table, name: data.table?.name ?? data.name }
-            : table
-        )
+            : table,
+        ),
       );
 
       cancelEditing();
@@ -315,14 +319,14 @@ function GenerateQRContent() {
     try {
       setIsRegeneratingQR(id);
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/tables/${id}/regenerate-qr`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/tables/${id}/regenerate-qr`,
+        token,
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -334,8 +338,8 @@ function GenerateQRContent() {
 
       setTables(
         tables.map((table) =>
-          table.id === id ? { ...table, qrCode: data.table.qrCode } : table
-        )
+          table.id === id ? { ...table, qrCode: data.table.qrCode } : table,
+        ),
       );
 
       toast.success("QR code regenerated");
@@ -354,13 +358,13 @@ function GenerateQRContent() {
       }
       return `${hostUrl}/menu/${vendorId}/${table.qrCode}`;
     },
-    [hostUrl, vendorId]
+    [hostUrl, vendorId],
   );
 
   const downloadQRCode = (table: Table) => {
     try {
       const canvas = document.getElementById(
-        `qr-code-${table.id}`
+        `qr-code-${table.id}`,
       ) as HTMLCanvasElement;
       if (!canvas) {
         throw new Error("QR code canvas not found");
@@ -398,7 +402,7 @@ function GenerateQRContent() {
       },
       () => {
         toast.error("Failed to copy link");
-      }
+      },
     );
   };
 

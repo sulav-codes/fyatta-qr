@@ -15,10 +15,18 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/context/NotificationContext";
 import OrderNotification from "@/components/notifications/OrderNotification";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
+
+interface OrderPopupNotification {
+  id: string | number;
+  data?: {
+    order_id?: string | number;
+  };
+  [key: string]: unknown;
+}
 
 const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -27,7 +35,9 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const vendorId = getEffectiveVendorId();
   const [logo, setLogo] = useState<string | null>(null);
   const [logoLoaded, setLogoLoaded] = useState(false);
-  const [orderNotifications, setOrderNotifications] = useState<any[]>([]);
+  const [orderNotifications, setOrderNotifications] = useState<
+    OrderPopupNotification[]
+  >([]);
   const router = useRouter();
 
   // Use notification context
@@ -51,13 +61,9 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     if (!vendorId || !token || logoLoaded) return;
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/profile`,
+        token,
       );
 
       if (!response.ok) {
@@ -129,22 +135,27 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
         Array.isArray(n.data.items) &&
         n.data.items.length > 0 &&
         (n.data?.total_amount || n.data?.total) > 0 &&
-        n.data?.table_name
+        n.data?.table_name,
     );
 
     // Deduplicate by order_id
     const uniqueOrders = Object.values(
-      validOrders.reduce((acc, n) => {
-        const oid = n.data?.order_id;
-        if (oid && !acc[oid]) acc[oid] = n;
-        return acc;
-      }, {} as Record<string | number, (typeof validOrders)[0]>)
+      validOrders.reduce(
+        (acc, n) => {
+          const oid = n.data?.order_id;
+          if (oid && !acc[oid]) acc[oid] = n;
+          return acc;
+        },
+        {} as Record<string | number, (typeof validOrders)[0]>,
+      ),
     );
 
     // Only add new unique orders not already shown
     const newOrderPopups = uniqueOrders.filter(
       (n) =>
-        !orderNotifications.some((on) => on.data?.order_id === n.data?.order_id)
+        !orderNotifications.some(
+          (on) => on.data?.order_id === n.data?.order_id,
+        ),
     );
 
     if (newOrderPopups.length > 0) {
@@ -153,12 +164,14 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
     // Remove notifications that have been marked as read
     const readNotificationIds = new Set(
-      notifications.filter((n) => n.type === "order" && n.read).map((n) => n.id)
+      notifications
+        .filter((n) => n.type === "order" && n.read)
+        .map((n) => n.id),
     );
 
     if (readNotificationIds.size > 0) {
       setOrderNotifications((prev) =>
-        prev.filter((n) => !readNotificationIds.has(n.id))
+        prev.filter((n) => !readNotificationIds.has(n.id)),
       );
     }
   }, [notifications]);
@@ -166,11 +179,11 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const handleOrderNotificationClose = useCallback(
     (notificationId: string | number) => {
       setOrderNotifications((prev) =>
-        prev.filter((n) => n.id !== notificationId)
+        prev.filter((n) => n.id !== notificationId),
       );
       markAsRead(notificationId);
     },
-    [markAsRead]
+    [markAsRead],
   );
 
   const handleOrderAction = useCallback((orderId: number, action: string) => {
@@ -287,7 +300,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
                           {
                             hour: "2-digit",
                             minute: "2-digit",
-                          }
+                          },
                         )}
                       </span>
                     </DropdownMenuItem>
@@ -329,8 +342,8 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
                         user.role === "vendor"
                           ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
                           : user.role === "admin"
-                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                          : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                            : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                       }`}
                     >
                       {user.role.charAt(0).toUpperCase() + user.role.slice(1)}

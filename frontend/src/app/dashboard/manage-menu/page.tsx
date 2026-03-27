@@ -5,7 +5,7 @@ import { Edit2, Trash2, Search, Plus, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
@@ -40,7 +40,7 @@ export default function ManageMenu() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredCategories, setFilteredCategories] = useState<MenuCategory[]>(
-    []
+    [],
   );
   const { user, token } = useAuth();
   const { canCreateDeleteMenuItems, getEffectiveVendorId } = usePermissions();
@@ -77,7 +77,7 @@ export default function ManageMenu() {
           (item) =>
             item.name.toLowerCase().includes(query) ||
             item.description.toLowerCase().includes(query) ||
-            item.category.toLowerCase().includes(query)
+            item.category.toLowerCase().includes(query),
         );
 
         if (matchedItems.length) {
@@ -93,15 +93,17 @@ export default function ManageMenu() {
   const fetchMenuItems = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/categories`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/categories`,
+        token,
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -121,19 +123,21 @@ export default function ManageMenu() {
 
   const handleAvailabilityToggle = async (
     itemId: number,
-    currentStatus: boolean
+    currentStatus: boolean,
   ) => {
     setActionInProgress(true);
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${itemId}/toggle`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/${itemId}/toggle`,
+        token,
         {
           method: "PATCH",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -143,7 +147,7 @@ export default function ManageMenu() {
       const updatedCategories = menuCategories.map((category) => ({
         ...category,
         items: category.items.map((item) =>
-          item.id === itemId ? { ...item, isAvailable: !currentStatus } : item
+          item.id === itemId ? { ...item, isAvailable: !currentStatus } : item,
         ),
       }));
 
@@ -168,14 +172,14 @@ export default function ManageMenu() {
 
     setActionInProgress(true);
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu/${itemToDelete.id}`,
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/${itemToDelete.id}`,
+        token,
         {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -185,7 +189,7 @@ export default function ManageMenu() {
       const updatedCategories = menuCategories
         .map((category) => {
           const updatedItems = category.items.filter(
-            (item) => item.id !== itemToDelete.id
+            (item) => item.id !== itemToDelete.id,
           );
           if (updatedItems.length === 0) {
             return null;
@@ -347,7 +351,7 @@ export default function ManageMenu() {
                               onClick={() =>
                                 handleAvailabilityToggle(
                                   item.id,
-                                  item.isAvailable
+                                  item.isAvailable,
                                 )
                               }
                               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${

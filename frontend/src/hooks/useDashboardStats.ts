@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface DashboardStats {
@@ -36,13 +36,9 @@ export const useDashboardStats = (): DashboardStats => {
       }
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/stats`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+        const response = await apiFetchWithAuth(
+          `/api/vendors/${vendorId}/dashboard/stats`,
+          token,
         );
 
         if (!response.ok) {

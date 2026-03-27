@@ -1,10 +1,17 @@
 "use client";
-import { useState, useCallback, ChangeEvent, FormEvent } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  ChangeEvent,
+  FormEvent,
+} from "react";
 import { Mail, Lock, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
@@ -63,13 +70,25 @@ interface FormErrors {
 
 interface LoginResponse {
   token: string;
-  user: any; // Replace 'any' with your user type
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    restaurantName: string;
+    location: string;
+    role: "vendor" | "staff" | "admin";
+    isActive: boolean;
+    vendorId?: number;
+    [key: string]: unknown;
+  };
   error?: string;
 }
 
 export default function Login() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login: contextLogin } = useAuth();
+  const hasShownSessionExpiredRef = useRef(false);
 
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -128,6 +147,7 @@ export default function Login() {
       try {
         const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -174,6 +194,16 @@ export default function Login() {
   const handleGoogleSignIn = useCallback(() => {
     window.location.href = getGoogleAuthStartUrl();
   }, []);
+
+  useEffect(() => {
+    if (
+      searchParams.get("session") === "expired" &&
+      !hasShownSessionExpiredRef.current
+    ) {
+      toast("Your session expired. Please sign in again.");
+      hasShownSessionExpiredRef.current = true;
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
@@ -290,7 +320,7 @@ export default function Login() {
 
             <div className="text-center">
               <span className="text-gray-600 dark:text-gray-400">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
               </span>
               <Link
                 href="/register"

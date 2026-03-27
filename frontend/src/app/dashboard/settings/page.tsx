@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -92,13 +92,9 @@ function SettingsContent() {
     setError(null);
 
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/profile`,
+        token,
       );
 
       if (!response.ok) {
@@ -311,13 +307,11 @@ function SettingsContent() {
         submitData.append("logo", selectedLogo);
       }
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/profile`,
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/profile`,
+        token,
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           body: submitData,
         },
       );
@@ -333,9 +327,11 @@ function SettingsContent() {
 
       toast.success("Settings updated successfully!");
       fetchVendorData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error saving settings:", err);
-      toast.error(err.message || "Failed to update settings");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update settings";
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }

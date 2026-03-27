@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -83,13 +83,11 @@ export default function Dashboard() {
 
   const fetchRecentOrders = async () => {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/recent-orders?limit=5`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/dashboard/recent-orders?limit=5`,
+        token,
       );
       if (response.ok) {
         const data = await response.json();
@@ -111,13 +109,11 @@ export default function Dashboard() {
 
   const fetchPopularItems = async () => {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/popular-items?limit=5`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/dashboard/popular-items?limit=5`,
+        token,
       );
       if (response.ok) {
         const data = await response.json();
@@ -140,13 +136,11 @@ export default function Dashboard() {
 
   const fetchSalesReport = async () => {
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/dashboard/sales?timeframe=week`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/dashboard/sales?timeframe=week`,
+        token,
       );
       if (response.ok) {
         const data = await response.json();

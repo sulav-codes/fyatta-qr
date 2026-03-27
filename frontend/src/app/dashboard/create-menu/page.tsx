@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -48,7 +48,7 @@ function CreateMenuContent() {
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -100,7 +100,7 @@ function CreateMenuContent() {
   const handleItemChange = (
     index: number,
     field: keyof MenuItem,
-    value: any
+    value: any,
   ) => {
     const newItems = [...menuItems];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -158,7 +158,7 @@ function CreateMenuContent() {
 
       // Convert menu items to JSON and add to form data
       const itemsForJson = menuItems.map(
-        ({ image, imagePreview, ...item }) => item
+        ({ image, imagePreview, ...item }) => item,
       );
       formData.append("menuItems", JSON.stringify(itemsForJson));
 
@@ -169,15 +169,13 @@ function CreateMenuContent() {
         }
       });
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/vendors/${vendorId}/menu`,
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu`,
+        token,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           body: formData,
-        }
+        },
       );
 
       const data = await response.json();
