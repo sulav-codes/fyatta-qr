@@ -2,17 +2,6 @@
 
 A modern, full-stack QR-based restaurant management system that streamlines ordering, payment processing, and table management for restaurants and food vendors.
 
-## Project Status (Latest)
-
-The project has recently evolved in these key areas:
-
-- Multi-tenancy: implemented with vendor-scoped data access across backend and frontend
-- RBAC: implemented for `vendor`, `staff`, and `admin` roles
-- Google OAuth: implemented (backend flow + frontend callback integration)
-- Token security hardening: short-lived access tokens + rotating refresh tokens with reuse detection
-- Prisma migration: backend now uses Prisma client with PostgreSQL datasource configuration
-- Dashboard/staff access fixes: recent vendor/staff authorization and dashboard query fixes applied
-
 ## Features
 
 - QR Code Integration: table-based QR codes for contactless ordering
@@ -76,7 +65,7 @@ The project has recently evolved in these key areas:
 - Framework: Express.js
 - ORM/DB Access: Prisma Client
 - Database Provider: PostgreSQL (configured via Prisma datasource)
-- Authentication: JWT + bcryptjs
+- Authentication: JWT access tokens + rotating refresh tokens (HTTP-only cookie) + bcryptjs
 - OAuth: Google OAuth 2.0
 - Real-time: Socket.IO
 - File Upload: Multer
