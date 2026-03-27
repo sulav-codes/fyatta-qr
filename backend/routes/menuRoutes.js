@@ -4,24 +4,21 @@ const { authenticate } = require("../middleware/auth");
 const menuController = require("../controllers/menuController");
 const upload = require("../middleware/multerConfig");
 
+const MAX_MENU_ITEMS_PER_REQUEST = (() => {
+  const parsed = Number.parseInt(
+    process.env.MAX_MENU_ITEMS_PER_REQUEST || "50",
+    10,
+  );
+  return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
+})();
+
 // All menu routes require authentication
 router.use(authenticate);
 
 // Menu items routes for a vendor
 router.post(
   "/vendors/:vendorId/menu",
-  upload.fields([
-    { name: "image_0", maxCount: 1 },
-    { name: "image_1", maxCount: 1 },
-    { name: "image_2", maxCount: 1 },
-    { name: "image_3", maxCount: 1 },
-    { name: "image_4", maxCount: 1 },
-    { name: "image_5", maxCount: 1 },
-    { name: "image_6", maxCount: 1 },
-    { name: "image_7", maxCount: 1 },
-    { name: "image_8", maxCount: 1 },
-    { name: "image_9", maxCount: 1 },
-  ]),
+  upload.array("images", MAX_MENU_ITEMS_PER_REQUEST),
   menuController.createMenuItems,
 );
 router.get("/vendors/:vendorId/menu", menuController.getMenuItems);

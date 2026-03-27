@@ -22,6 +22,8 @@ interface MenuItem {
   imagePreview: string | null;
 }
 
+const MAX_MENU_ITEMS_PER_REQUEST = 50;
+
 function CreateMenuContent() {
   const router = useRouter();
   const { user, token } = useAuth();
@@ -74,6 +76,13 @@ function CreateMenuContent() {
   };
 
   const addMenuItem = () => {
+    if (menuItems.length >= MAX_MENU_ITEMS_PER_REQUEST) {
+      toast.error(
+        `You can add up to ${MAX_MENU_ITEMS_PER_REQUEST} items at once.`,
+      );
+      return;
+    }
+
     setMenuItems([
       ...menuItems,
       {
@@ -120,6 +129,13 @@ function CreateMenuContent() {
 
   const validateItems = () => {
     const errors: string[] = [];
+
+    if (menuItems.length > MAX_MENU_ITEMS_PER_REQUEST) {
+      errors.push(
+        `Maximum ${MAX_MENU_ITEMS_PER_REQUEST} menu items are allowed per request`,
+      );
+    }
+
     menuItems.forEach((item, index) => {
       if (!item.name.trim()) {
         errors.push(`Item #${index + 1}: Name is required`);
@@ -162,10 +178,11 @@ function CreateMenuContent() {
       );
       formData.append("menuItems", JSON.stringify(itemsForJson));
 
-      // Add each image with its index
+      // Add images as a single field plus explicit item index mapping.
       menuItems.forEach((item, index) => {
         if (item.image) {
-          formData.append(`image_${index}`, item.image);
+          formData.append("images", item.image);
+          formData.append("imageIndexes", String(index));
         }
       });
 

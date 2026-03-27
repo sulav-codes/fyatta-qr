@@ -1,6 +1,14 @@
 const prisma = require("../config/prisma");
 const { canAccessVendor } = require("../utils/helpers");
 
+const MAX_MENU_ITEMS_PER_REQUEST = (() => {
+  const parsed = Number.parseInt(
+    process.env.MAX_MENU_ITEMS_PER_REQUEST || "50",
+    10,
+  );
+  return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
+})();
+
 function mapMenuItem(item) {
   return {
     id: item.id,
@@ -50,6 +58,57 @@ exports.createMenuItems = async (req, res) => {
       });
     }
 
+    if (itemsData.length > MAX_MENU_ITEMS_PER_REQUEST) {
+      return res.status(400).json({
+        error: "Too many menu items",
+        details: `Maximum ${MAX_MENU_ITEMS_PER_REQUEST} items are allowed per request`,
+      });
+    }
+
+    const uploadedImages = Array.isArray(req.files) ? req.files : [];
+    const rawImageIndexes = req.body.imageIndexes;
+    const imageIndexes = Array.isArray(rawImageIndexes)
+      ? rawImageIndexes
+      : rawImageIndexes !== undefined
+        ? [rawImageIndexes]
+        : [];
+
+    if (uploadedImages.length !== imageIndexes.length) {
+      return res.status(400).json({
+        error: "Invalid image payload",
+        details: "Each uploaded image must have a matching imageIndexes value",
+      });
+    }
+
+    if (uploadedImages.length > MAX_MENU_ITEMS_PER_REQUEST) {
+      return res.status(400).json({
+        error: "Too many images",
+        details: `Maximum ${MAX_MENU_ITEMS_PER_REQUEST} images are allowed per request`,
+      });
+    }
+
+    const imageByItemIndex = new Map();
+
+    for (let i = 0; i < uploadedImages.length; i++) {
+      const index = Number.parseInt(String(imageIndexes[i]), 10);
+
+      if (Number.isNaN(index) || index < 0 || index >= itemsData.length) {
+        return res.status(400).json({
+          error: "Invalid image index",
+          details: `imageIndexes[${i}] is out of range`,
+        });
+      }
+
+      if (imageByItemIndex.has(index)) {
+        return res.status(400).json({
+          error: "Invalid image payload",
+          details: `Duplicate image index for item ${index + 1}`,
+        });
+      }
+
+      imageByItemIndex.set(index, uploadedImages[i].filename);
+    }
+
     const validatedItems = [];
     const validationErrors = [];
 
@@ -85,11 +144,7 @@ exports.createMenuItems = async (req, res) => {
         itemErrors.push("Description too long (max 1000 characters)");
       }
 
-      const imageKey = `image_${index}`;
-      const image =
-        req.files && req.files[imageKey] && req.files[imageKey][0]
-          ? req.files[imageKey][0].filename
-          : null;
+      const image = imageByItemIndex.get(index) || null;
 
       if (itemErrors.length > 0) {
         validationErrors.push(
