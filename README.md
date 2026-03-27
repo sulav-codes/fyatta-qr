@@ -9,6 +9,7 @@ The project has recently evolved in these key areas:
 - Multi-tenancy: implemented with vendor-scoped data access across backend and frontend
 - RBAC: implemented for `vendor`, `staff`, and `admin` roles
 - Google OAuth: implemented (backend flow + frontend callback integration)
+- Token security hardening: short-lived access tokens + rotating refresh tokens with reuse detection
 - Prisma migration: backend now uses Prisma client with PostgreSQL datasource configuration
 - Dashboard/staff access fixes: recent vendor/staff authorization and dashboard query fixes applied
 
@@ -45,7 +46,11 @@ The project has recently evolved in these key areas:
 
 ### Authentication
 
-- JWT-based auth for local login/register
+- JWT-based auth with access + refresh token model:
+  - Short-lived access token is returned in login/refresh responses
+  - Refresh token is stored in an HTTP-only cookie (`/auth` path)
+  - Refresh token rotation on each `/auth/refresh`
+  - Reuse/replay detection revokes active token family and forces re-login
 - Google OAuth flow:
   - Start endpoint
   - Callback endpoint
@@ -108,6 +113,11 @@ CLIENT_URL=http://localhost:3000
 
 # JWT
 JWT_SECRET_KEY=your_jwt_secret_key_here
+ACCESS_TOKEN_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_DAYS=30
+REFRESH_TOKEN_COOKIE_NAME=refreshToken
+COOKIE_SAME_SITE=lax
+MAX_MENU_ITEMS_PER_REQUEST=50
 
 # Prisma PostgreSQL
 DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
@@ -116,7 +126,7 @@ DIRECT_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/po
 # Google OAuth
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
 GOOGLE_FRONTEND_SUCCESS_URL=http://localhost:3000/oauth/callback
 GOOGLE_FRONTEND_FAILURE_URL=http://localhost:3000/login
 ```
@@ -218,11 +228,12 @@ npm start
 
 ### Authentication
 
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/google/start` - Start Google OAuth
-- `GET /api/auth/google/callback` - Google OAuth callback
+- `POST /auth/register` - User registration
+- `POST /auth/login` - User login (returns access token + sets refresh cookie)
+- `POST /auth/refresh` - Rotate refresh token and issue new access token
+- `POST /auth/logout` - Revoke current refresh token and clear cookie
+- `GET /auth/google/start` - Start Google OAuth
+- `GET /auth/google/callback` - Google OAuth callback
 
 ### Vendor-scoped resources
 
