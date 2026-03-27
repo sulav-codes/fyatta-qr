@@ -42,6 +42,11 @@ app.use(
   }),
 );
 
+// Lightweight health endpoint for container checks
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Routes
 app.use("/", routes);
 

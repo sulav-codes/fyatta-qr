@@ -289,6 +289,11 @@ function SettingsContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!vendorId || !token) {
+      toast.error("You must be signed in to update settings");
+      return;
+    }
+
     if (!validateForm()) {
       toast.error("Please fix the errors in the form");
       return;

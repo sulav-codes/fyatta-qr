@@ -17,7 +17,7 @@ interface OrderNotificationProps {
     created_at?: string;
     read: boolean;
     data?: {
-      order_id?: number;
+      order_id?: number | string;
       table_name?: string;
       total_amount?: number;
       total?: number;
@@ -108,8 +108,13 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
       // Show success message
       toast.success(`Order ${action} successfully`);
 
+      const normalizedOrderId =
+        typeof order_id === "number" ? order_id : Number(order_id);
+
       // Call the onAction callback with order ID and action
-      onAction?.(order_id, action);
+      if (Number.isFinite(normalizedOrderId)) {
+        onAction?.(normalizedOrderId, action);
+      }
 
       // Reset processing state before closing
       setIsProcessing(false);

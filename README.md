@@ -138,8 +138,7 @@ npm install
 Create `.env.local` in `frontend`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 ## Running the application
@@ -163,6 +162,40 @@ npm run dev
 ```
 
 Application runs on `http://localhost:3000`
+
+### Docker Compose (Frontend + Backend)
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+Before first run, review and update these files with your real values:
+
+- `backend/.env.docker`
+- `frontend/.env.docker`
+
+Container URLs:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+Common commands:
+
+```bash
+# Stop and remove containers
+docker compose down
+
+# Rebuild after Dockerfile or dependency changes
+docker compose up --build
+```
+
+Notes:
+
+- Compose stack keeps Supabase as external PostgreSQL (no local Postgres service by default).
+- Backend runs Prisma deploy migrations on startup.
+- Backend uploads persist via a named Docker volume.
 
 ### Production mode
 

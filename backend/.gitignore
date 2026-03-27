@@ -10,8 +10,10 @@ coverage
 # For logs folder
 logs
 
-# For .env file
-.env
+# For env files
+.env*
+!.env.example
+!.env.docker.example
 
 # For sample file
 /sample

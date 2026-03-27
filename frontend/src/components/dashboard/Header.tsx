@@ -22,11 +22,41 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 interface OrderPopupNotification {
   id: string | number;
+  type: string;
+  title: string;
+  message: string;
+  timestamp?: string;
+  created_at?: string;
+  read: boolean;
   data?: {
     order_id?: string | number;
+    table_name?: string;
+    total_amount?: number;
+    total?: number;
+    items?: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+    }>;
   };
-  [key: string]: unknown;
 }
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  if (typeof value === "object" && value !== null) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+};
+
+const getOrderId = (value: unknown): string | number | null => {
+  const data = asRecord(value);
+  if (!data) return null;
+  const orderId = data.order_id;
+  if (typeof orderId === "string" || typeof orderId === "number") {
+    return orderId;
+  }
+  return null;
+};
 
 const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -126,23 +156,39 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   // Track new order notifications
   useEffect(() => {
     // Only show popups for valid orders, deduplicate by order_id
-    const validOrders = notifications.filter(
-      (n) =>
-        (n.type === "order" || n.type === "new_order") &&
-        !n.read &&
-        n.data?.order_id &&
-        n.data?.items &&
-        Array.isArray(n.data.items) &&
-        n.data.items.length > 0 &&
-        (n.data?.total_amount || n.data?.total) > 0 &&
-        n.data?.table_name,
-    );
+    const validOrders = notifications.filter((n) => {
+      if ((n.type !== "order" && n.type !== "new_order") || n.read) {
+        return false;
+      }
+
+      const data = asRecord(n.data);
+      if (!data) {
+        return false;
+      }
+
+      const orderId = getOrderId(n.data);
+      const items = data.items;
+      const tableName = data.table_name;
+      const totalSource = data.total_amount ?? data.total;
+      const total =
+        typeof totalSource === "number"
+          ? totalSource
+          : Number(totalSource ?? 0);
+
+      return (
+        !!orderId &&
+        Array.isArray(items) &&
+        items.length > 0 &&
+        total > 0 &&
+        !!tableName
+      );
+    });
 
     // Deduplicate by order_id
     const uniqueOrders = Object.values(
       validOrders.reduce(
         (acc, n) => {
-          const oid = n.data?.order_id;
+          const oid = getOrderId(n.data);
           if (oid && !acc[oid]) acc[oid] = n;
           return acc;
         },
@@ -154,7 +200,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     const newOrderPopups = uniqueOrders.filter(
       (n) =>
         !orderNotifications.some(
-          (on) => on.data?.order_id === n.data?.order_id,
+          (on) => getOrderId(on.data) === getOrderId(n.data),
         ),
     );
 
