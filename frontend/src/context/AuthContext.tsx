@@ -11,7 +11,7 @@ import {
 } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 
-// Define User type - adjust fields based on your actual user object
+
 interface User {
   id: string;
   email: string;
@@ -32,7 +32,6 @@ interface User {
   logo?: string;
   dateJoined?: string;
   lastLogin?: string | null;
-  // Add other user properties as needed
 }
 
 interface AuthContextType {
@@ -213,10 +212,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const refreshed = await refreshSession();
 
       if (!refreshed) {
-        if (hasStoredState) {
-          handleSessionExpired();
-        } else {
+        // Re-check storage to avoid a race with OAuth callback login
+        const latestStoredToken = localStorage.getItem("token");
+        const latestStoredUser = localStorage.getItem("user");
+        const hasLatestStoredState = !!(latestStoredToken && latestStoredUser);
+
+        if (!hasStoredState && !hasLatestStoredState) {
           clearAuthState();
+        } else if (hasLatestStoredState && !hasStoredState) {
+          try {
+            setToken(latestStoredToken);
+            setUser(JSON.parse(latestStoredUser as string) as User);
+          } catch (error) {
+            console.error("Error restoring latest auth state:", error);
+            clearAuthState();
+          }
         }
       }
 

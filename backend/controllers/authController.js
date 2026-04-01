@@ -16,7 +16,7 @@ const {
 } = require("../utils/tokenUtils");
 
 const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
-const GOOGLE_STATE_EXPIRES_IN = "10m";
+const GOOGLE_STATE_EXPIRES_IN = process.env.GOOGLE_STATE_EXPIRES_IN || "5m";
 const PROFILE_PLACEHOLDER_LOCATION = "PENDING_PROFILE_COMPLETION";
 const PROFILE_PLACEHOLDER_NAME = "New Restaurant";
 
@@ -501,7 +501,19 @@ exports.googleCallback = async (req, res) => {
       );
     }
 
-    jwt.verify(state, jwtSecret);
+    try {
+      jwt.verify(state, jwtSecret);
+    } catch (stateError) {
+      if (stateError?.name === "TokenExpiredError") {
+        return redirectWithError(
+          res,
+          frontendFailureUrl,
+          "google_state_expired",
+        );
+      }
+
+      return redirectWithError(res, frontendFailureUrl, "google_invalid_state");
+    }
 
     const claims = await getVerifiedGoogleClaims({
       code,
