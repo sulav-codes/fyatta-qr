@@ -11,14 +11,6 @@ interface ProtectedRouteProps {
   fallbackPath?: string;
 }
 
-/**
- * ProtectedRoute component for role-based access control
- *
- * @param children - The content to render if access is granted
- * @param allowedRoles - Array of roles that can access this route
- * @param requireAuth - Whether authentication is required (default: true)
- * @param fallbackPath - Path to redirect to if access is denied (default: /login or /dashboard)
- */
 export default function ProtectedRoute({
   children,
   allowedRoles,

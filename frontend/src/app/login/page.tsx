@@ -1,6 +1,5 @@
 "use client";
 import {
-  Suspense,
   useState,
   useCallback,
   useEffect,
@@ -41,7 +40,7 @@ const FormField = ({
   error,
 }: FormFieldProps) => (
   <div className="space-y-2">
-    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-900 dark:text-white">
       {label}
     </label>
     <div className="relative">
@@ -85,10 +84,10 @@ interface LoginResponse {
   error?: string;
 }
 
-function LoginContent() {
+export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login: contextLogin } = useAuth();
+  const { login: contextLogin, isLoggedIn, isLoading: authLoading } = useAuth();
   const hasShownSessionExpiredRef = useRef(false);
 
   const [formData, setFormData] = useState<FormData>({
@@ -195,6 +194,12 @@ function LoginContent() {
   const handleGoogleSignIn = useCallback(() => {
     window.location.href = getGoogleAuthStartUrl();
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && isLoggedIn) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, isLoggedIn, router]);
 
   useEffect(() => {
     if (
@@ -387,19 +392,5 @@ function LoginContent() {
       </div>
       <Footer />
     </div>
-  );
-}
-
-export default function Login() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
   );
 }

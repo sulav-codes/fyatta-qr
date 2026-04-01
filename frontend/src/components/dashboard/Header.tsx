@@ -19,6 +19,7 @@ import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface OrderPopupNotification {
   id: string | number;
@@ -59,7 +60,7 @@ const getOrderId = (value: unknown): string | number | null => {
 };
 
 const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, toggleTheme } = useTheme();
   const { logout, user, token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
@@ -78,13 +79,6 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const restaurantName = useMemo(() => {
     return user?.restaurantName || "Restaurant";
   }, [user?.restaurantName]);
-
-  // Theme toggle
-  const toggleTheme = useCallback(() => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  }, [theme]);
 
   // Fetch logo
   const fetchLogo = useCallback(async () => {

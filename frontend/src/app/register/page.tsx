@@ -423,7 +423,7 @@ export default function Signup() {
                     >
                       <label
                         htmlFor={field.name}
-                        className="text-sm font-medium block mb-2"
+                        className="text-sm font-medium block mb-2 text-gray-900 dark:text-white"
                       >
                         {field.label}
                       </label>
@@ -547,7 +547,7 @@ export default function Signup() {
                     <div key={field.name}>
                       <label
                         htmlFor={field.name}
-                        className="text-sm font-medium block mb-2"
+                        className="text-sm font-medium block mb-2 text-gray-900 dark:text-white"
                       >
                         {field.label}
                       </label>

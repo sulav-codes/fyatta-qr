@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Menu, X, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
@@ -10,6 +10,10 @@ import { useTheme } from "@/components/ThemeProvider";
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  const handleToggleTheme = useCallback(() => {
+    toggleTheme();
+  }, [toggleTheme]);
 
   return (
     <header className="relative z-50 bg-white/90 dark:bg-gray-950/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -36,7 +40,7 @@ const Navbar = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleTheme}
+              onClick={handleToggleTheme}
               className="rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
               aria-label="Toggle theme"
             >
@@ -66,7 +70,7 @@ const Navbar = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggleTheme}
+              onClick={handleToggleTheme}
               className="rounded-lg"
               aria-label="Toggle theme"
             >

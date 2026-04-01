@@ -30,18 +30,26 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     // Load theme from localStorage on client side only
     try {
       const storedTheme = localStorage.getItem("theme");
+      const systemPrefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
 
-      if (storedTheme === "dark") {
-        setTheme("dark");
-        document.documentElement.classList.add("dark");
-      } else {
-        // Default to light theme
-        setTheme("light");
-        document.documentElement.classList.remove("dark");
-        // Save default to localStorage if not set
-        if (!storedTheme) {
-          localStorage.setItem("theme", "light");
-        }
+      const initialTheme: Theme =
+        storedTheme === "dark" || storedTheme === "light"
+          ? storedTheme
+          : systemPrefersDark
+            ? "dark"
+            : "light";
+
+      setTheme(initialTheme);
+      document.documentElement.classList.toggle(
+        "dark",
+        initialTheme === "dark",
+      );
+
+      // Persist resolved theme only if user hasn't set one yet
+      if (!storedTheme) {
+        localStorage.setItem("theme", initialTheme);
       }
     } catch (error) {
       console.warn("Failed to load theme from localStorage:", error);
