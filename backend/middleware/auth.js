@@ -20,9 +20,16 @@ const authenticate = async (req, res, next) => {
     const jwtSecret = process.env.JWT_SECRET_KEY;
     const decoded = jwt.verify(token, jwtSecret);
 
+    const userId = Number.parseInt(String(decoded?.userId), 10);
+    if (Number.isNaN(userId) || userId < 1) {
+      return res.status(401).json({
+        error: "Invalid token payload",
+      });
+    }
+
     // Get user from database
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: {
         id: true,
         username: true,
@@ -72,9 +79,7 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-/**
- * Middleware to check if user is staff/admin
- */
+//Middleware to check if user is staff/admin
 const requireStaff = (req, res, next) => {
   if (!req.user.isStaff && !req.user.isSuperuser) {
     return res.status(403).json({
@@ -84,9 +89,7 @@ const requireStaff = (req, res, next) => {
   next();
 };
 
-/**
- * Middleware to check if user is a vendor (restaurant owner)
- */
+//Middleware to check if user is a vendor (restaurant owner)
 const requireVendor = (req, res, next) => {
   if (req.user.role !== "vendor" && req.user.role !== "admin") {
     return res.status(403).json({
@@ -96,9 +99,7 @@ const requireVendor = (req, res, next) => {
   next();
 };
 
-/**
- * Middleware to check if user is an admin
- */
+//Middleware to check if user is an admin
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== "admin") {
     return res.status(403).json({
@@ -141,7 +142,7 @@ const ensureTenantAccess = (req, res, next) => {
   next();
 };
 
-// Optional authentication middleware - if token is valid, attach user, otherwise continue without user
+// Optional authentication middleware
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;

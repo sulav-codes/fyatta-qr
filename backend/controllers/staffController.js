@@ -5,9 +5,7 @@ const {
   canAccessVendor,
 } = require("../utils/helpers");
 
-/**
- * Get all staff members for a vendor
- */
+//Get all staff members for a vendor
 const getStaff = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -54,9 +52,7 @@ const getStaff = async (req, res) => {
   }
 };
 
-/**
- * Get single staff member details
- */
+//Get single staff member details
 const getStaffMember = async (req, res) => {
   try {
     const { vendorId, staffId } = req.params;
@@ -107,9 +103,7 @@ const getStaffMember = async (req, res) => {
   }
 };
 
-/**
- * Create a new staff member
- */
+//Create a new staff member
 const createStaff = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -199,9 +193,7 @@ const createStaff = async (req, res) => {
   }
 };
 
-/**
- * Update a staff member
- */
+//Update a staff member
 const updateStaff = async (req, res) => {
   try {
     const { vendorId, staffId } = req.params;
@@ -284,9 +276,7 @@ const updateStaff = async (req, res) => {
   }
 };
 
-/**
- * Delete a staff member
- */
+//Delete a staff member
 const deleteStaff = async (req, res) => {
   try {
     const { vendorId, staffId } = req.params;
@@ -330,9 +320,7 @@ const deleteStaff = async (req, res) => {
   }
 };
 
-/**
- * Toggle staff member active status
- */
+//Toggle staff member active status
 const toggleStaffStatus = async (req, res) => {
   try {
     const { vendorId, staffId } = req.params;

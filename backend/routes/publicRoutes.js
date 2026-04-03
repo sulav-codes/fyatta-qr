@@ -2,9 +2,7 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../config/prisma");
 
-/**
- * Get public menu for a vendor (no authentication required)
- */
+//Get public menu for a vendor (no authentication required)
 router.get("/public-menu/:vendorId/", async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -86,9 +84,7 @@ router.get("/public-menu/:vendorId/", async (req, res) => {
   }
 });
 
-/**
- * Get public table status (no authentication required)
- */
+//Get public table status (no authentication required)
 router.get("/public-table/:vendorId/:tableIdentifier/", async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);

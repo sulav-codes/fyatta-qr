@@ -270,10 +270,7 @@ const getVerifiedGoogleClaims = async ({
   return claims;
 };
 
-/**
- * Register a new vendor
- * Validates required fields and creates a new vendor account
- */
+//Register a new vendor(with validation)
 exports.register = async (req, res) => {
   try {
     const {
@@ -361,10 +358,7 @@ exports.register = async (req, res) => {
   }
 };
 
-/**
- * Login user
- * Validates credentials and returns JWT token
- */
+//Login user
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -426,9 +420,7 @@ exports.login = async (req, res) => {
   }
 };
 
-/**
- * Start Google OAuth flow
- */
+//Start Google OAuth flow
 exports.googleStart = async (req, res) => {
   try {
     const { clientId, clientSecret, redirectUri, frontendFailureUrl } =
@@ -466,9 +458,7 @@ exports.googleStart = async (req, res) => {
   }
 };
 
-/**
- * Google OAuth callback
- */
+//Google OAuth callback
 exports.googleCallback = async (req, res) => {
   const {
     frontendFailureUrl,
@@ -552,9 +542,7 @@ exports.googleCallback = async (req, res) => {
   }
 };
 
-/**
- * Rotate refresh token and return a fresh access token
- */
+//Rotate refresh token and return a fresh access token
 exports.refreshToken = async (req, res) => {
   try {
     const incomingRefreshToken = getRefreshTokenFromRequest(req);
@@ -666,9 +654,7 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
-/**
- * Get current user profile
- */
+//Get current user profile
 exports.getProfile = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -711,9 +697,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-/**
- * Logout user and revoke refresh token
- */
+//Logout user and revoke refresh token
 exports.logout = async (req, res) => {
   try {
     const incomingRefreshToken = getRefreshTokenFromRequest(req);

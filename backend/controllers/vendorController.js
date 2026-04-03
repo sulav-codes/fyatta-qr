@@ -1,12 +1,31 @@
 const prisma = require("../config/prisma");
 const { canAccessVendor } = require("../utils/helpers");
 
-/**
- * Get vendor profile details
- */
+const parseVendorId = (value) => {
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
+};
+
+const parseLimit = (value, fallback = 10, max = 100) => {
+  const parsed = Number.parseInt(String(value ?? fallback), 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return Math.min(parsed, max);
+};
+
+// Get vendor profile details
 exports.getProfile = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
 
     // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
@@ -51,12 +70,15 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-/**
- * Update vendor profile
- */
+// Update vendor profile
 exports.updateProfile = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
 
     // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
@@ -76,7 +98,6 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    // Accept both camelCase and snake_case keys for compatibility with existing frontend forms
     const restaurantNameInput =
       req.body.restaurantName ?? req.body.restaurant_name;
     const ownerNameInput = req.body.ownerName ?? req.body.owner_name;
@@ -169,12 +190,15 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-/**
- * Get dashboard statistics
- */
+//Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
 
     // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
@@ -257,12 +281,15 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-/**
- * Get sales report
- */
+//Get sales report
 exports.getSalesReport = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
     const { timeframe = "week" } = req.query;
 
     // Check authorization
@@ -351,13 +378,16 @@ exports.getSalesReport = async (req, res) => {
   }
 };
 
-/**
- * Get popular menu items
- */
+//Get popular menu items
 exports.getPopularItems = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const limit = Math.min(parseInt(req.query.limit || 10), 100);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
+    const limit = parseLimit(req.query.limit);
 
     // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
@@ -443,13 +473,16 @@ exports.getPopularItems = async (req, res) => {
   }
 };
 
-/**
- * Get recent orders
- */
+//Get recent orders
 exports.getRecentOrders = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const limit = Math.min(parseInt(req.query.limit || 10), 100);
+    const vendorId = parseVendorId(req.params.vendorId);
+    if (!vendorId) {
+      return res.status(400).json({
+        error: "Invalid vendor ID",
+      });
+    }
+    const limit = parseLimit(req.query.limit);
 
     // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {

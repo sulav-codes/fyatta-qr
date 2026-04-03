@@ -11,7 +11,6 @@ import {
 } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 
-
 interface User {
   id: string;
   email: string;

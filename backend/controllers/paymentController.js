@@ -16,9 +16,7 @@ const ESEWA_CONFIG = {
     "https://rc-epay.esewa.com.np/api/epay/main/v2/form",
 };
 
-/**
- * Generate eSewa signature
- */
+//Generate eSewa signature
 function generateEsewaSignature(totalAmount, transactionUuid, productCode) {
   const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${productCode}`;
 
@@ -30,9 +28,7 @@ function generateEsewaSignature(totalAmount, transactionUuid, productCode) {
   return hash;
 }
 
-/**
- * Verify eSewa signature
- */
+//Verify eSewa signature
 function verifyEsewaSignature(
   paymentData,
   receivedSignature,
@@ -69,9 +65,7 @@ function buildTransactionUuid(orderId) {
   return `INV-${orderId}-${ts}-${rand}`;
 }
 
-/**
- * Initiate eSewa payment for an order
- */
+//Initiate eSewa payment for an order
 exports.initiateEsewaPayment = async (req, res) => {
   try {
     const orderId = parseInt(req.body.orderId, 10);
@@ -104,7 +98,6 @@ exports.initiateEsewaPayment = async (req, res) => {
       });
     }
 
-    // eSewa requires transaction_uuid to be unique per payment attempt.
     // Update invoiceNo for each initiation so retries don't fail with duplicate UUID.
     let transactionUuid;
     let updatedOrder;
@@ -163,9 +156,7 @@ exports.initiateEsewaPayment = async (req, res) => {
   }
 };
 
-/**
- * Verify eSewa payment
- */
+//Verify eSewa payment
 exports.verifyEsewaPayment = async (req, res) => {
   try {
     // eSewa sends data as base64 encoded in GET parameter
@@ -338,9 +329,7 @@ exports.verifyEsewaPayment = async (req, res) => {
   }
 };
 
-/**
- * Get payment status for an order
- */
+//Get payment status for an order
 exports.getPaymentStatus = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);

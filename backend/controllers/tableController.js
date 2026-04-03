@@ -2,14 +2,12 @@ const prisma = require("../config/prisma");
 const { v4: uuidv4 } = require("uuid");
 const { canAccessVendor } = require("../utils/helpers");
 
-/**
- * Get all tables for a vendor
- */
+//Get all tables for a vendor
 exports.getTables = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",
@@ -42,15 +40,13 @@ exports.getTables = async (req, res) => {
   }
 };
 
-/**
- * Create a new table for a vendor
- */
+//Create a new table for a vendor
 exports.createTable = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
     const { name } = req.body;
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
@@ -107,16 +103,14 @@ exports.createTable = async (req, res) => {
   }
 };
 
-/**
- * Update a table's name
- */
+//Update a table's name
 exports.updateTable = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
     const tableId = parseInt(req.params.tableId, 10);
     const { name, isActive } = req.body;
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
@@ -187,15 +181,13 @@ exports.updateTable = async (req, res) => {
   }
 };
 
-/**
- * Delete a table
- */
+//Delete a table
 exports.deleteTable = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
     const tableId = parseInt(req.params.tableId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
@@ -233,15 +225,13 @@ exports.deleteTable = async (req, res) => {
   }
 };
 
-/**
- * Regenerate a table's QR code
- */
+//Regenerate a table's QR code
 exports.regenerateQRCode = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
     const tableId = parseInt(req.params.tableId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to perform this action",
@@ -286,10 +276,7 @@ exports.regenerateQRCode = async (req, res) => {
   }
 };
 
-/**
- * Get table status (public endpoint - no auth required)
- * Used to check if a table is active and available
- */
+//Get table status (for checking active and available tables)
 exports.getTableStatus = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -355,15 +342,13 @@ exports.getTableStatus = async (req, res) => {
   }
 };
 
-/**
- * Get table details with current orders
- */
+// Get table details with current orders
 exports.getTableDetails = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
     const tableId = parseInt(req.params.tableId, 10);
 
-    // Check authorization - vendors can only access their own data, staff can only access their vendor's data
+    // Check authorization
     if (!canAccessVendor(req.user, vendorId)) {
       return res.status(403).json({
         error: "You do not have permission to access this data",

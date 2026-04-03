@@ -22,10 +22,7 @@ function mapMenuItem(item) {
   };
 }
 
-/**
- * Create menu items for a vendor
- * Accepts array of menu items with optional image files
- */
+//Create menu items for a vendor
 exports.createMenuItems = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -198,9 +195,7 @@ exports.createMenuItems = async (req, res) => {
   }
 };
 
-/**
- * Get all menu items for a vendor
- */
+//Get all menu items for a vendor
 exports.getMenuItems = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -238,9 +233,7 @@ exports.getMenuItems = async (req, res) => {
   }
 };
 
-/**
- * Get menu items grouped by category
- */
+//Get menu items grouped by category
 exports.getMenuItemsByCategory = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -291,9 +284,7 @@ exports.getMenuItemsByCategory = async (req, res) => {
   }
 };
 
-/**
- * Get a single menu item by ID
- */
+//Get a single menu item by ID
 exports.getMenuItem = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -329,9 +320,7 @@ exports.getMenuItem = async (req, res) => {
   }
 };
 
-/**
- * Update a menu item
- */
+//Update a menu item
 exports.updateMenuItem = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -395,9 +384,7 @@ exports.updateMenuItem = async (req, res) => {
   }
 };
 
-/**
- * Delete a menu item
- */
+//Delete a menu item
 exports.deleteMenuItem = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -430,9 +417,7 @@ exports.deleteMenuItem = async (req, res) => {
   }
 };
 
-/**
- * Toggle menu item availability
- */
+//Toggle menu item availability
 exports.toggleAvailability = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);

@@ -1,8 +1,6 @@
 const prisma = require("../config/prisma");
 
-/**
- * Get all orders for a vendor
- */
+//Get all orders for a vendor
 exports.getOrders = async (req, res) => {
   try {
     const vendorId = parseInt(req.params.vendorId, 10);
@@ -107,9 +105,7 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-/**
- * Create a new order from customer (public endpoint)
- */
+//Create a new order from customer (public endpoint)
 exports.createCustomerOrder = async (req, res) => {
   try {
     const { vendor_id, table_identifier, items: orderItemsData } = req.body;
@@ -274,9 +270,7 @@ exports.createCustomerOrder = async (req, res) => {
   }
 };
 
-/**
- * Create a new order
- */
+//Create a new order
 exports.createOrder = async (req, res) => {
   try {
     const { vendorId, tableId, items: orderItemsData, totalAmount } = req.body;
@@ -408,9 +402,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-/**
- * Update order status
- */
+//Update order status
 exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -525,9 +517,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-/**
- * Get order details
- */
+//Get order details
 exports.getOrderDetails = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -615,9 +605,7 @@ exports.getOrderDetails = async (req, res) => {
   }
 };
 
-/**
- * Get customer order details (public endpoint)
- */
+//Get customer order details (public endpoint)
 exports.getCustomerOrderDetails = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -686,9 +674,7 @@ exports.getCustomerOrderDetails = async (req, res) => {
   }
 };
 
-/**
- * Update payment status
- */
+//Update payment status
 exports.updatePaymentStatus = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -735,9 +721,7 @@ exports.updatePaymentStatus = async (req, res) => {
   }
 };
 
-/**
- * Report delivery issue
- */
+//Report delivery issue
 exports.reportDeliveryIssue = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -798,9 +782,7 @@ exports.reportDeliveryIssue = async (req, res) => {
   }
 };
 
-/**
- * Resolve delivery issue
- */
+//Resolve delivery issue
 exports.resolveDeliveryIssue = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
@@ -843,9 +825,7 @@ exports.resolveDeliveryIssue = async (req, res) => {
   }
 };
 
-/**
- * Verify order delivery by customer
- */
+//Verify order delivery by customer
 exports.verifyDelivery = async (req, res) => {
   try {
     const orderId = parseInt(req.params.orderId, 10);
