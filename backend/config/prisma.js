@@ -8,7 +8,7 @@ const prisma = new PrismaClient({
       : ["error"],
   datasources: {
     db: {
-      url: process.env.DATABASE_URL,
+      url: process.env.DIRECT_URL || process.env.DATABASE_URL, 
     },
   },
 });
