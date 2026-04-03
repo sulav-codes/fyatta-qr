@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 8000;
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || "https://fyatta-qr.vercel.app",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -36,7 +36,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || "https://fyatta-qr.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   }),
