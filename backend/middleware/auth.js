@@ -1,10 +1,7 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
-/**
- * Middleware to authenticate JWT token
- * Verifies token and attaches user to request object
- */
+// Middleware to authenticate JWT token and attach user to request
 const authenticate = async (req, res, next) => {
   try {
     // Get token from header
@@ -111,10 +108,7 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-/**
- * Middleware to ensure staff can only access their vendor's data
- * Attaches effective vendorId to request
- */
+// Middleware to ensure tenant access control based on user role and vendorId
 const ensureTenantAccess = (req, res, next) => {
   // For vendors, they access their own data
   if (req.user.role === "vendor") {
@@ -147,10 +141,7 @@ const ensureTenantAccess = (req, res, next) => {
   next();
 };
 
-/**
- * Optional authentication - doesn't fail if no token
- * Used for public endpoints that can benefit from user context
- */
+// Optional authentication middleware - if token is valid, attach user, otherwise continue without user
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
