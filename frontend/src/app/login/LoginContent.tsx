@@ -339,7 +339,7 @@ export default function LoginContent() {
         </div>
 
         {/* Right Side - Hero Section */}
-        <div className="hidden lg:flex items-center justify-center p-12 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
+        <div className="hidden lg:flex items-center justify-center p-12 bg-linear-to-br from-orange-50 via-orange-100 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
           {/* Background Decoration */}
           <div className="absolute inset-0">
             <div className="absolute top-0 right-0 w-96 h-96 bg-orange-300/20 dark:bg-orange-600/10 rounded-full blur-3xl"></div>

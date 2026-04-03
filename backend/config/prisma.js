@@ -6,11 +6,6 @@ const prisma = new PrismaClient({
     process.env.NODE_ENV === "development"
       ? ["query", "info", "warn", "error"]
       : ["error"],
-  datasources: {
-    db: {
-      url: process.env.DIRECT_URL || process.env.DATABASE_URL, 
-    },
-  },
 });
 
 // Test database connection
