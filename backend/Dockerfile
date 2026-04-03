@@ -6,12 +6,11 @@ COPY package*.json ./
 RUN npm ci
 
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm run prisma:generate
 
 COPY . .
-
 RUN mkdir -p uploads
 
 EXPOSE 8000
 
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npm run prisma:migrate:deploy && npm start"]
