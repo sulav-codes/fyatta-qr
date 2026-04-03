@@ -24,15 +24,6 @@ const io = new Server(server, {
 // Make io accessible to route handlers
 app.set("io", io);
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-// Serve static files
-app.use(express.static("public"));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // CORS configuration
 app.use(
   cors({
@@ -41,6 +32,15 @@ app.use(
     credentials: true,
   }),
 );
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Serve static files
+app.use(express.static("public"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Lightweight health endpoint for container checks
 app.get("/health", (req, res) => {
