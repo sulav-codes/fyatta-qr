@@ -7,7 +7,7 @@ import {
   ChangeEvent,
   FormEvent,
 } from "react";
-import { Mail, Lock, LucideIcon } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ interface FormFieldProps {
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   error?: string;
+  showPassword?: boolean;
+  onTogglePassword?: () => void;
 }
 
 const FormField = ({
@@ -39,6 +41,8 @@ const FormField = ({
   value,
   onChange,
   error,
+  showPassword,
+  onTogglePassword,
 }: FormFieldProps) => (
   <div className="space-y-2">
     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-900 dark:text-white">
@@ -47,13 +51,27 @@ const FormField = ({
     <div className="relative">
       <Icon className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
       <Input
-        type={type}
+        type={onTogglePassword ? (showPassword ? "text" : "password") : type}
         name={name}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className={`pl-10 ${error ? "border-red-500" : ""}`}
+        className={`pl-10 ${onTogglePassword ? "pr-10" : ""} ${error ? "border-red-500" : ""}`}
       />
+      {onTogglePassword && (
+        <button
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      )}
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   </div>
@@ -100,6 +118,7 @@ export default function LoginContent() {
     email: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -249,6 +268,8 @@ export default function LoginContent() {
                 value={formData.password}
                 onChange={handleChange}
                 error={errors.password}
+                showPassword={showPassword}
+                onTogglePassword={() => setShowPassword((prev) => !prev)}
               />
 
               <div className="flex items-center justify-between text-sm">

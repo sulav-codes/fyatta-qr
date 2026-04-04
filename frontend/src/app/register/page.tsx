@@ -5,6 +5,8 @@ import {
   Store,
   Mail,
   Lock,
+  Eye,
+  EyeOff,
   MapPin,
   User,
   Phone,
@@ -91,6 +93,9 @@ export default function Signup() {
     password: "",
     confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState<boolean>(false);
 
   // Ensure component is mounted before using router
   useEffect(() => {
@@ -560,14 +565,60 @@ export default function Signup() {
                       </label>
                       <div className="relative">
                         {field.icon}
+                        {field.name === "password" ||
+                        field.name === "confirmPassword" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              field.name === "password"
+                                ? setShowPassword((prev) => !prev)
+                                : setShowConfirmPassword((prev) => !prev)
+                            }
+                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                            aria-label={
+                              field.name === "password"
+                                ? showPassword
+                                  ? "Hide password"
+                                  : "Show password"
+                                : showConfirmPassword
+                                  ? "Hide confirm password"
+                                  : "Show confirm password"
+                            }
+                          >
+                            {(
+                              field.name === "password"
+                                ? showPassword
+                                : showConfirmPassword
+                            ) ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        ) : null}
                         <Input
                           id={field.name}
                           name={field.name}
-                          type={field.type}
+                          type={
+                            field.name === "password"
+                              ? showPassword
+                                ? "text"
+                                : "password"
+                              : field.name === "confirmPassword"
+                                ? showConfirmPassword
+                                  ? "text"
+                                  : "password"
+                                : field.type
+                          }
                           placeholder={field.placeholder}
                           value={formData[field.name]}
                           onChange={handleChange}
                           className={`pl-10 h-11 ${
+                            field.name === "password" ||
+                            field.name === "confirmPassword"
+                              ? "pr-10"
+                              : ""
+                          } ${
                             errors[field.name]
                               ? "border-red-500 focus-visible:ring-red-500"
                               : ""
