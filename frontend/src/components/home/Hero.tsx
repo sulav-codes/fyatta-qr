@@ -20,7 +20,7 @@ export default function Hero() {
   ];
 
   return (
-    <section className="relative pt-8 pb-16 md:pb-24 min-h-screen overflow-hidden bg-white dark:bg-gray-950">
+    <section className="relative pt-8 pb-16 md:pb-24 px-4 md:px-6 lg:px-8 min-h-screen overflow-hidden bg-white dark:bg-gray-950">
       {/* Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-orange-200/20 dark:bg-orange-900/10 blur-3xl"></div>
@@ -35,7 +35,7 @@ export default function Hero() {
               "space-y-6 md:space-y-8 text-center lg:text-left transform transition-all duration-700",
               isVisible
                 ? "translate-y-0 opacity-100"
-                : "translate-y-10 opacity-0"
+                : "translate-y-10 opacity-0",
             )}
           >
             {/* Badge */}
@@ -126,7 +126,7 @@ export default function Hero() {
               "relative transform transition-all duration-700 delay-300",
               isVisible
                 ? "translate-y-0 opacity-100"
-                : "translate-y-10 opacity-0"
+                : "translate-y-10 opacity-0",
             )}
           >
             <div className="relative">
