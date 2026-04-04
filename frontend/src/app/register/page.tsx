@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { getApiBaseUrl, getGoogleAuthStartUrl } from "@/lib/api";
+import Image from "next/image";
 
 interface FormData {
   restaurant_name: string;
@@ -387,10 +388,16 @@ export default function Signup() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
+                className="flex items-center justify-center gap-2 w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
                 onClick={handleGoogleSignUp}
                 disabled={isLoading}
               >
+                <Image
+                  src="/google-icon-logo.svg"
+                  alt="Google logo"
+                  width={16}
+                  height={16}
+                />
                 Continue with Google
               </Button>
 

@@ -16,7 +16,6 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { apiFetchWithAuth } from "@/lib/api";
-import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface Order {

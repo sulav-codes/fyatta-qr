@@ -8,6 +8,7 @@ import {
   FormEvent,
 } from "react";
 import { Mail, Lock, LucideIcon } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -316,10 +317,16 @@ export default function LoginContent() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
+                className="flex items-center justify-center gap-2 w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
               >
+                <Image
+                  src="/google-icon-logo.svg"
+                  alt="Google logo"
+                  width={16}
+                  height={16}
+                />
                 Sign in with Google
               </Button>
             </form>

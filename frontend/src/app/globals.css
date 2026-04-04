@@ -25,7 +25,7 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
-@variant dark (.dark *);
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --foreground-rgb: 0, 0, 0;
