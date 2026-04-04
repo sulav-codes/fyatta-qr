@@ -221,6 +221,7 @@ export default function DashboardSidebar({
               <Image
                 src="/logo.png"
                 fill
+                sizes="(max-width: 768px) 40px, (max-width: 1024px) 48px, 64px"
                 alt="FyattaQR logo"
                 className="object-contain"
               />

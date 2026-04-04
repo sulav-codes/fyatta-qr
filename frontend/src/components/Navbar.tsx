@@ -16,7 +16,7 @@ const Navbar = () => {
   }, [toggleTheme]);
 
   return (
-    <header className="relative z-50 px-4 md:px-6 lg:px-8 bg-white/90 dark:bg-gray-950/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <header className="relative z-50 bg-white/90 dark:bg-gray-950/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 shadow-sm">
       <nav className="container mx-auto px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
@@ -25,6 +25,7 @@ const Navbar = () => {
               <Image
                 src="/logo.png"
                 fill
+                sizes="(max-width: 768px) 40px, (max-width: 1024px) 48px, 64px"
                 alt="FyattaQR logo"
                 className="object-contain"
               />
