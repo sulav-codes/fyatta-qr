@@ -21,7 +21,7 @@ const plans = [
   },
   {
     name: "Professional",
-    price: "₹499",
+    price: "Rs. 499",
     period: "per month",
     description: "Ideal for small to medium restaurants",
     features: [
@@ -38,7 +38,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "₹1,499",
+    price: "Rs. 1,499",
     period: "per month",
     description: "For established restaurants and chains",
     features: [

@@ -174,7 +174,7 @@ function PaymentResultContent() {
                 <div className="flex justify-between items-center py-2 pt-4">
                   <span className="text-lg font-semibold">Total Amount</span>
                   <span className="text-2xl font-bold text-[var(--orange)]">
-                    रू {Number(orderDetails.total_amount).toFixed(2)}
+                    Rs. {Number(orderDetails.total_amount).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -196,7 +196,7 @@ function PaymentResultContent() {
                           </p>
                         </div>
                         <span className="font-semibold">
-                          रू {(item.price * item.quantity).toFixed(2)}
+                          Rs. {(item.price * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     ))}

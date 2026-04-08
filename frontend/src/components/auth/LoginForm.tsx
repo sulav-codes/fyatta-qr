@@ -1,0 +1,336 @@
+"use client";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  ChangeEvent,
+  FormEvent,
+} from "react";
+import { Mail, Lock, Eye, EyeOff, LucideIcon } from "lucide-react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import toast from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
+import { getApiBaseUrl, getGoogleAuthStartUrl } from "@/lib/api";
+
+interface FormFieldProps {
+  label: string;
+  icon: LucideIcon;
+  type: string;
+  name: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
+  showPassword?: boolean;
+  onTogglePassword?: () => void;
+}
+
+const FormField = ({
+  label,
+  icon: Icon,
+  type,
+  name,
+  placeholder,
+  value,
+  onChange,
+  error,
+  showPassword,
+  onTogglePassword,
+}: FormFieldProps) => (
+  <div className="space-y-2">
+    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-900 dark:text-white">
+      {label}
+    </label>
+    <div className="relative">
+      <Icon className="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+      <Input
+        type={onTogglePassword ? (showPassword ? "text" : "password") : type}
+        name={name}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        className={`pl-10 ${onTogglePassword ? "pr-10" : ""} ${error ? "border-red-500" : ""}`}
+      />
+      {onTogglePassword && (
+        <button
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      )}
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+    </div>
+  </div>
+);
+
+interface FormData {
+  email: string;
+  password: string;
+}
+
+interface FormErrors {
+  email: string;
+  password: string;
+}
+
+interface LoginResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    restaurantName: string;
+    location: string;
+    role: "vendor" | "staff" | "admin";
+    isActive: boolean;
+    vendorId?: number;
+    [key: string]: unknown;
+  };
+  error?: string;
+}
+
+export default function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login: contextLogin, isLoggedIn, isLoading: authLoading } = useAuth();
+  const hasShownSessionExpiredRef = useRef(false);
+
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<FormErrors>({
+    email: "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+
+  const handleChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      if (errors[name as keyof FormErrors]) {
+        setErrors((prev) => ({ ...prev, [name]: "" }));
+      }
+    },
+    [errors],
+  );
+
+  const validateForm = useCallback((): boolean => {
+    const newErrors: Partial<FormErrors> = {};
+    const { email, password } = formData;
+
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+      newErrors.email = "Enter a valid email";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 8) {
+      newErrors.password = "Minimum 8 characters required";
+    } else {
+      const passStrength =
+        /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/;
+      if (!passStrength.test(password)) {
+        newErrors.password =
+          "Include uppercase, lowercase, number & special character";
+      }
+    }
+
+    setErrors(newErrors as FormErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  const handleSubmit = useCallback(
+    async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!validateForm()) return;
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+
+        const data: LoginResponse = await response.json();
+        if (response.ok) {
+          const { token, user } = data;
+
+          // Call context login function to update auth state
+          contextLogin(token, user);
+
+          toast.success("Login successful");
+          router.push("/dashboard");
+        } else if (response.status === 401) {
+          setErrors((prev) => ({
+            ...prev,
+            password: data.error || "Invalid email or password",
+          }));
+        } else if (response.status === 404) {
+          setErrors((prev) => ({
+            ...prev,
+            email: data.error || "User does not exist",
+          }));
+        } else {
+          const errorMsg = data.error || "An error occurred. Please try again.";
+          toast.error(errorMsg);
+          setErrors((prev) => ({
+            ...prev,
+            email: errorMsg,
+          }));
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        toast.error("Error connecting to the server.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [validateForm, router, formData, contextLogin],
+  );
+
+  const handleGoogleSignIn = useCallback(() => {
+    window.location.href = getGoogleAuthStartUrl();
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && isLoggedIn) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, isLoggedIn, router]);
+
+  useEffect(() => {
+    if (
+      searchParams.get("session") === "expired" &&
+      !hasShownSessionExpiredRef.current
+    ) {
+      toast("Your session expired. Please sign in again.");
+      hasShownSessionExpiredRef.current = true;
+    }
+  }, [searchParams]);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <FormField
+        label="Email"
+        icon={Mail}
+        type="text"
+        name="email"
+        placeholder="Enter your email"
+        value={formData.email}
+        onChange={handleChange}
+        error={errors.email}
+      />
+
+      <FormField
+        label="Password"
+        icon={Lock}
+        type="password"
+        name="password"
+        placeholder="Enter your password"
+        value={formData.password}
+        onChange={handleChange}
+        error={errors.password}
+        showPassword={showPassword}
+        onTogglePassword={() => setShowPassword((prev) => !prev)}
+      />
+
+      <div className="flex items-center justify-between text-sm">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+          />
+          <span className="text-gray-600 dark:text-gray-400">Remember me</span>
+        </label>
+        <Link
+          href="#"
+          className="text-orange-500 hover:text-orange-600 font-medium"
+        >
+          Forgot password?
+        </Link>
+      </div>
+
+      <Button
+        type="submit"
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-base font-semibold"
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg
+              className="animate-spin h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Signing in...
+          </span>
+        ) : (
+          "Sign in"
+        )}
+      </Button>
+
+      <div className="relative my-1">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+        </div>
+        <div className="relative flex justify-center text-xs uppercase tracking-wide">
+          <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">
+            Or continue with
+          </span>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="flex items-center justify-center gap-2 w-full py-6 text-base font-semibold border-gray-300 dark:border-gray-700"
+        onClick={handleGoogleSignIn}
+        disabled={isLoading}
+      >
+        <Image
+          src="/google-icon-logo.svg"
+          alt="Google logo"
+          width={16}
+          height={16}
+        />
+        Sign in with Google
+      </Button>
+    </form>
+  );
+}

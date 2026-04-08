@@ -3,10 +3,15 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   ReactNode,
+  useSyncExternalStore,
+  useCallback,
+  useMemo,
 } from "react";
+import {
+  ThemeProvider as NextThemesProvider,
+  useTheme as useNextTheme,
+} from "next-themes";
 
 type Theme = "light" | "dark";
 
@@ -22,61 +27,50 @@ interface ThemeProviderProps {
   children: ReactNode;
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [isLoaded, setIsLoaded] = useState(false);
+const subscribe = () => () => {};
 
-  useEffect(() => {
-    // Load theme from localStorage on client side only
-    try {
-      const storedTheme = localStorage.getItem("theme");
-      const systemPrefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
+const ThemeContextBridge = ({ children }: ThemeProviderProps) => {
+  const { resolvedTheme, setTheme } = useNextTheme();
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
 
-      const initialTheme: Theme =
-        storedTheme === "dark" || storedTheme === "light"
-          ? storedTheme
-          : systemPrefersDark
-            ? "dark"
-            : "light";
+  const isLoaded = mounted && resolvedTheme !== undefined;
 
-      setTheme(initialTheme);
-      document.documentElement.classList.toggle(
-        "dark",
-        initialTheme === "dark",
-      );
+  const theme: Theme = isLoaded && resolvedTheme === "dark" ? "dark" : "light";
 
-      // Persist resolved theme only if user hasn't set one yet
-      if (!storedTheme) {
-        localStorage.setItem("theme", initialTheme);
-      }
-    } catch (error) {
-      console.warn("Failed to load theme from localStorage:", error);
-      // Fallback to light theme
-      setTheme("light");
-      document.documentElement.classList.remove("dark");
-    } finally {
-      setIsLoaded(true);
-    }
-  }, []);
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
 
-  const toggleTheme = () => {
-    const newTheme: Theme = theme === "light" ? "dark" : "light";
-
-    try {
-      setTheme(newTheme);
-      localStorage.setItem("theme", newTheme);
-      document.documentElement.classList.toggle("dark", newTheme === "dark");
-    } catch (error) {
-      console.warn("Failed to save theme to localStorage:", error);
-    }
-  };
+   const value = useMemo<ThemeContextType>(
+     () => ({ theme, toggleTheme, isLoaded }),
+     [theme, toggleTheme, isLoaded],
+   );
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isLoaded }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
+};
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const scriptProps =
+    typeof window === "undefined"
+      ? undefined
+      : ({ type: "application/json" } as const);
+
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+      scriptProps={scriptProps}
+    >
+      <ThemeContextBridge>{children}</ThemeContextBridge>
+    </NextThemesProvider>
   );
 }
 
