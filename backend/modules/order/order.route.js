@@ -1,7 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate, optionalAuth } = require("../middleware/auth");
-const orderController = require("../controllers/orderController");
+const {
+  authenticate,
+  optionalAuth,
+} = require("../../middlewares/auth.middleware");
+const orderController = require("./order.controller");
 
 // Protected routes - require authentication
 router.get(

@@ -1,11 +1,11 @@
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const {
   hashPassword,
   comparePassword,
   sanitizeUser,
-} = require("../utils/helpers");
+} = require("../../utils/helpers");
 const {
   REFRESH_TOKEN_COOKIE_NAME,
   issueAccessToken,
@@ -13,7 +13,7 @@ const {
   hashToken,
   getRefreshTokenExpiryDate,
   getRefreshCookieOptions,
-} = require("../utils/tokenUtils");
+} = require("../../utils/tokenUtils");
 
 const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
 const GOOGLE_STATE_EXPIRES_IN = process.env.GOOGLE_STATE_EXPIRES_IN || "5m";

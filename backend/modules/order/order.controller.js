@@ -1,4 +1,4 @@
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 
 //Get all orders for a vendor
 exports.getOrders = async (req, res) => {

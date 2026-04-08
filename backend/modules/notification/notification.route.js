@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 
 // Call waiter endpoint
 router.post("/call-waiter", async (req, res) => {

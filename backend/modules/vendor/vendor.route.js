@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate } = require("../middleware/auth");
-const vendorController = require("../controllers/vendorController");
-const upload = require("../middleware/multerConfig");
+const { authenticate } = require("../../middlewares/auth.middleware");
+const vendorController = require("./vendor.controller");
+const upload = require("../../middlewares/multerConfig");
 
 // All vendor routes require authentication
 router.use(authenticate);

@@ -1,9 +1,9 @@
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 const {
   hashPassword,
   sanitizeUser,
   canAccessVendor,
-} = require("../utils/helpers");
+} = require("../../utils/helpers");
 
 //Get all staff members for a vendor
 const getStaff = async (req, res) => {

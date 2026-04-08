@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate } = require("../middleware/auth");
-const menuController = require("../controllers/menuController");
-const upload = require("../middleware/multerConfig");
+const { authenticate } = require("../../middlewares/auth.middleware");
+const menuController = require("./menu.controller");
+const upload = require("../../middlewares/multerConfig");
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
