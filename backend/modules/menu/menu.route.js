@@ -27,6 +27,9 @@ router.get(
   menuController.getMenuItemsByCategory,
 );
 
+//Get public menu for a vendor (no authentication required)
+router.get("/public-menu/:vendorId/", menuController.getPublicMenu);
+
 // Individual menu item routes
 router.get("/vendors/:vendorId/menu/:itemId", menuController.getMenuItem);
 router.put(
