@@ -72,7 +72,7 @@ export default function MenuPage() {
 
       // Check table availability using qr_code identifier
       const tableResponse = await fetch(
-        `${getApiBaseUrl()}/api/public-table/${vendor}/${tabel_identifier}/`
+        `${getApiBaseUrl()}/api/public-table/${vendor}/${tabel_identifier}/status`
       );
 
       if (!tableResponse.ok) {
@@ -252,7 +252,6 @@ export default function MenuPage() {
         socket.disconnect();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendor, tabel_identifier]);
 
   // Fetch menu data when component mounts
@@ -302,7 +301,7 @@ export default function MenuPage() {
     let refreshInterval: NodeJS.Timeout | undefined;
 
     if (tableStatus?.isBooked) {
-      // Check every 3 seconds if table becomes available (more frequent for cancelled orders)
+      // Check every 3 seconds if table becomes available
       refreshInterval = setInterval(() => {
         console.log("Checking if table is still booked...");
         fetchMenuData();
