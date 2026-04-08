@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 
 //Get public menu for a vendor (no authentication required)
 router.get("/public-menu/:vendorId/", async (req, res) => {

@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const paymentController = require("../controllers/paymentController");
+const paymentController = require("./payment.controller");
 
 // Initiate eSewa payment
 router.post("/esewa/initiate", paymentController.initiateEsewaPayment);

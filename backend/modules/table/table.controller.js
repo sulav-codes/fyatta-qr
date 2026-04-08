@@ -1,6 +1,6 @@
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 const { v4: uuidv4 } = require("uuid");
-const { canAccessVendor } = require("../utils/helpers");
+const { canAccessVendor } = require("../../utils/helpers");
 
 //Get all tables for a vendor
 exports.getTables = async (req, res) => {

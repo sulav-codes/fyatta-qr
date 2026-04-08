@@ -2,18 +2,18 @@ const express = require("express");
 const router = express.Router();
 
 // Import all route modules
-router.use("/auth", require("./authRoutes"));
+router.use("/auth", require("../modules/auth/auth.route"));
 
 // PUBLIC routes (no authentication required) - MUST come before protected /api routes
-router.use("/api", require("./publicRoutes"));
-router.use("/api", require("./waiterRoutes"));
-router.use("/api/payment", require("./paymentRoutes"));
-router.use("/api", require("./orderRoutes"));
+router.use("/api", require("../modules/menu/menu.public.route"));
+router.use("/api", require("../modules/notification/notification.route"));
+router.use("/api/payment", require("../modules/payment/payment.route"));
+router.use("/api", require("../modules/order/order.route"));
 
 // PROTECTED routes (require authentication)
-router.use("/api", require("./staffRoutes"));
-router.use("/api", require("./vendorRoutes"));
-router.use("/api", require("./menuRoutes"));
-router.use("/api", require("./tableRoutes"));
+router.use("/api", require("../modules/staff/staff.route"));
+router.use("/api", require("../modules/vendor/vendor.route"));
+router.use("/api", require("../modules/menu/menu.route"));
+router.use("/api", require("../modules/table/table.route"));
 
 module.exports = router;

@@ -1,5 +1,5 @@
-const prisma = require("../config/prisma");
-const { canAccessVendor } = require("../utils/helpers");
+const prisma = require("../../config/prisma");
+const { canAccessVendor } = require("../../utils/helpers");
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(

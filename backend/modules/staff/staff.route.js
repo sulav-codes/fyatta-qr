@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate } = require("../middleware/auth");
-const staffController = require("../controllers/staffController");
+const { authenticate } = require("../../middlewares/auth.middleware");
+const staffController = require("./staff.controller");
 
 // All staff management routes require authentication
 router.use(authenticate);
@@ -14,7 +14,7 @@ router.put("/vendors/:vendorId/staff/:staffId", staffController.updateStaff);
 router.delete("/vendors/:vendorId/staff/:staffId", staffController.deleteStaff);
 router.patch(
   "/vendors/:vendorId/staff/:staffId/toggle-status",
-  staffController.toggleStaffStatus
+  staffController.toggleStaffStatus,
 );
 
 module.exports = router;

@@ -1,5 +1,5 @@
-const prisma = require("../config/prisma");
-const { canAccessVendor } = require("../utils/helpers");
+const prisma = require("../../config/prisma");
+const { canAccessVendor } = require("../../utils/helpers");
 
 const parseVendorId = (value) => {
   const parsed = Number.parseInt(String(value), 10);
