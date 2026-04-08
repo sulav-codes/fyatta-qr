@@ -1,6 +1,6 @@
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 const { v4: uuidv4 } = require("uuid");
-const { canAccessVendor } = require("../utils/helpers");
+const { canAccessVendor } = require("../../utils/helpers");
 
 //Get all tables for a vendor
 exports.getTables = async (req, res) => {
@@ -282,14 +282,7 @@ exports.getTableStatus = async (req, res) => {
     const vendorId = parseInt(req.params.vendorId, 10);
     const { tableIdentifier } = req.params;
 
-    // Validate inputs
-    if (!vendorId || !tableIdentifier) {
-      return res.status(400).json({
-        error: "Missing required parameters",
-      });
-    }
-
-    // Find table by QR code
+    // Find table by QR code identifier
     const table = await prisma.table.findFirst({
       where: {
         vendorId,
@@ -298,9 +291,7 @@ exports.getTableStatus = async (req, res) => {
     });
 
     if (!table) {
-      return res.status(404).json({
-        error: "Table not found",
-      });
+      return res.status(404).json({ error: "Table not found" });
     }
 
     // Check for active orders at this table
@@ -311,32 +302,22 @@ exports.getTableStatus = async (req, res) => {
           in: ["pending", "accepted", "confirmed", "preparing"],
         },
       },
+      orderBy: { createdAt: "desc" },
     });
 
-    const response = {
-      tableId: table.id,
+    res.status(200).json({
+      table_id: table.id,
       name: table.name,
-      qrCode: table.qrCode,
-      isActive: table.isActive,
-      vendorId: table.vendorId,
-      hasActiveOrder: activeOrder !== null,
-      activeOrderId: activeOrder ? activeOrder.id : null,
-    };
-
-    // Emit socket event for table status check
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`table-${table.vendorId}-${table.name}`).emit(
-        "table-status-update",
-        response,
-      );
-    }
-
-    res.status(200).json(response);
+      qr_code: table.qrCode,
+      is_active: table.isActive,
+      vendor_id: table.vendorId,
+      has_active_order: activeOrder !== null,
+      active_order_id: activeOrder ? activeOrder.id : null,
+    });
   } catch (error) {
-    console.error("Error in getTableStatus:", error);
+    console.error("Error fetching table status:", error);
     res.status(500).json({
-      error: "An error occurred while checking table status",
+      error: "Failed to fetch table status",
       details: error.message,
     });
   }

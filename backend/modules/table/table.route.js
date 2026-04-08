@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate } = require("../middleware/auth");
-const tableController = require("../controllers/tableController");
+const { authenticate } = require("../../middlewares/auth.middleware");
+const tableController = require("./table.controller");
 
 // Public route - no auth required (for QR code scanning)
 router.get(
-  "/vendors/:vendorId/tables/:tableIdentifier/status",
+  "/public-table/:vendorId/:tableIdentifier/status",
   tableController.getTableStatus,
 );
 

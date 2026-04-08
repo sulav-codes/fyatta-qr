@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const prisma = require("../config/prisma");
+const prisma = require("../../config/prisma");
 
 // eSewa Configuration
 const ESEWA_CONFIG = {

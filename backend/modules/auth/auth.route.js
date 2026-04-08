@@ -7,7 +7,7 @@ const {
   refreshToken,
   googleStart,
   googleCallback,
-} = require("../controllers/authController");
+} = require("./auth.controller");
 
 // Public routes
 router.post("/register", register);

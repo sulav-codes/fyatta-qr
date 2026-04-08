@@ -1,5 +1,5 @@
-const prisma = require("../config/prisma");
-const { canAccessVendor } = require("../utils/helpers");
+const prisma = require("../../config/prisma");
+const { canAccessVendor } = require("../../utils/helpers");
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
@@ -412,6 +412,88 @@ exports.deleteMenuItem = async (req, res) => {
     console.error("Error deleting menu item:", error);
     res.status(500).json({
       error: "Failed to delete menu item",
+      details: error.message,
+    });
+  }
+};
+
+// Public menu endpoint (no authentication required)
+exports.getPublicMenu = async (req, res) => {
+  try {
+    const vendorId = parseInt(req.params.vendorId, 10);
+
+    // Get vendor info
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: {
+        id: true,
+        restaurantName: true,
+        ownerName: true,
+        email: true,
+        phone: true,
+        location: true,
+        openingTime: true,
+        closingTime: true,
+        description: true,
+        logo: true,
+      },
+    });
+
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+
+    // Get all available menu items grouped by category
+    const items = await prisma.menuItem.findMany({
+      where: {
+        vendorId,
+        isAvailable: true,
+      },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
+
+    // Group items by category
+    const categoriesMap = {};
+    items.forEach((item) => {
+      const category = item.category || "Other";
+      if (!categoriesMap[category]) {
+        categoriesMap[category] = {
+          name: category,
+          items: [],
+        };
+      }
+      categoriesMap[category].items.push({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: Number(item.price),
+        category: item.category,
+        image_url: item.image ? `/uploads/${item.image}` : null,
+        is_available: item.isAvailable,
+      });
+    });
+
+    const categories = Object.values(categoriesMap);
+
+    res.status(200).json({
+      vendor_info: {
+        id: vendor.id,
+        restaurant_name: vendor.restaurantName,
+        owner_name: vendor.ownerName,
+        email: vendor.email,
+        phone: vendor.phone,
+        location: vendor.location,
+        opening_time: vendor.openingTime,
+        closing_time: vendor.closingTime,
+        description: vendor.description,
+        logo: vendor.logo,
+      },
+      categories,
+    });
+  } catch (error) {
+    console.error("Error fetching public menu:", error);
+    res.status(500).json({
+      error: "Failed to fetch menu",
       details: error.message,
     });
   }
