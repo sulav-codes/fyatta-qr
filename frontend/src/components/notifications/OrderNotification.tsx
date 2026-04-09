@@ -80,8 +80,6 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
         return;
       }
 
-      console.log(`Updating order ${order_id} status to ${action}`);
-
       const response = await apiFetchWithAuth(
         `/api/orders/${order_id}/status`,
         token,
@@ -103,10 +101,6 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
       }
 
       const data = await response.json();
-      console.log("Order status update response:", data);
-
-      // Show success message
-      toast.success(`Order ${action} successfully`);
 
       const normalizedOrderId =
         typeof order_id === "number" ? order_id : Number(order_id);
@@ -153,7 +147,7 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-[var(--orange)] rounded-full animate-pulse" />
+            <div className="w-3 h-3 bg-(--orange) rounded-full animate-pulse" />
             <h3 className="font-semibold text-sm">New Order Received</h3>
           </div>
           <div className="flex items-center space-x-2">
@@ -169,7 +163,7 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
               >
                 <Clock
                   className={`h-3 w-3 ${
-                    isPinned ? "text-[var(--orange)]" : "text-muted-foreground"
+                    isPinned ? "text-(--orange)" : "text-muted-foreground"
                   }`}
                 />
               </Button>
