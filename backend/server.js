@@ -5,21 +5,15 @@ const cookieParser = require("cookie-parser");
 const path = require("path");
 const multer = require("multer");
 const http = require("http");
-const { Server } = require("socket.io");
 const routes = require("./routes/index");
+const { createSocketServer } = require("./sockets");
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
 
 // Socket.IO setup
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "https://fyatta-qr.vercel.app",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
+const io = createSocketServer(server);
 
 // Make io accessible to route handlers
 app.set("io", io);
@@ -65,31 +59,6 @@ app.use((err, req, res, next) => {
 
   res.status(err.status || 500).json({
     error: err.message || "Internal server error",
-  });
-});
-
-// WebSocket connection handling
-io.on("connection", (socket) => {
-  // Join vendor room
-  socket.on("join-vendor", (vendorId) => {
-    socket.join(`vendor-${vendorId}`);
-  });
-
-  // Join table room
-  socket.on("join-table", ({ vendorId, tableIdentifier }) => {
-    const room = `table-${vendorId}-${tableIdentifier}`;
-    socket.join(room);
-  });
-
-  // Leave vendor room
-  socket.on("leave-vendor", (vendorId) => {
-    socket.leave(`vendor-${vendorId}`);
-  });
-
-  // Leave table room
-  socket.on("leave-table", ({ vendorId, tableIdentifier }) => {
-    const room = `table-${vendorId}-${tableIdentifier}`;
-    socket.leave(room);
   });
 });
 

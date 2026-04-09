@@ -56,9 +56,9 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedNotifications, setSelectedNotifications] = useState<number[]>(
-    []
-  );
+  const [selectedNotifications, setSelectedNotifications] = useState<
+    Array<string | number>
+  >([]);
 
   // Get notification type icon
   const getNotificationIcon = (type: string) => {
@@ -156,15 +156,15 @@ export default function NotificationsPage() {
   };
 
   // Toggle notification selection
-  const toggleNotificationSelection = (id: number) => {
+  const toggleNotificationSelection = (id: string | number) => {
     setSelectedNotifications((prev) =>
-      prev.includes(id) ? prev.filter((nId) => nId !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((nId) => nId !== id) : [...prev, id],
     );
   };
 
   // Select all filtered notifications
   const selectAllFiltered = () => {
-    setSelectedNotifications(filteredNotifications.map((n) => Number(n.id)));
+    setSelectedNotifications(filteredNotifications.map((n) => n.id));
   };
 
   // Clear selection
@@ -173,10 +173,25 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
-    if (token && fetchNotifications) {
-      fetchNotifications();
-      setLoading(false);
-    }
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      try {
+        if (token && fetchNotifications) {
+          await fetchNotifications();
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
   }, [token, fetchNotifications]);
 
   if (loading) {
@@ -231,8 +246,8 @@ export default function NotificationsPage() {
                 {filter === "all"
                   ? "All"
                   : filter === "unread"
-                  ? "Unread"
-                  : "Read"}
+                    ? "Unread"
+                    : "Read"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -300,12 +315,8 @@ export default function NotificationsPage() {
               <div className="flex items-start gap-4">
                 <input
                   type="checkbox"
-                  checked={selectedNotifications.includes(
-                    Number(notification.id)
-                  )}
-                  onChange={() =>
-                    toggleNotificationSelection(Number(notification.id))
-                  }
+                  checked={selectedNotifications.includes(notification.id)}
+                  onChange={() => toggleNotificationSelection(notification.id)}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
                 />
 

@@ -212,8 +212,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         typeof window !== "undefined" &&
         window.location.pathname.startsWith("/dashboard");
 
-      // Avoid a guaranteed 401 refresh request for anonymous users on public routes.
-      if (!hasStoredState && !isGuardedRoute) {
+      // Do not auto-refresh on public routes
+      if (!isGuardedRoute) {
         setIsLoading(false);
         return;
       }

@@ -282,7 +282,17 @@ exports.getTableStatus = async (req, res) => {
     const vendorId = parseInt(req.params.vendorId, 10);
     const { tableIdentifier } = req.params;
 
-    // Find table by QR code identifier
+    // Table identifier must be the QR identifier (UUID format).
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        tableIdentifier,
+      );
+
+    if (!isUuid) {
+      return res.status(404).json({ error: "Table not found" });
+    }
+
+    // Resolve table strictly by QR code identifier.
     const table = await prisma.table.findFirst({
       where: {
         vendorId,

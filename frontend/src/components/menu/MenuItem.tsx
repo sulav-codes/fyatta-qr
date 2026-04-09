@@ -64,7 +64,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
             </p>
           </div>
           <span className="font-bold text-lg text-orange-600 dark:text-orange-500 whitespace-nowrap">
-            ₹{item.price.toFixed(0)}
+            Rs. {item.price.toFixed(0)}
           </span>
         </div>
         <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[2.5rem]">

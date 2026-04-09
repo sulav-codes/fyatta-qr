@@ -4,8 +4,7 @@ const router = express.Router();
 // Import all route modules
 router.use("/auth", require("../modules/auth/auth.route"));
 
-// PUBLIC routes (no authentication required) - MUST come before protected /api routes
-router.use("/api", require("../modules/menu/menu.public.route"));
+// PUBLIC routes (no authentication required)
 router.use("/api", require("../modules/notification/notification.route"));
 router.use("/api/payment", require("../modules/payment/payment.route"));
 router.use("/api", require("../modules/order/order.route"));

@@ -118,7 +118,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
     ) {
       console.log(
         "MenuContent: Setting showOrderNotification to true for status:",
-        pendingOrder.status
+        pendingOrder.status,
       );
       setShowOrderNotification(true);
 
@@ -146,14 +146,14 @@ const MenuContent: React.FC<MenuContentProps> = ({
             "Your order has been accepted and is ready for payment!",
             {
               duration: 4000,
-            }
+            },
           );
         }
       }
     } else {
       console.log(
         "MenuContent: Setting showOrderNotification to false, pendingOrder:",
-        pendingOrder
+        pendingOrder,
       );
       setShowOrderNotification(false);
     }
@@ -184,8 +184,8 @@ const MenuContent: React.FC<MenuContentProps> = ({
 
       const response = await fetch(
         `${getApiBaseUrl()}/api/menu/${vendor}/search/?query=${encodeURIComponent(
-          query
-        )}`
+          query,
+        )}`,
       );
 
       if (!response.ok) {
@@ -227,7 +227,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
       setIsSorting(true);
 
       const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/${vendor}/sort/?sort_by=${method}&order=${order}`
+        `${getApiBaseUrl()}/api/menu/${vendor}/sort/?sort_by=${method}&order=${order}`,
       );
 
       if (!response.ok) {
@@ -336,7 +336,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
     try {
       // Check if new table is valid and available
       const tableResponse = await fetch(
-        `${getApiBaseUrl()}/api/public-table/${vendor}/${newTableIdentifier.trim()}/`
+        `${getApiBaseUrl()}/api/public-table/${vendor}/${newTableIdentifier.trim()}/status`,
       );
 
       if (!tableResponse.ok) {
@@ -353,20 +353,23 @@ const MenuContent: React.FC<MenuContentProps> = ({
 
       if (newTableData.has_active_order) {
         toast.error(
-          "The target table already has an active order. Please choose a different table."
+          "The target table already has an active order. Please choose a different table.",
         );
         setIsMigrating(false);
         return;
       }
 
+      const targetIdentifier =
+        newTableData.qr_code || newTableIdentifier.trim();
+
       // Update localStorage with new table info
-      localStorage.setItem("last_order_table", newTableIdentifier.trim());
+      localStorage.setItem("last_order_table", targetIdentifier);
 
       // Show success message
       toast.success(`Moving to ${newTableData.name}...`);
 
       // Navigate to new table
-      router.push(`/menu/${vendor}/${newTableIdentifier.trim()}`);
+      router.push(`/menu/${vendor}/${targetIdentifier}`);
 
       // Close dialog
       setShowMigrationDialog(false);
@@ -396,7 +399,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
     try {
       // Check if target table exists and has an active order
       const tableResponse = await fetch(
-        `${getApiBaseUrl()}/api/public-table/${vendor}/${joinTableIdentifier.trim()}/`
+        `${getApiBaseUrl()}/api/public-table/${vendor}/${joinTableIdentifier.trim()}/status`,
       );
 
       if (!tableResponse.ok) {
@@ -413,7 +416,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
 
       if (!targetTableData.has_active_order) {
         toast.error(
-          "The target table doesn't have an active order. Use 'Switch Table' instead to move to an empty table."
+          "The target table doesn't have an active order. Use 'Switch Table' instead to move to an empty table.",
         );
         setIsJoining(false);
         return;
@@ -436,18 +439,21 @@ const MenuContent: React.FC<MenuContentProps> = ({
     setIsJoining(true);
 
     try {
+      const targetIdentifier =
+        joinTableInfo.qr_code || joinTableIdentifier.trim();
+
       // Update localStorage with new table info
-      localStorage.setItem("last_order_table", joinTableIdentifier.trim());
+      localStorage.setItem("last_order_table", targetIdentifier);
       localStorage.setItem(
         "current_order_id",
-        joinTableInfo.active_order_id.toString()
+        joinTableInfo.active_order_id.toString(),
       );
 
       // Show success message
       toast.success(`Joining ${joinTableInfo.name}...`);
 
       // Navigate to target table
-      router.push(`/menu/${vendor}/${joinTableIdentifier.trim()}`);
+      router.push(`/menu/${vendor}/${targetIdentifier}`);
 
       // Close dialog
       setShowJoinDialog(false);
@@ -495,7 +501,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
         {
           duration: 4000,
           icon: "🔔",
-        }
+        },
       );
 
       // Reset success state after animation

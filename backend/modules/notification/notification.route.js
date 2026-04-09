@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../../config/prisma");
+const { emitVendorNotification } = require("../../sockets/order.socket");
+const { emitToVendor } = require("../../sockets/notifier");
 
 // Call waiter endpoint
 router.post("/call-waiter", async (req, res) => {
@@ -62,15 +64,23 @@ router.post("/call-waiter", async (req, res) => {
       type: "waiter_call",
     };
 
-    // Emit socket notification to vendor if socket.io is available
+    // Emit socket notification to vendor
     try {
-      const io = req.app.get("io");
-      if (io) {
-        io.emit(`vendor-${vendorId}`, {
-          type: "waiter_call",
-          data: notificationData,
-          message: `Customer at ${tableName} is calling for assistance`,
-        });
+      const payload = {
+        type: "waiter_call",
+        data: notificationData,
+        message: `Customer at ${tableName} is calling for assistance`,
+      };
+
+      const didEmitNotification = emitVendorNotification(vendorId, payload);
+      const didEmitLegacy = emitToVendor(
+        vendorId,
+        `vendor-${vendorId}`,
+        payload,
+      );
+      const didEmit = didEmitNotification || didEmitLegacy;
+
+      if (didEmit) {
         console.log(
           `[Waiter Call] Socket notification sent to vendor-${vendorId}`,
         );

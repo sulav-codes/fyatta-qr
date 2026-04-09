@@ -1,5 +1,10 @@
 const crypto = require("crypto");
 const prisma = require("../../config/prisma");
+const {
+  emitOrderStatusChanged,
+  emitOrderCreated,
+  emitVendorNotification,
+} = require("../../sockets/order.socket");
 
 // eSewa Configuration
 const ESEWA_CONFIG = {
@@ -277,39 +282,34 @@ exports.verifyEsewaPayment = async (req, res) => {
     });
 
     // Emit socket events
-    const io = req.app.get("io");
-    if (io) {
-      // Notify vendor
-      io.to(`vendor-${order.vendorId}`).emit("order-status-changed", {
-        orderId: order.id,
-        oldStatus,
-        newStatus: "confirmed",
-      });
+    emitOrderStatusChanged(order.vendorId, {
+      orderId: order.id,
+      oldStatus,
+      newStatus: "confirmed",
+    });
 
-      io.to(`vendor-${order.vendorId}`).emit("notification", {
-        id: `order-${order.id}-payment`,
-        type: "payment",
-        title: "Payment Received",
-        message: `Payment received for order #${order.id} via eSewa`,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        read: false,
-        data: {
-          order_id: order.id,
-          transaction_code: transactionCode,
-          payment_method: "esewa",
-          amount: Number(order.totalAmount),
-        },
-      });
+    emitVendorNotification(order.vendorId, {
+      id: `order-${order.id}-payment`,
+      type: "payment",
+      title: "Payment Received",
+      message: `Payment received for order #${order.id} via eSewa`,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      read: false,
+      data: {
+        order_id: order.id,
+        transaction_code: transactionCode,
+        payment_method: "esewa",
+        amount: Number(order.totalAmount),
+      },
+    });
 
-      // Send new order notification
-      io.to(`vendor-${order.vendorId}`).emit("order-created", {
-        orderId: order.id,
-        status: order.status,
-        totalAmount: Number(order.totalAmount),
-        tableIdentifier: order.tableIdentifier,
-      });
-    }
+    emitOrderCreated(order.vendorId, {
+      orderId: order.id,
+      status: order.status,
+      totalAmount: Number(order.totalAmount),
+      tableIdentifier: order.tableIdentifier,
+    });
 
     // Redirect to success page
     return res.redirect(

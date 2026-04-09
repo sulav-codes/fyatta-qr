@@ -12,34 +12,47 @@ const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
 })();
 
-// All menu routes require authentication
-router.use(authenticate);
+// Public route - no auth required
+router.get("/public-menu/:vendorId/", menuController.getPublicMenu);
 
 // Menu items routes for a vendor
 router.post(
   "/vendors/:vendorId/menu",
+  authenticate,
   upload.array("images", MAX_MENU_ITEMS_PER_REQUEST),
   menuController.createMenuItems,
 );
-router.get("/vendors/:vendorId/menu", menuController.getMenuItems);
+router.get(
+  "/vendors/:vendorId/menu",
+  authenticate,
+  menuController.getMenuItems,
+);
 router.get(
   "/vendors/:vendorId/menu/categories",
+  authenticate,
   menuController.getMenuItemsByCategory,
 );
 
-//Get public menu for a vendor (no authentication required)
-router.get("/public-menu/:vendorId/", menuController.getPublicMenu);
-
 // Individual menu item routes
-router.get("/vendors/:vendorId/menu/:itemId", menuController.getMenuItem);
+router.get(
+  "/vendors/:vendorId/menu/:itemId",
+  authenticate,
+  menuController.getMenuItem,
+);
 router.put(
   "/vendors/:vendorId/menu/:itemId",
+  authenticate,
   upload.single("image"),
   menuController.updateMenuItem,
 );
-router.delete("/vendors/:vendorId/menu/:itemId", menuController.deleteMenuItem);
+router.delete(
+  "/vendors/:vendorId/menu/:itemId",
+  authenticate,
+  menuController.deleteMenuItem,
+);
 router.patch(
   "/vendors/:vendorId/menu/:itemId/toggle",
+  authenticate,
   menuController.toggleAvailability,
 );
 

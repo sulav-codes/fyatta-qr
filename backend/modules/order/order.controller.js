@@ -1,4 +1,12 @@
 const prisma = require("../../config/prisma");
+const {
+  emitOrderCreated,
+  emitOrderStatusChanged,
+  emitOrderStatusUpdate,
+  emitDeliveryIssue,
+  emitOrderVerified,
+  emitVendorNotification,
+} = require("../../sockets/order.socket");
 
 //Get all orders for a vendor
 exports.getOrders = async (req, res) => {
@@ -211,41 +219,36 @@ exports.createCustomerOrder = async (req, res) => {
       price: Number(item.price),
     }));
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`vendor-${vendorId}`).emit("order-created", {
+    emitOrderCreated(vendorId, {
+      orderId: order.id,
+      status: order.status,
+      totalAmount: Number(order.totalAmount),
+      tableIdentifier: table ? table.name : table_identifier,
+      tableName: table ? table.name : null,
+    });
+
+    emitVendorNotification(vendorId, {
+      id: `order-${order.id}-created`,
+      type: "order",
+      title: "New Order Received",
+      message: `New order #${order.id} from ${table ? table.name : "customer"}`,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      read: false,
+      data: {
+        order_id: order.id,
+        table_name: table ? table.name : null,
+        total_amount: Number(order.totalAmount),
+        status: order.status,
+        items: itemsForNotification,
+      },
+    });
+
+    if (table) {
+      emitOrderStatusUpdate(vendorId, table.qrCode, {
         orderId: order.id,
         status: order.status,
-        totalAmount: Number(order.totalAmount),
-        tableIdentifier: table ? table.name : table_identifier,
-        tableName: table ? table.name : null,
       });
-
-      io.to(`vendor-${vendorId}`).emit("notification", {
-        id: `order-${order.id}-created`,
-        type: "order",
-        title: "New Order Received",
-        message: `New order #${order.id} from ${
-          table ? table.name : "customer"
-        }`,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        read: false,
-        data: {
-          order_id: order.id,
-          table_name: table ? table.name : null,
-          total_amount: Number(order.totalAmount),
-          status: order.status,
-          items: itemsForNotification,
-        },
-      });
-
-      if (table) {
-        io.to(`table-${vendorId}-${table.qrCode}`).emit("order-status-update", {
-          orderId: order.id,
-          status: order.status,
-        });
-      }
     }
 
     res.status(201).json({
@@ -349,42 +352,34 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`vendor-${parsedVendorId}`).emit("order-created", {
+    emitOrderCreated(parsedVendorId, {
+      orderId: order.id,
+      status: order.status,
+      totalAmount: totalAmount || calculatedTotal,
+      tableIdentifier: table ? table.name : null,
+    });
+
+    emitVendorNotification(parsedVendorId, {
+      id: `order-${order.id}-created`,
+      type: "order",
+      title: "New Order Received",
+      message: `New order #${order.id} from ${table ? table.name : "customer"}`,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      read: false,
+      data: {
+        order_id: order.id,
+        table_name: table ? table.name : null,
+        total_amount: totalAmount || calculatedTotal,
+        status: order.status,
+      },
+    });
+
+    if (table) {
+      emitOrderStatusUpdate(parsedVendorId, table.name, {
         orderId: order.id,
         status: order.status,
-        totalAmount: totalAmount || calculatedTotal,
-        tableIdentifier: table ? table.name : null,
       });
-
-      io.to(`vendor-${parsedVendorId}`).emit("notification", {
-        id: `order-${order.id}-created`,
-        type: "order",
-        title: "New Order Received",
-        message: `New order #${order.id} from ${
-          table ? table.name : "customer"
-        }`,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        read: false,
-        data: {
-          order_id: order.id,
-          table_name: table ? table.name : null,
-          total_amount: totalAmount || calculatedTotal,
-          status: order.status,
-        },
-      });
-
-      if (table) {
-        io.to(`table-${parsedVendorId}-${table.name}`).emit(
-          "order-status-update",
-          {
-            orderId: order.id,
-            status: order.status,
-          },
-        );
-      }
     }
 
     res.status(201).json({
@@ -454,52 +449,46 @@ exports.updateOrderStatus = async (req, res) => {
       data: { status: newStatus },
     });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`vendor-${order.vendorId}`).emit("order-status-changed", {
-        orderId: order.id,
-        oldStatus,
-        newStatus,
+    emitOrderStatusChanged(order.vendorId, {
+      orderId: order.id,
+      oldStatus,
+      newStatus,
+    });
+
+    const notificationMessages = {
+      accepted: "Order has been accepted",
+      rejected: "Order has been rejected",
+      preparing: "Order is being prepared",
+      ready: "Order is ready for pickup",
+      delivered: "Order has been delivered",
+      completed: "Order is completed",
+      cancelled: "Order has been cancelled",
+    };
+
+    if (notificationMessages[newStatus]) {
+      emitVendorNotification(order.vendorId, {
+        id: `order-${order.id}-${newStatus}`,
+        type: "order",
+        title: `Order #${order.id} ${
+          newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
+        }`,
+        message: notificationMessages[newStatus],
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        read: false,
+        data: {
+          order_id: order.id,
+          old_status: oldStatus,
+          new_status: newStatus,
+        },
       });
+    }
 
-      const notificationMessages = {
-        accepted: "Order has been accepted",
-        rejected: "Order has been rejected",
-        preparing: "Order is being prepared",
-        ready: "Order is ready for pickup",
-        delivered: "Order has been delivered",
-        completed: "Order is completed",
-        cancelled: "Order has been cancelled",
-      };
-
-      if (notificationMessages[newStatus]) {
-        io.to(`vendor-${order.vendorId}`).emit("notification", {
-          id: `order-${order.id}-${newStatus}`,
-          type: "order",
-          title: `Order #${order.id} ${
-            newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
-          }`,
-          message: notificationMessages[newStatus],
-          timestamp: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          read: false,
-          data: {
-            order_id: order.id,
-            old_status: oldStatus,
-            new_status: newStatus,
-          },
-        });
-      }
-
-      if (order.tableIdentifier) {
-        io.to(`table-${order.vendorId}-${order.tableIdentifier}`).emit(
-          "order-status-update",
-          {
-            orderId: order.id,
-            status: newStatus,
-          },
-        );
-      }
+    if (order.tableIdentifier) {
+      emitOrderStatusUpdate(order.vendorId, order.tableIdentifier, {
+        orderId: order.id,
+        status: newStatus,
+      });
     }
 
     res.status(200).json({
@@ -745,29 +734,26 @@ exports.reportDeliveryIssue = async (req, res) => {
       },
     });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`vendor-${order.vendorId}`).emit("delivery-issue", {
-        orderId: order.id,
-        issueDescription:
-          issueDescription || "Customer reported not receiving order",
-        issueReportTimestamp: updated.issueReportedAt,
-      });
+    emitDeliveryIssue(order.vendorId, {
+      orderId: order.id,
+      issueDescription:
+        issueDescription || "Customer reported not receiving order",
+      issueReportTimestamp: updated.issueReportedAt,
+    });
 
-      io.to(`vendor-${order.vendorId}`).emit("notification", {
-        id: `order-${order.id}-issue`,
-        type: "issue",
-        title: "Delivery Issue Reported",
-        message: `Customer reported issue with order #${order.id}`,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        read: false,
-        data: {
-          order_id: order.id,
-          issue_description: issueDescription,
-        },
-      });
-    }
+    emitVendorNotification(order.vendorId, {
+      id: `order-${order.id}-issue`,
+      type: "issue",
+      title: "Delivery Issue Reported",
+      message: `Customer reported issue with order #${order.id}`,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      read: false,
+      data: {
+        order_id: order.id,
+        issue_description: issueDescription,
+      },
+    });
 
     res.status(200).json({
       message: "Delivery issue reported successfully",
@@ -846,26 +832,23 @@ exports.verifyDelivery = async (req, res) => {
       },
     });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`vendor-${order.vendorId}`).emit("order-verified", {
-        orderId: order.id,
-        verificationTimestamp: updated.deliveryVerifiedAt,
-      });
+    emitOrderVerified(order.vendorId, {
+      orderId: order.id,
+      verificationTimestamp: updated.deliveryVerifiedAt,
+    });
 
-      io.to(`vendor-${order.vendorId}`).emit("notification", {
-        id: `order-${order.id}-verified`,
-        type: "verification",
-        title: "Order Verified",
-        message: `Customer verified delivery of order #${order.id}`,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        read: false,
-        data: {
-          order_id: order.id,
-        },
-      });
-    }
+    emitVendorNotification(order.vendorId, {
+      id: `order-${order.id}-verified`,
+      type: "verification",
+      title: "Order Verified",
+      message: `Customer verified delivery of order #${order.id}`,
+      timestamp: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      read: false,
+      data: {
+        order_id: order.id,
+      },
+    });
 
     res.status(200).json({
       message: "Order delivery verified successfully",

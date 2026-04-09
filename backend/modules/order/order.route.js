@@ -6,7 +6,7 @@ const {
 } = require("../../middlewares/auth.middleware");
 const orderController = require("./order.controller");
 
-// Protected routes - require authentication
+// Protected route for vendors to get their orders
 router.get(
   "/vendors/:vendorId/orders",
   authenticate,

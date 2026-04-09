@@ -8,23 +8,40 @@ router.get(
   "/public-table/:vendorId/:tableIdentifier/status",
   tableController.getTableStatus,
 );
+router.get(
+  "/public-table/:vendorId/:tableIdentifier",
+  tableController.getTableStatus,
+);
 
 // Protected routes - require authentication
-router.use(authenticate);
-
-router.get("/vendors/:vendorId/tables", tableController.getTables);
-router.post("/vendors/:vendorId/tables", tableController.createTable);
+router.get(
+  "/vendors/:vendorId/tables",
+  authenticate,
+  tableController.getTables,
+);
+router.post(
+  "/vendors/:vendorId/tables",
+  authenticate,
+  tableController.createTable,
+);
 router.get(
   "/vendors/:vendorId/tables/:tableId",
+  authenticate,
   tableController.getTableDetails,
 );
-router.put("/vendors/:vendorId/tables/:tableId", tableController.updateTable);
+router.put(
+  "/vendors/:vendorId/tables/:tableId",
+  authenticate,
+  tableController.updateTable,
+);
 router.delete(
   "/vendors/:vendorId/tables/:tableId",
+  authenticate,
   tableController.deleteTable,
 );
 router.post(
   "/vendors/:vendorId/tables/:tableId/regenerate-qr",
+  authenticate,
   tableController.regenerateQRCode,
 );
 

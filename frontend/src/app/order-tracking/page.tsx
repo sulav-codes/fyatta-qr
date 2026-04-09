@@ -221,7 +221,7 @@ function OrderTrackingContent() {
   if (loading || orderId === undefined) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 animate-spin text-[var(--orange)]" />
+        <RefreshCw className="w-8 h-8 animate-spin text-(--orange)" />
       </div>
     );
   }
@@ -241,7 +241,7 @@ function OrderTrackingContent() {
             We couldn't find the order you're looking for.
           </p>
           <Link href={fallbackMenuUrl}>
-            <Button className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+            <Button className="bg-(--orange) hover:bg-(--orange)/90 text-white">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Menu
             </Button>
@@ -338,7 +338,7 @@ function OrderTrackingContent() {
             <div className="overflow-hidden h-2 text-xs flex rounded-full bg-muted">
               <div
                 style={{ width: `${getProgressPercentage()}%` }}
-                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[var(--orange)] transition-all duration-500"
+                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-(--orange) transition-all duration-500"
               ></div>
             </div>
           </div>
@@ -356,9 +356,9 @@ function OrderTrackingContent() {
               return (
                 <div key={step.key} className="flex items-center gap-4">
                   <div
-                    className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center ${
+                    className={`shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center ${
                       isCompleted
-                        ? "bg-[var(--orange)] border-[var(--orange)] text-white"
+                        ? "bg-(--orange) border-(--orange) text-white"
                         : "bg-muted border-border text-muted-foreground"
                     }`}
                   >
@@ -375,7 +375,7 @@ function OrderTrackingContent() {
                       {step.label}
                     </div>
                     {isCurrent && (
-                      <div className="text-sm text-[var(--orange)]">
+                      <div className="text-sm text-(--orange)">
                         Current Status
                       </div>
                     )}
@@ -439,8 +439,8 @@ function OrderTrackingContent() {
               <span className="text-sm text-muted-foreground">
                 Total Amount
               </span>
-              <p className="text-2xl font-bold text-[var(--orange)]">
-                रू {Number(orderDetails.total_amount).toFixed(2)}
+              <p className="text-2xl font-bold text-(--orange)">
+                Rs. {Number(orderDetails.total_amount).toFixed(2)}
               </p>
             </div>
           </div>
@@ -459,11 +459,11 @@ function OrderTrackingContent() {
                   <div className="flex-1">
                     <p className="font-medium">{item.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Qty: {item.quantity} × रू {Number(item.price).toFixed(2)}
+                      Qty: {item.quantity} × Rs. {Number(item.price).toFixed(2)}
                     </p>
                   </div>
                   <span className="font-semibold">
-                    रू {(Number(item.price) * item.quantity).toFixed(2)}
+                    Rs. {(Number(item.price) * item.quantity).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -475,7 +475,7 @@ function OrderTrackingContent() {
         <div className="space-y-3">
           <Button
             onClick={fetchOrderDetails}
-            className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
+            className="w-full bg-(--orange) hover:bg-(--orange)/90 text-white"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh Order Status
@@ -497,7 +497,7 @@ export default function OrderTrackingPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-background flex items-center justify-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-[var(--orange)]" />
+          <RefreshCw className="w-8 h-8 animate-spin text-(--orange)" />
         </div>
       }
     >
