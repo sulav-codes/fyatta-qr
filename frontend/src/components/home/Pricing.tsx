@@ -58,7 +58,7 @@ const plans = [
 
 export default function Pricing() {
   return (
-    <section className="py-20 md:py-28 px-4 md:px-6 lg:px-8 bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
+    <section className="py-20 md:py-28 px-4 md:px-6 lg:px-8 bg-linear-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -89,7 +89,7 @@ export default function Pricing() {
             >
               {/* Popular Badge */}
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-linear-to-r from-orange-500 to-orange-600 text-white text-sm font-semibold">
                   Most Popular
                 </div>
               )}
@@ -121,7 +121,7 @@ export default function Pricing() {
                 href="/register"
                 className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all duration-200 mb-6 ${
                   plan.popular
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
+                    ? "bg-linear-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
                     : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
                 }`}
               >
@@ -132,7 +132,7 @@ export default function Pricing() {
               <div className="space-y-3">
                 {plan.features.map((feature, featureIndex) => (
                   <div key={featureIndex} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0 mt-0.5">
                       <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
                     </div>
                     <span className="text-gray-700 dark:text-gray-300 text-sm">
