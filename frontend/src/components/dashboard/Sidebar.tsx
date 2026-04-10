@@ -17,6 +17,7 @@ import {
   Menu,
   Bell,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,12 @@ import { useRouter } from "next/navigation";
 // Define nav items with role-based access
 type Role = "vendor" | "staff" | "admin";
 
-const navItems: { icon: any; label: string; href: string; roles: Role[] }[] = [
+const navItems: {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  roles: Role[];
+}[] = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
@@ -83,7 +89,7 @@ const NavItem = ({
   isActive,
   isOpen,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   href: string;
   isActive: boolean;
@@ -93,11 +99,11 @@ const NavItem = ({
     href={href}
     className={cn(
       "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors hover:bg-accent",
-      isActive ? "bg-accent text-orange-500" : "text-muted-foreground"
+      isActive ? "bg-accent text-orange-500" : "text-muted-foreground",
     )}
     aria-label={!isOpen ? label : undefined}
   >
-    <Icon className="h-5 w-5 flex-shrink-0" />
+    <Icon className="h-5 w-5 shrink-0" />
     {isOpen && <span className="truncate">{label}</span>}
   </Link>
 );
@@ -119,7 +125,7 @@ const ToggleButton = ({
       <ChevronRight
         className={cn(
           "h-4 w-4 transition-transform",
-          isOpen ? "rotate-180" : "rotate-0"
+          isOpen ? "rotate-180" : "rotate-0",
         )}
       />
     ) : (
@@ -151,7 +157,7 @@ export default function DashboardSidebar({
       }
       return pathname.startsWith(href);
     },
-    [pathname]
+    [pathname],
   );
 
   // Filter navigation items based on user role
@@ -179,7 +185,7 @@ export default function DashboardSidebar({
         ...item,
         isActive: isActive(item.href),
       })),
-    [isActive, filteredNavItems]
+    [isActive, filteredNavItems],
   );
 
   // Memoize sidebar classes
@@ -189,9 +195,9 @@ export default function DashboardSidebar({
         "lg:relative fixed top-0 left-0 h-full bg-card border-r border-border z-50 transition-all duration-300",
         isOpen ? "w-64" : "w-20",
         "transform lg:transform-none",
-        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       ),
-    [isOpen]
+    [isOpen],
   );
 
   return (
@@ -217,7 +223,7 @@ export default function DashboardSidebar({
             className="flex items-center space-x-3 min-w-0"
             aria-label="FyattaQR Dashboard"
           >
-            <div className="relative w-10 h-10 flex-shrink-0">
+            <div className="relative w-10 h-10 shrink-0">
               <Image
                 src="/logo.png"
                 fill
@@ -261,7 +267,7 @@ export default function DashboardSidebar({
             aria-label={isOpen ? "Logout" : "Logout"}
             role="menuitem"
           >
-            <LogOut className="h-5 w-5 flex-shrink-0" />
+            <LogOut className="h-5 w-5 shrink-0" />
             {isOpen && <span className="truncate">Logout</span>}
           </button>
         </nav>

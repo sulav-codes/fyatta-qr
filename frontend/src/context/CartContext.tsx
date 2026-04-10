@@ -45,6 +45,13 @@ interface Order {
   invoiceNo?: string;
 }
 
+interface PaymentInitResponse {
+  success?: boolean;
+  paymentUrl?: string;
+  paymentData?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 interface CartContextType {
   cart: CartItem[];
   addToCart: (item: Omit<CartItem, "quantity">) => void;
@@ -54,7 +61,7 @@ interface CartContextType {
   clearCart: () => void;
   cartTotal: number;
   createOrder: () => Promise<Order>;
-  proceedToPayment: (orderId: number) => Promise<any>;
+  proceedToPayment: (orderId: number) => Promise<PaymentInitResponse>;
   pendingOrder: Order | null;
   setPendingOrder: (order: Order | null) => void;
 }
@@ -68,8 +75,8 @@ export const CartContext = createContext<CartContextType>({
   recentlyAdded: {},
   clearCart: () => {},
   cartTotal: 0,
-  createOrder: async () => ({} as Order),
-  proceedToPayment: async () => {},
+  createOrder: async () => ({}) as Order,
+  proceedToPayment: async () => ({}),
   pendingOrder: null,
   setPendingOrder: () => {},
 });
@@ -90,7 +97,7 @@ export const CartProvider = ({
 }: CartProviderProps) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [recentlyAdded, setRecentlyAdded] = useState<Record<number, boolean>>(
-    {}
+    {},
   );
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
   const timeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
@@ -115,7 +122,7 @@ export const CartProvider = ({
     try {
       const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(
-        `${apiBaseUrl}/api/orders/${pendingOrder.id}`
+        `${apiBaseUrl}/api/orders/${pendingOrder.id}`,
       );
 
       if (!response.ok) return;
@@ -125,13 +132,13 @@ export const CartProvider = ({
       const orderId = pendingOrder.id;
 
       console.log(
-        `CartContext: Polling update for order ${orderId}, status: ${status}`
+        `CartContext: Polling update for order ${orderId}, status: ${status}`,
       );
 
       // Update pendingOrder if status changed
       if (pendingOrder.status !== status) {
         console.log(
-          `CartContext: Updating pendingOrder with new status: ${status}`
+          `CartContext: Updating pendingOrder with new status: ${status}`,
         );
 
         // Create complete updated order object with all data
@@ -148,10 +155,10 @@ export const CartProvider = ({
 
         // Update localStorage
         const trackedOrders: Order[] = JSON.parse(
-          localStorage.getItem("tracked_orders") || "[]"
+          localStorage.getItem("tracked_orders") || "[]",
         );
         const updatedOrders = trackedOrders.map((order) =>
-          order.id === orderId ? updatedOrder : order
+          order.id === orderId ? updatedOrder : order,
         );
         localStorage.setItem("tracked_orders", JSON.stringify(updatedOrders));
 
@@ -180,12 +187,12 @@ export const CartProvider = ({
           if (String(status) === "accepted") {
             toast.success(
               `Your order has been accepted and is ready for payment!`,
-              { id: toastId, duration: 4000 }
+              { id: toastId, duration: 4000 },
             );
           } else if (String(status) === "rejected") {
             toast.error(
               `Order #${orderId} was rejected. Please modify and try again.`,
-              { id: toastId, duration: 4000 }
+              { id: toastId, duration: 4000 },
             );
 
             // If order is rejected, clear the pendingOrder so user can create a new one
@@ -226,7 +233,7 @@ export const CartProvider = ({
   useEffect(() => {
     const loadOrdersFromStorage = () => {
       const trackedOrders: Order[] = JSON.parse(
-        localStorage.getItem("tracked_orders") || "[]"
+        localStorage.getItem("tracked_orders") || "[]",
       );
 
       const validOrders = trackedOrders.filter((order) => order && order.id);
@@ -240,7 +247,7 @@ export const CartProvider = ({
         (order) =>
           relevantStatuses.includes(order.status) &&
           order.vendor_id === parseInt(String(vendorId)) &&
-          order.table_identifier === tableNo
+          order.table_identifier === tableNo,
       );
 
       if (currentPendingOrder) {
@@ -298,10 +305,10 @@ export const CartProvider = ({
 
           // Update localStorage
           const trackedOrders: Order[] = JSON.parse(
-            localStorage.getItem("tracked_orders") || "[]"
+            localStorage.getItem("tracked_orders") || "[]",
           );
           const updatedOrders = trackedOrders.map((order) =>
-            order.id === data.orderId ? updatedOrder : order
+            order.id === data.orderId ? updatedOrder : order,
           );
           localStorage.setItem("tracked_orders", JSON.stringify(updatedOrders));
 
@@ -316,7 +323,7 @@ export const CartProvider = ({
           if (shouldShow) {
             localStorage.setItem(
               `last_toast_${toastKey}`,
-              Date.now().toString()
+              Date.now().toString(),
             );
 
             if (data.status === "accepted") {
@@ -325,7 +332,7 @@ export const CartProvider = ({
                 {
                   id: toastId,
                   duration: 4000,
-                }
+                },
               );
             } else if (data.status === "preparing") {
               toast.success("Your order is being prepared!", { id: toastId });
@@ -341,7 +348,7 @@ export const CartProvider = ({
             clearCart();
           }
         }
-      }
+      },
     );
 
     return () => {
@@ -371,8 +378,23 @@ export const CartProvider = ({
   // Calculate cart total
   const cartTotal = cart.reduce(
     (total, item) => total + item.price * item.quantity,
-    0
+    0,
   );
+
+  // Debounced recommendations update
+  const triggerRecommendationsUpdate = useCallback(() => {
+    if (recommendationsTimeoutRef.current) {
+      clearTimeout(recommendationsTimeoutRef.current);
+    }
+
+    recommendationsTimeoutRef.current = setTimeout(() => {
+      if (pendingCartItemsRef.current && onUpdateRecommendations) {
+        onUpdateRecommendations(pendingCartItemsRef.current);
+        pendingCartItemsRef.current = null;
+      }
+      recommendationsTimeoutRef.current = null;
+    }, 500);
+  }, [onUpdateRecommendations]);
 
   // Load cart from localStorage on initial mount
   useEffect(() => {
@@ -398,7 +420,12 @@ export const CartProvider = ({
     }
 
     initialLoadCompleted.current = true;
-  }, [vendorId, tableNo, onUpdateRecommendations]);
+  }, [
+    vendorId,
+    tableNo,
+    onUpdateRecommendations,
+    triggerRecommendationsUpdate,
+  ]);
 
   // Save cart to localStorage when it changes
   useEffect(() => {
@@ -419,8 +446,10 @@ export const CartProvider = ({
 
   // Clean up timeouts when component unmounts
   useEffect(() => {
+    const currentTimeouts = timeoutRefs.current;
+
     return () => {
-      Object.values(timeoutRefs.current).forEach((timeoutId) => {
+      Object.values(currentTimeouts).forEach((timeoutId) => {
         clearTimeout(timeoutId);
       });
 
@@ -430,26 +459,11 @@ export const CartProvider = ({
     };
   }, []);
 
-  // Debounced recommendations update
-  const triggerRecommendationsUpdate = useCallback(() => {
-    if (recommendationsTimeoutRef.current) {
-      clearTimeout(recommendationsTimeoutRef.current);
-    }
-
-    recommendationsTimeoutRef.current = setTimeout(() => {
-      if (pendingCartItemsRef.current && onUpdateRecommendations) {
-        onUpdateRecommendations(pendingCartItemsRef.current);
-        pendingCartItemsRef.current = null;
-      }
-      recommendationsTimeoutRef.current = null;
-    }, 500);
-  }, [onUpdateRecommendations]);
-
   const addToCart = useCallback(
     (item: Omit<CartItem, "quantity">) => {
       setCart((prevCart) => {
         const existingItem = prevCart.find(
-          (cartItem) => cartItem.id === item.id
+          (cartItem) => cartItem.id === item.id,
         );
         let updatedCart: CartItem[];
 
@@ -457,7 +471,7 @@ export const CartProvider = ({
           updatedCart = prevCart.map((cartItem) =>
             cartItem.id === item.id
               ? { ...cartItem, quantity: cartItem.quantity + 1 }
-              : cartItem
+              : cartItem,
           );
         } else {
           updatedCart = [...prevCart, { ...item, quantity: 1 }];
@@ -483,7 +497,7 @@ export const CartProvider = ({
 
       toast.success(`${item.name} added to cart`);
     },
-    [triggerRecommendationsUpdate]
+    [triggerRecommendationsUpdate],
   );
 
   const removeFromCart = useCallback(
@@ -500,7 +514,7 @@ export const CartProvider = ({
         return updatedCart;
       });
     },
-    [triggerRecommendationsUpdate]
+    [triggerRecommendationsUpdate],
   );
 
   const updateQuantity = useCallback(
@@ -512,7 +526,7 @@ export const CartProvider = ({
 
       setCart((prevCart) => {
         const updatedCart = prevCart.map((item) =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
+          item.id === itemId ? { ...item, quantity: newQuantity } : item,
         );
 
         const cartItemIds = updatedCart.map((item) => item.id);
@@ -522,7 +536,7 @@ export const CartProvider = ({
         return updatedCart;
       });
     },
-    [removeFromCart, triggerRecommendationsUpdate]
+    [removeFromCart, triggerRecommendationsUpdate],
   );
 
   // Create order before payment
@@ -563,7 +577,7 @@ export const CartProvider = ({
       let result;
       try {
         result = JSON.parse(responseText);
-      } catch (parseError) {
+      } catch {
         throw new Error("Invalid response from server");
       }
 
@@ -596,11 +610,11 @@ export const CartProvider = ({
       };
 
       const trackedOrders: Order[] = JSON.parse(
-        localStorage.getItem("tracked_orders") || "[]"
+        localStorage.getItem("tracked_orders") || "[]",
       );
 
       const existingOrderIndex = trackedOrders.findIndex(
-        (order) => order.id === orderObject.id
+        (order) => order.id === orderObject.id,
       );
 
       if (existingOrderIndex !== -1) {
@@ -616,7 +630,7 @@ export const CartProvider = ({
       localStorage.setItem("current_order_id", orderId.toString());
       localStorage.setItem(
         "last_menu_url",
-        `/menu/${vendorId}/${encodeURIComponent(tableNo)}`
+        `/menu/${vendorId}/${encodeURIComponent(tableNo)}`,
       );
 
       return orderObject;

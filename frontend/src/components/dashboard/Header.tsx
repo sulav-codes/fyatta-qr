@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTheme } from "@/components/ThemeProvider";
+import Image from "next/image";
 
 interface OrderPopupNotification {
   id: string | number;
@@ -120,9 +121,11 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     if (logo) {
       return (
         <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 overflow-hidden">
-          <img
+          <Image
             src={logo}
             alt="Logo"
+            width={48}
+            height={48}
             className="w-full h-full object-cover"
             onError={() => {
               setLogo(null);
@@ -214,7 +217,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
         prev.filter((n) => !readNotificationIds.has(n.id)),
       );
     }
-  }, [notifications]);
+  }, [notifications, orderNotifications]);
 
   const handleOrderNotificationClose = useCallback(
     (notificationId: string | number) => {
@@ -331,7 +334,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
                           </p>
                         </div>
                         {!notification.read && (
-                          <span className="h-2 w-2 rounded-full bg-orange-500 flex-shrink-0 mt-1"></span>
+                          <span className="h-2 w-2 rounded-full bg-orange-500 shrink-0 mt-1"></span>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">

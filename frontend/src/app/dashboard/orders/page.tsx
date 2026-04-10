@@ -77,6 +77,73 @@ interface Order {
   resolution_message: string | null;
 }
 
+interface RawOrderItem {
+  id?: number;
+  quantity?: number;
+  name?: string;
+  price?: number;
+}
+
+interface RawOrder {
+  id?: number;
+  invoice_no?: string;
+  status?: string;
+  total_amount?: number;
+  items?: RawOrderItem[];
+  created_at?: string;
+  updated_at?: string;
+  table_identifier?: string;
+  table_name?: string;
+  customer_verified?: boolean;
+  verification_timestamp?: string | null;
+  delivery_issue_reported?: boolean;
+  issue_description?: string | null;
+  issue_report_timestamp?: string | null;
+  issue_resolved?: boolean;
+  issue_resolution_timestamp?: string | null;
+  resolution_message?: string | null;
+  invoiceNo?: string;
+  totalAmount?: number;
+  createdAt?: string;
+  timestamp?: string;
+  tableIdentifier?: string;
+  tableName?: string;
+  customerVerified?: boolean;
+  verificationTimestamp?: string | null;
+  deliveryIssueReported?: boolean;
+  issueDescription?: string | null;
+  issueReportTimestamp?: string | null;
+}
+
+interface OrderCreatedEvent {
+  orderId?: number | string;
+  order_id?: number | string;
+}
+
+interface OrderStatusChangedEvent {
+  orderId?: number;
+  order_id?: number;
+  newStatus?: string;
+  new_status?: string;
+  status?: string;
+}
+
+interface OrderVerifiedEvent {
+  orderId?: number;
+  order_id?: number;
+  verificationTimestamp?: string;
+  verification_timestamp?: string;
+}
+
+interface DeliveryIssueEvent {
+  orderId?: number;
+  order_id?: number;
+  issueDescription?: string;
+  issue_description?: string;
+  issueReportTimestamp?: string;
+  issue_report_timestamp?: string;
+}
+
 // Status styling
 const STATUS_STYLES: Record<
   string,
@@ -179,7 +246,7 @@ export default function OrdersPage() {
   });
   const [socketConnected, setSocketConnected] = useState(false);
 
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
   const socketRef = useRef<Socket | null>(null);
@@ -209,27 +276,62 @@ export default function OrdersPage() {
 
       const data = await response.json();
 
-      const processedOrders = (data.orders || []).map((order: any) => {
-        const itemsText = Array.isArray(order.items)
-          ? order.items
-              .map((item: any) => `${item.quantity}x ${item.name}`)
-              .join(", ")
-          : "No items";
+      const processedOrders: Order[] = ((data.orders as RawOrder[]) || []).map(
+        (order) => {
+          const itemsText = Array.isArray(order.items)
+            ? order.items
+                .map((item) => `${item.quantity ?? 0}x ${item.name ?? "Item"}`)
+                .join(", ")
+            : "No items";
 
-        return {
-          ...order,
-          items_text: itemsText,
-          // Map camelCase to snake_case for consistent access
-          invoice_no: order.invoiceNo,
-          total_amount: order.totalAmount,
-          created_at: order.createdAt || order.timestamp,
-          table_identifier: order.tableIdentifier,
-          table_name: order.tableName,
-          customer_verified: Boolean(order.customerVerified),
-          delivery_issue_reported: Boolean(order.deliveryIssueReported),
-          issue_description: order.issueDescription,
-        };
-      });
+          const normalizedItems: OrderItem[] = Array.isArray(order.items)
+            ? order.items.map((item, index) => ({
+                id: item.id ?? index,
+                name: item.name ?? "Item",
+                quantity: item.quantity ?? 0,
+                price: item.price ?? 0,
+              }))
+            : [];
+
+          return {
+            ...(order as Partial<Order>),
+            id: order.id ?? 0,
+            status: order.status ?? "pending",
+            items: normalizedItems,
+            items_text: itemsText,
+            // Map camelCase to snake_case for consistent access
+            invoice_no: order.invoiceNo || order.invoice_no || "",
+            total_amount: order.totalAmount || order.total_amount || 0,
+            created_at:
+              order.createdAt || order.created_at || order.timestamp || "",
+            updated_at:
+              order.updated_at ||
+              order.timestamp ||
+              order.createdAt ||
+              order.created_at ||
+              new Date().toISOString(),
+            table_identifier:
+              order.tableIdentifier || order.table_identifier || "",
+            table_name: order.tableName || order.table_name,
+            customer_verified: Boolean(
+              order.customerVerified || order.customer_verified,
+            ),
+            verification_timestamp:
+              order.verificationTimestamp || order.verification_timestamp || null,
+            delivery_issue_reported: Boolean(
+              order.deliveryIssueReported || order.delivery_issue_reported,
+            ),
+            issue_description:
+              order.issueDescription || order.issue_description || null,
+            issue_report_timestamp:
+              order.issue_report_timestamp || order.issueReportTimestamp || null,
+            issue_resolved: Boolean(order.issue_resolved),
+            issue_resolution_timestamp:
+              order.issue_resolution_timestamp || null,
+            resolution_message: order.resolution_message || null,
+          };
+        },
+      );
 
       setOrders(processedOrders);
       setError(null);
@@ -271,17 +373,21 @@ export default function OrdersPage() {
     });
 
     // Handle new orders
-    socket.on("order-created", (data: any) => {
+    socket.on("order-created", (data: OrderCreatedEvent) => {
       console.log("[Orders] New order received:", data);
       toast.success(`New order #${data.orderId || data.order_id} received!`);
       fetchOrders();
     });
 
     // Handle order status changes
-    socket.on("order-status-changed", (data: any) => {
+    socket.on("order-status-changed", (data: OrderStatusChangedEvent) => {
       console.log("[Orders] Order status changed:", data);
       const orderId = data.orderId || data.order_id;
       const newStatus = data.newStatus || data.new_status || data.status;
+
+      if (orderId == null || !newStatus) {
+        return;
+      }
 
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
@@ -307,7 +413,7 @@ export default function OrdersPage() {
     });
 
     // Handle customer verification
-    socket.on("order-verified", (data: any) => {
+    socket.on("order-verified", (data: OrderVerifiedEvent) => {
       console.log("[Orders] Order verified by customer:", data);
       const orderId = data.orderId || data.order_id;
 
@@ -329,9 +435,13 @@ export default function OrdersPage() {
     });
 
     // Handle delivery issues
-    socket.on("delivery-issue", (data: any) => {
+    socket.on("delivery-issue", (data: DeliveryIssueEvent) => {
       console.log("[Orders] Delivery issue reported:", data);
       const orderId = data.orderId || data.order_id;
+
+      if (orderId == null) {
+        return;
+      }
 
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
@@ -340,7 +450,7 @@ export default function OrdersPage() {
                 ...order,
                 delivery_issue_reported: true,
                 issue_description:
-                  data.issueDescription || data.issue_description,
+                  data.issueDescription || data.issue_description || null,
                 issue_report_timestamp:
                   data.issueReportTimestamp ||
                   data.issue_report_timestamp ||
@@ -353,7 +463,7 @@ export default function OrdersPage() {
     });
 
     // Handle notifications (general purpose)
-    socket.on("notification", (data: any) => {
+    socket.on("notification", (data: unknown) => {
       console.log("[Orders] Notification received:", data);
       // Notifications are handled by specific event listeners above
       // This listener is kept for any future general notifications
@@ -835,7 +945,7 @@ export default function OrdersPage() {
                         order.issue_description && (
                           <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
                             <div className="flex items-start gap-2 text-red-800 dark:text-red-200">
-                              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                               <div className="text-sm">
                                 <strong>Customer Issue:</strong>{" "}
                                 {order.issue_description}

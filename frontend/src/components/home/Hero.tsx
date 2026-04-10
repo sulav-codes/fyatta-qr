@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { QrCode, CheckCircle2, Zap, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function Hero() {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+  const isVisible = true;
 
   const features = [
     { icon: Zap, text: "Lightning Fast Setup" },
@@ -132,7 +127,7 @@ export default function Hero() {
             <div className="relative">
               {/* Main Card */}
               <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 p-3">
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-700">
+                <div className="aspect-4/3 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                   <Image
                     src="/burger.webp"
                     alt="Restaurant QR Menu Preview"
@@ -147,7 +142,7 @@ export default function Hero() {
               {/* Floating QR Card */}
               <div className="absolute -bottom-6 -left-6 md:left-6 bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 max-w-[280px] z-10">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex-shrink-0">
+                  <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl shrink-0">
                     <QrCode className="h-8 w-8 text-orange-500" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -176,9 +171,9 @@ export default function Hero() {
               </div>
 
               {/* Decorative Elements */}
-              <div className="absolute -top-8 -right-8 w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full blur-2xl opacity-60 animate-pulse"></div>
+              <div className="absolute -top-8 -right-8 w-16 h-16 bg-linear-to-br from-orange-400 to-orange-600 rounded-full blur-2xl opacity-60 animate-pulse"></div>
               <div
-                className="absolute -bottom-8 right-12 w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full blur-2xl opacity-60 animate-pulse"
+                className="absolute -bottom-8 right-12 w-20 h-20 bg-linear-to-br from-green-400 to-green-600 rounded-full blur-2xl opacity-60 animate-pulse"
                 style={{ animationDelay: "1s" }}
               ></div>
             </div>

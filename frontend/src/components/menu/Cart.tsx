@@ -21,6 +21,7 @@ import {
 import { useCart } from "@/context/CartContext";
 import { getApiBaseUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import Image from "next/image";
 
 interface CartProps {
   vendorId: string;
@@ -38,6 +39,7 @@ const getImageUrl = (imagePath?: string | null) => {
 const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const cartContextKey = `${vendorId}:${tableNo}`;
   const {
     cart,
     removeFromCart,
@@ -106,13 +108,13 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
 
       // Display a toast to let the user know we're processing
       toast.loading("Connecting to payment gateway...", {
-        id: "payment-toast",
+        id: `payment-toast-${cartContextKey}`,
       });
 
       const paymentData = await proceedToPayment(pendingOrder.id);
 
       // Dismiss the loading toast
-      toast.dismiss("payment-toast");
+      toast.dismiss(`payment-toast-${cartContextKey}`);
 
       console.log("Payment data received:", paymentData);
 
@@ -146,7 +148,7 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = name;
-        input.value = value;
+        input.value = String(value ?? "");
         form.appendChild(input);
       });
 
@@ -183,10 +185,8 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
             )}
           </Button>
         </SheetTrigger>
-        {/* @ts-ignore - Sheet component types from UI library */}
         <SheetContent className="overflow-y-auto">
           <SheetHeader className="flex flex-row items-center justify-between">
-            {/* @ts-ignore - SheetTitle types from UI library */}
             <SheetTitle>Your Cart</SheetTitle>
           </SheetHeader>
           <div className="mt-8">
@@ -205,9 +205,11 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                     key={item.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-card border border-border"
                   >
-                    <img
+                    <Image
                       src={getImageUrl(item.image)}
                       alt={item.name}
+                      width={48}
+                      height={48}
                       className="w-16 h-16 rounded-md object-cover"
                       onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                         e.currentTarget.src = "/images/default-food-image.svg";
@@ -302,11 +304,11 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           // Clear any invalid orders from localStorage
                           const trackedOrders = JSON.parse(
                             localStorage.getItem("tracked_orders") || "[]",
-                          );
+                          ) as Array<{ id?: number }>;
                           localStorage.setItem(
                             "tracked_orders",
                             JSON.stringify(
-                              trackedOrders.filter((order: any) => order.id),
+                              trackedOrders.filter((order) => order.id),
                             ),
                           );
                         }}
@@ -371,9 +373,9 @@ const Cart: React.FC<CartProps> = ({ vendorId, tableNo }) => {
                           // Clear the rejected order from localStorage
                           const trackedOrders = JSON.parse(
                             localStorage.getItem("tracked_orders") || "[]",
-                          );
+                          ) as Array<{ id?: number }>;
                           const filteredOrders = trackedOrders.filter(
-                            (order: any) =>
+                            (order) =>
                               !pendingOrder.id || order.id !== pendingOrder.id,
                           );
                           localStorage.setItem(
@@ -403,6 +405,7 @@ export const MobileCartButton: React.FC<CartProps> = ({
 }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { cart, cartTotal, pendingOrder } = useCart();
+  const mobileCartContextKey = `${vendorId}:${tableNo}`;
 
   const getButtonText = () => {
     if (!pendingOrder || !pendingOrder.id) {
@@ -433,9 +436,9 @@ export const MobileCartButton: React.FC<CartProps> = ({
   return (
     <>
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {" "}
         <SheetTrigger asChild>
           <Button
+            data-cart-context={mobileCartContextKey}
             className={`fixed bottom-6 right-6 z-50 h-14 px-6 rounded-full shadow-lg text-white ${getButtonColor()}`}
           >
             <ShoppingCart className="h-5 w-5 mr-2" />
@@ -449,10 +452,8 @@ export const MobileCartButton: React.FC<CartProps> = ({
             )}
           </Button>
         </SheetTrigger>
-        {/* @ts-ignore - Sheet component types from UI library */}
         <SheetContent>
           <SheetHeader className="">
-            {/* @ts-ignore - SheetTitle types from UI library */}
             <SheetTitle>Your Cart</SheetTitle>
           </SheetHeader>
           <div className="mt-8">
@@ -471,9 +472,11 @@ export const MobileCartButton: React.FC<CartProps> = ({
                     key={item.id}
                     className="flex items-center gap-4 p-3 rounded-lg bg-card border border-border"
                   >
-                    <img
+                    <Image
                       src={getImageUrl(item.image)}
                       alt={item.name}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 rounded-md object-cover"
                       onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                         e.currentTarget.src = "/images/default-food-image.svg";

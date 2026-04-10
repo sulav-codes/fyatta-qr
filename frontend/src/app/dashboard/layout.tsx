@@ -15,22 +15,17 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && !isLoading && !isLoggedIn) {
+    if (!isLoading && !isLoggedIn) {
       router.push("/login");
     }
-  }, [isLoggedIn, isLoading, router, mounted]);
+  }, [isLoggedIn, isLoading, router]);
 
-  if (!mounted || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>

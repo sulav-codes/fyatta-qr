@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Clock, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
@@ -38,7 +38,21 @@ interface TableStatus {
 
 interface VendorInfo {
   restaurant_name: string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface PublicCategoryItem {
+  id: number;
+  name: string;
+  price: string | number;
+  description?: string;
+  image_url?: string | null;
+  is_available: boolean;
+}
+
+interface PublicMenuCategory {
+  name: string;
+  items: PublicCategoryItem[];
 }
 
 // Main wrapper that provides cart context
@@ -49,7 +63,6 @@ export default function MenuPage() {
 
   // WebSocket refs
   const socketRef = useRef<Socket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [categories, setCategories] = useState<string[]>(["All"]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -61,135 +74,149 @@ export default function MenuPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch menu data
-  const fetchMenuData = async (showRefreshLoader = false) => {
-    try {
-      if (showRefreshLoader) {
-        setIsRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      // Check table availability using qr_code identifier
-      const tableResponse = await fetch(
-        `${getApiBaseUrl()}/api/public-table/${vendor}/${tabel_identifier}/status`
-      );
-
-      if (!tableResponse.ok) {
-        throw new Error("Table not found or inactive");
-      }
-
-      const tableData = await tableResponse.json();
-
-      if (!tableData.is_active) {
-        setError(
-          "This table is currently unavailable. Please contact the restaurant."
-        );
-        return;
-      }
-
-      // Check if table has an active order
-      if (tableData.has_active_order) {
-        // Check if the current user is the one with the active order
-        const currentOrderId = localStorage.getItem("current_order_id");
-        const lastOrderTable = localStorage.getItem("last_order_table");
-        const lastOrderVendor = localStorage.getItem("last_order_vendor");
-
-        // Allow access if this is the same user's order
-        if (
-          currentOrderId === tableData.active_order_id?.toString() ||
-          (lastOrderTable === tabel_identifier && lastOrderVendor === vendor)
-        ) {
-          console.log("User has active order at this table, allowing access");
+  const fetchMenuData = useCallback(
+    async (showRefreshLoader = false) => {
+      try {
+        if (showRefreshLoader) {
+          setIsRefreshing(true);
         } else {
-          // Table is booked by another user
-          setTableStatus({
-            isBooked: true,
-            activeOrderId: tableData.active_order_id,
-          });
-          setError(null); // Clear error since this is not an error, just booked
-          setLoading(false);
+          setLoading(true);
+        }
+        setError(null);
+
+        // Check table availability using qr_code identifier
+        const tableResponse = await fetch(
+          `${getApiBaseUrl()}/api/public-table/${vendor}/${tabel_identifier}/status`,
+        );
+
+        if (!tableResponse.ok) {
+          throw new Error("Table not found or inactive");
+        }
+
+        const tableData = await tableResponse.json();
+
+        if (!tableData.is_active) {
+          setError(
+            "This table is currently unavailable. Please contact the restaurant.",
+          );
           return;
         }
-      } else {
-        // No active order, clear any previous booked status
-        console.log("No active order detected, clearing table booking status");
-        setTableStatus(null);
 
-        // Clear table booking info from localStorage if table is free
-        const lastOrderTable = localStorage.getItem("last_order_table");
-        const lastOrderVendor = localStorage.getItem("last_order_vendor");
-        if (lastOrderTable === tabel_identifier && lastOrderVendor === vendor) {
-          console.log("Clearing localStorage table booking info");
-          localStorage.removeItem("last_order_table");
-          localStorage.removeItem("last_order_vendor");
-          localStorage.removeItem("current_order_id");
+        // Check if table has an active order
+        if (tableData.has_active_order) {
+          // Check if the current user is the one with the active order
+          const currentOrderId = localStorage.getItem("current_order_id");
+          const lastOrderTable = localStorage.getItem("last_order_table");
+          const lastOrderVendor = localStorage.getItem("last_order_vendor");
+
+          // Allow access if this is the same user's order
+          if (
+            currentOrderId === tableData.active_order_id?.toString() ||
+            (lastOrderTable === tabel_identifier && lastOrderVendor === vendor)
+          ) {
+            console.log("User has active order at this table, allowing access");
+          } else {
+            // Table is booked by another user
+            setTableStatus({
+              isBooked: true,
+              activeOrderId: tableData.active_order_id,
+            });
+            setError(null); // Clear error since this is not an error, just booked
+            setLoading(false);
+            return;
+          }
+        } else {
+          // No active order, clear any previous booked status
+          console.log(
+            "No active order detected, clearing table booking status",
+          );
+          setTableStatus(null);
+
+          // Clear table booking info from localStorage if table is free
+          const lastOrderTable = localStorage.getItem("last_order_table");
+          const lastOrderVendor = localStorage.getItem("last_order_vendor");
+          if (
+            lastOrderTable === tabel_identifier &&
+            lastOrderVendor === vendor
+          ) {
+            console.log("Clearing localStorage table booking info");
+            localStorage.removeItem("last_order_table");
+            localStorage.removeItem("last_order_vendor");
+            localStorage.removeItem("current_order_id");
+          }
         }
-      }
 
-      // Store table information
-      setTableInfo({
-        id: tableData.table_id,
-        name: tableData.name,
-        qr_code: tableData.qr_code,
-        is_active: tableData.is_active,
-        has_active_order: tableData.has_active_order,
-        active_order_id: tableData.active_order_id,
-      });
+        // Store table information
+        setTableInfo({
+          id: tableData.table_id,
+          name: tableData.name,
+          qr_code: tableData.qr_code,
+          is_active: tableData.is_active,
+          has_active_order: tableData.has_active_order,
+          active_order_id: tableData.active_order_id,
+        });
 
-      // Store current table and vendor info for future reference
-      localStorage.setItem("last_order_table", String(tabel_identifier));
-      localStorage.setItem("last_order_vendor", String(vendor));
+        // Store current table and vendor info for future reference
+        localStorage.setItem("last_order_table", String(tabel_identifier));
+        localStorage.setItem("last_order_vendor", String(vendor));
 
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/public-menu/${vendor}/`
-      );
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/public-menu/${vendor}/`,
+        );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch menu data");
-      }
+        if (!response.ok) {
+          throw new Error("Failed to fetch menu data");
+        }
 
-      const data = await response.json();
+        const data = await response.json();
 
-      // Set vendor information
-      if (data.vendor_info) {
-        setVendorInfo(data.vendor_info);
-        document.title = `Menu - ${data.vendor_info.restaurant_name}`;
-      }
+        // Set vendor information
+        if (data.vendor_info) {
+          setVendorInfo(data.vendor_info);
+          document.title = `Menu - ${data.vendor_info.restaurant_name}`;
+        }
 
-      // Extract all menu items from categories
-      const allItems: MenuItem[] = [];
-      const categorySet = new Set<string>(["All"]);
+        // Extract all menu items from categories
+        const allItems: MenuItem[] = [];
+        const categorySet = new Set<string>(["All"]);
 
-      data.categories.forEach((category: any) => {
-        category.items.forEach((item: any) => {
-          // Add category to our unique set
-          categorySet.add(category.name);
+        const categoriesData: PublicMenuCategory[] = Array.isArray(
+          data.categories,
+        )
+          ? (data.categories as PublicMenuCategory[])
+          : [];
 
-          // Format the item for our app
-          allItems.push({
-            id: item.id,
-            name: item.name,
-            category: category.name,
-            price: parseFloat(item.price),
-            description: item.description || "",
-            image: item.image_url || null,
-            available: item.is_available,
+        categoriesData.forEach((category) => {
+          category.items.forEach((item) => {
+            // Add category to our unique set
+            categorySet.add(category.name);
+
+            // Format the item for our app
+            allItems.push({
+              id: item.id,
+              name: item.name,
+              category: category.name,
+              price: parseFloat(String(item.price)),
+              description: item.description || "",
+              image: item.image_url || null,
+              available: item.is_available,
+            });
           });
         });
-      });
 
-      setMenuItems(allItems);
-      setCategories(Array.from(categorySet));
-    } catch (err) {
-      console.error("Error fetching menu data:", err);
-      setError("Failed to load menu. Please try again.");
-      toast.error("Failed to load menu. Please try again.");
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+        setMenuItems(allItems);
+        setCategories(Array.from(categorySet));
+      } catch (err) {
+        console.error("Error fetching menu data:", err);
+        setError("Failed to load menu. Please try again.");
+        toast.error("Failed to load menu. Please try again.");
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [tabel_identifier, vendor],
+  );
 
   // WebSocket connection using socket.io-client
   useEffect(() => {
@@ -223,7 +250,7 @@ export default function MenuPage() {
     });
 
     // Listen for table status updates
-    socket.on("table-status-update", (data: any) => {
+    socket.on("table-status-update", (data: unknown) => {
       console.log("MenuPage: Received table-status-update:", data);
       // Refresh menu data to get updated table status
       fetchMenuData(true);
@@ -240,7 +267,7 @@ export default function MenuPage() {
           console.log("Order finished, refreshing table status");
           fetchMenuData(true);
         }
-      }
+      },
     );
 
     return () => {
@@ -252,7 +279,7 @@ export default function MenuPage() {
         socket.disconnect();
       }
     };
-  }, [vendor, tabel_identifier]);
+  }, [vendor, tabel_identifier, fetchMenuData]);
 
   // Fetch menu data when component mounts
   useEffect(() => {
@@ -281,7 +308,7 @@ export default function MenuPage() {
     const handleVisibilityChange = () => {
       if (!document.hidden && tableStatus?.isBooked) {
         console.log(
-          "Page became visible and table is booked, checking availability"
+          "Page became visible and table is booked, checking availability",
         );
         fetchMenuData();
       }
@@ -294,7 +321,7 @@ export default function MenuPage() {
       window.removeEventListener("storage", handleStorageChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [vendor, tabel_identifier]);
+  }, [vendor, tabel_identifier, fetchMenuData, tableStatus?.isBooked]);
 
   // Auto-refresh when table is booked to check if it becomes available
   useEffect(() => {
@@ -313,14 +340,14 @@ export default function MenuPage() {
         clearInterval(refreshInterval);
       }
     };
-  }, [tableStatus?.isBooked]);
+  }, [tableStatus?.isBooked, fetchMenuData]);
 
   // Handle navigation to order tracking
   const handleViewOrderTracking = () => {
     if (tableStatus?.activeOrderId) {
       localStorage.setItem(
         "current_order_id",
-        tableStatus.activeOrderId.toString()
+        tableStatus.activeOrderId.toString(),
       );
       router.push("/order-tracking");
     }

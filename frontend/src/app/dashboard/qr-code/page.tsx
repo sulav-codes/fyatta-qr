@@ -22,13 +22,6 @@ import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { apiFetchWithAuth } from "@/lib/api";
 import toast from "react-hot-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { AlertCircle } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -41,6 +34,13 @@ interface Table {
   isActive: boolean;
 }
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "An unexpected error occurred";
+};
+
 function GenerateQRContent() {
   const [tables, setTables] = useState<Table[]>([]);
   const [newTableName, setNewTableName] = useState("");
@@ -52,15 +52,13 @@ function GenerateQRContent() {
     number | null
   >(null);
   const [error, setError] = useState<string | null>(null);
-  const [showDialog, setShowDialog] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [copyStatus, setCopyStatus] = useState<Record<number, boolean>>({});
 
   const [editingTable, setEditingTable] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [isRenamingTable, setIsRenamingTable] = useState<number | null>(null);
 
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
   const hostUrl =
@@ -68,15 +66,7 @@ function GenerateQRContent() {
       ? `${window.location.protocol}//${window.location.host}`
       : "";
 
-  useEffect(() => {
-    if (vendorId && token) {
-      fetchTables();
-    } else {
-      setIsLoading(false);
-    }
-  }, [vendorId, token]);
-
-  const fetchTables = async () => {
+  const fetchTables = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -95,14 +85,22 @@ function GenerateQRContent() {
 
       const data = await response.json();
       setTables(data.tables || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching tables:", error);
       setError("Failed to load tables. Please try again.");
       toast.error("Could not load your tables");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, vendorId]);
+
+  useEffect(() => {
+    if (vendorId && token) {
+      fetchTables();
+    } else {
+      setIsLoading(false);
+    }
+  }, [vendorId, token, fetchTables]);
 
   const addTable = async () => {
     if (!newTableName.trim()) {
@@ -139,9 +137,9 @@ function GenerateQRContent() {
       setTables([...tables, data.table]);
       setNewTableName("");
       toast.success("Table added successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding table:", error);
-      toast.error(error.message || "Failed to add table");
+      toast.error(getErrorMessage(error) || "Failed to add table");
     } finally {
       setIsAddingTable(false);
     }
@@ -168,9 +166,9 @@ function GenerateQRContent() {
 
       setTables(tables.filter((table) => table.id !== id));
       toast.success("Table deleted successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting table:", error);
-      toast.error(error.message || "Failed to delete table");
+      toast.error(getErrorMessage(error) || "Failed to delete table");
     } finally {
       setIsDeletingTable(null);
     }
@@ -221,9 +219,11 @@ function GenerateQRContent() {
           (data.table?.isActive ?? data.isActive) ? "activated" : "deactivated"
         } successfully`,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error toggling table availability:", error);
-      toast.error(error.message || "Failed to toggle table availability");
+      toast.error(
+        getErrorMessage(error) || "Failed to toggle table availability",
+      );
     } finally {
       setIsTogglingAvailability(null);
     }
@@ -307,9 +307,9 @@ function GenerateQRContent() {
 
       cancelEditing();
       toast.success("Table renamed successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error renaming table:", error);
-      toast.error(error.message || "Failed to rename table");
+      toast.error(getErrorMessage(error) || "Failed to rename table");
     } finally {
       setIsRenamingTable(null);
     }
@@ -343,9 +343,9 @@ function GenerateQRContent() {
       );
 
       toast.success("QR code regenerated");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error regenerating QR code:", error);
-      toast.error(error.message || "Failed to regenerate QR code");
+      toast.error(getErrorMessage(error) || "Failed to regenerate QR code");
     } finally {
       setIsRegeneratingQR(null);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getApiBaseUrl } from "@/lib/api";
@@ -16,7 +16,7 @@ import {
   Moon,
 } from "lucide-react";
 import Link from "next/link";
-import { io, Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -60,28 +60,23 @@ function OrderTrackingContent() {
   const { theme, toggleTheme } = useTheme();
 
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
-  const [orderId, setOrderId] = useState<string | null | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  useEffect(() => {
+  const orderId = useMemo(() => {
     // Priority: URL query -> current_order_id -> latest tracked_orders item
     if (orderIdParam) {
-      setOrderId(orderIdParam);
-      return;
+      return orderIdParam;
     }
 
     if (typeof window === "undefined") {
-      setOrderId(null);
-      return;
+      return null;
     }
 
     const currentOrderId = localStorage.getItem("current_order_id");
     if (currentOrderId) {
-      setOrderId(currentOrderId);
-      return;
+      return currentOrderId;
     }
 
     try {
@@ -91,34 +86,32 @@ function OrderTrackingContent() {
       if (Array.isArray(trackedOrders) && trackedOrders.length > 0) {
         const latestOrder = trackedOrders[0];
         if (latestOrder?.id) {
-          setOrderId(String(latestOrder.id));
-          return;
+          return String(latestOrder.id);
         }
       }
     } catch (error) {
       console.warn("Failed to parse tracked_orders:", error);
     }
 
-    setOrderId(null);
+    return null;
   }, [orderIdParam]);
 
   // Fetch order details
-  const fetchOrderDetails = async () => {
-    if (!orderId) {
-      setLoading(false);
+  const fetchOrderDetails = async (targetOrderId: string) => {
+    if (!targetOrderId) {
       return null;
     }
 
     try {
-      console.log("Fetching order details for:", orderId);
+      setLoading(true);
+      console.log("Fetching order details for:", targetOrderId);
       const response = await fetch(
-        `${getApiBaseUrl()}/api/customer/orders/${orderId}`,
+        `${getApiBaseUrl()}/api/customer/orders/${targetOrderId}`,
       );
 
       if (!response.ok) {
         console.error("Failed to fetch order:", response.status);
         toast.error("Failed to load order details");
-        setLoading(false);
         return null;
       }
 
@@ -126,28 +119,23 @@ function OrderTrackingContent() {
       console.log("Order details received:", data);
       setOrderDetails(data);
       setLastUpdate(new Date());
-      setLoading(false);
       return data;
     } catch (error) {
       console.error("Failed to fetch order details:", error);
       toast.error("Failed to load order details");
-      setLoading(false);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (orderId === undefined) {
-      return;
-    }
-
     if (!orderId) {
-      setLoading(false);
       return;
     }
 
     // Initial fetch
-    fetchOrderDetails().then((data) => {
+    fetchOrderDetails(orderId).then((data) => {
       // Setup WebSocket connection after initial fetch
       const newSocket = io(getApiBaseUrl(), {
         transports: ["websocket"],
@@ -177,7 +165,7 @@ function OrderTrackingContent() {
 
       newSocket.on("order-status-update", (data) => {
         console.log("Received order-status-update:", data);
-        if (data.orderId === parseInt(orderId)) {
+        if (data.orderId === parseInt(orderId, 10)) {
           setOrderDetails((prev) =>
             prev ? { ...prev, status: data.status } : null,
           );
@@ -188,7 +176,7 @@ function OrderTrackingContent() {
 
       newSocket.on("order-status-changed", (data) => {
         console.log("Received order-status-changed:", data);
-        if (data.orderId === parseInt(orderId)) {
+        if (data.orderId === parseInt(orderId, 10)) {
           setOrderDetails((prev) =>
             prev ? { ...prev, status: data.newStatus || data.status } : null,
           );
@@ -196,8 +184,6 @@ function OrderTrackingContent() {
           toast.success(`Order status: ${data.newStatus || data.status}`);
         }
       });
-
-      setSocket(newSocket);
 
       return () => {
         newSocket.disconnect();
@@ -218,7 +204,7 @@ function OrderTrackingContent() {
     return ((currentIndex + 1) / ORDER_STEPS.length) * 100;
   };
 
-  if (loading || orderId === undefined) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-(--orange)" />
@@ -238,7 +224,7 @@ function OrderTrackingContent() {
         <div className="bg-card border rounded-xl shadow-sm p-8 text-center max-w-md">
           <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
           <p className="text-muted-foreground mb-6">
-            We couldn't find the order you're looking for.
+            We couldn&apos;t find the order you&apos;re looking for.
           </p>
           <Link href={fallbackMenuUrl}>
             <Button className="bg-(--orange) hover:bg-(--orange)/90 text-white">
@@ -474,7 +460,11 @@ function OrderTrackingContent() {
         {/* Action Buttons */}
         <div className="space-y-3">
           <Button
-            onClick={fetchOrderDetails}
+            onClick={() => {
+              if (orderId) {
+                void fetchOrderDetails(orderId);
+              }
+            }}
             className="w-full bg-(--orange) hover:bg-(--orange)/90 text-white"
           >
             <RefreshCw className="w-4 h-4 mr-2" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Edit2, Trash2, Search, Plus, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
+import Image from "next/image";
 
 // Types
 interface MenuItem {
@@ -42,12 +43,43 @@ export default function ManageMenu() {
   const [filteredCategories, setFilteredCategories] = useState<MenuCategory[]>(
     [],
   );
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { canCreateDeleteMenuItems, getEffectiveVendorId } = usePermissions();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   const vendorId = getEffectiveVendorId();
+
+  const fetchMenuItems = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (!token) return;
+
+      const response = await apiFetchWithAuth(
+        `/api/vendors/${vendorId}/menu/categories`,
+        token,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch menu items");
+      }
+
+      const data = await response.json();
+      setMenuCategories(data.categories || []);
+      setFilteredCategories(data.categories || []);
+    } catch (error) {
+      console.error("Error fetching menu items:", error);
+      toast.error("Failed to load menu items. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, vendorId]);
 
   // Fetch menu items
   useEffect(() => {
@@ -56,7 +88,7 @@ export default function ManageMenu() {
     } else {
       setIsLoading(false);
     }
-  }, [vendorId, token]);
+  }, [vendorId, token, fetchMenuItems]);
 
   // Filter menu items when search term changes
   useEffect(() => {
@@ -89,37 +121,6 @@ export default function ManageMenu() {
 
     setFilteredCategories(filtered);
   }, [searchTerm, menuCategories]);
-
-  const fetchMenuItems = async () => {
-    setIsLoading(true);
-    try {
-      if (!token) return;
-
-      const response = await apiFetchWithAuth(
-        `/api/vendors/${vendorId}/menu/categories`,
-        token,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch menu items");
-      }
-
-      const data = await response.json();
-      setMenuCategories(data.categories || []);
-      setFilteredCategories(data.categories || []);
-    } catch (error) {
-      console.error("Error fetching menu items:", error);
-      toast.error("Failed to load menu items. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAvailabilityToggle = async (
     itemId: number,
@@ -321,11 +322,15 @@ export default function ManageMenu() {
                             <div className="flex items-center space-x-3">
                               <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
                                 {item.imageUrl ? (
-                                  <img
-                                    src={`${getApiBaseUrl()}${item.imageUrl}`}
-                                    alt={item.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <>
+                                    <Image
+                                      src={`${getApiBaseUrl()}${item.imageUrl}`}
+                                      alt={item.name}
+                                      className="w-full h-full object-cover"
+                                      width={48}
+                                      height={48}
+                                    />
+                                  </>
                                 ) : (
                                   <div className="w-full h-full bg-muted flex items-center justify-center">
                                     <span className="text-muted-foreground text-xs">

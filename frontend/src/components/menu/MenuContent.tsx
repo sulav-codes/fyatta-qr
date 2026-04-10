@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Loader2,
   SortAsc,
-  ShoppingCart,
   ChevronDown,
   Package,
   Clock,
@@ -15,7 +14,6 @@ import {
   UserPlus,
   Heart,
   Phone,
-  Mail,
   MapPin,
   Bell,
 } from "lucide-react";
@@ -57,7 +55,23 @@ interface MenuItemType {
 
 interface VendorInfo {
   restaurant_name: string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface JoinTableInfo {
+  name: string;
+  qr_code?: string;
+  active_order_id: number;
+}
+
+interface MenuApiItem {
+  id: number;
+  name: string;
+  category: string;
+  price: string | number;
+  description?: string;
+  image_url?: string | null;
+  is_available: boolean;
 }
 
 interface TableInfo {
@@ -106,7 +120,9 @@ const MenuContent: React.FC<MenuContentProps> = ({
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [joinTableIdentifier, setJoinTableIdentifier] = useState("");
   const [isJoining, setIsJoining] = useState(false);
-  const [joinTableInfo, setJoinTableInfo] = useState<any>(null);
+  const [joinTableInfo, setJoinTableInfo] = useState<JoinTableInfo | null>(
+    null,
+  );
   const [isCallingWaiter, setIsCallingWaiter] = useState(false);
   const [waiterCallSuccess, setWaiterCallSuccess] = useState(false);
 
@@ -169,55 +185,60 @@ const MenuContent: React.FC<MenuContentProps> = ({
   });
 
   // Backend search function
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSearchQuery("");
-      return;
-    }
-
-    setSearchQuery(query);
-
-    if (query.length < 2) return;
-
-    try {
-      setIsSearching(true);
-
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/menu/${vendor}/search/?query=${encodeURIComponent(
-          query,
-        )}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Search failed");
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setSearchQuery("");
+        return;
       }
 
-      const data = await response.json();
+      setSearchQuery(query);
 
-      const searchResults: MenuItemType[] = data.results.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: parseFloat(item.price),
-        description: item.description || "",
-        image: item.image_url,
-        available: item.is_available,
-        isSearchResult: true,
-      }));
+      if (query.length < 2) return;
 
-      setMenuItems((prevItems) => {
-        // Always include all items, even if unavailable
-        const allIds = new Set(searchResults.map((result) => result.id));
-        const restItems = prevItems.filter((item) => !allIds.has(item.id));
-        return [...searchResults, ...restItems];
-      });
-    } catch (error) {
-      console.error("Error during search:", error);
-      toast.error("Search failed. Please try again.");
-    } finally {
-      setIsSearching(false);
-    }
-  };
+      try {
+        setIsSearching(true);
+
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/menu/${vendor}/search/?query=${encodeURIComponent(
+            query,
+          )}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Search failed");
+        }
+
+        const data = await response.json();
+
+        const searchResults: MenuItemType[] = (
+          Array.isArray(data.results) ? (data.results as MenuApiItem[]) : []
+        ).map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: parseFloat(item.price),
+          description: item.description || "",
+          image: item.image_url,
+          available: item.is_available,
+          isSearchResult: true,
+        }));
+
+        setMenuItems((prevItems) => {
+          // Always include all items, even if unavailable
+          const allIds = new Set(searchResults.map((result) => result.id));
+          const restItems = prevItems.filter((item) => !allIds.has(item.id));
+          return [...searchResults, ...restItems];
+        });
+      } catch (error) {
+        console.error("Error during search:", error);
+        toast.error("Search failed. Please try again.");
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [setMenuItems, vendor],
+  );
 
   // Sorting function
   const handleSort = async (method: string, order: string) => {
@@ -236,7 +257,9 @@ const MenuContent: React.FC<MenuContentProps> = ({
 
       const data = await response.json();
 
-      const sortedItems: MenuItemType[] = data.items.map((item: any) => ({
+      const sortedItems: MenuItemType[] = (
+        Array.isArray(data.items) ? (data.items as MenuApiItem[]) : []
+      ).map((item) => ({
         id: item.id,
         name: item.name,
         category: item.category,
@@ -284,7 +307,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
     return () => {
       clearTimeout(debounceTimer);
     };
-  }, [searchQuery]);
+  }, [searchQuery, handleSearch]);
 
   // Handle category change
   const handleCategoryChange = (category: string) => {
@@ -517,18 +540,18 @@ const MenuContent: React.FC<MenuContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="min-h-screen bg-linear-to-b from-background via-background to-muted/20">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/98 backdrop-blur-xl border-b border-border/40 shadow-lg">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                <div className="h-10 w-10 rounded-full bg-linear-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
                   {vendorInfo?.restaurant_name?.charAt(0) || "R"}
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">
+                  <h1 className="text-xl font-bold bg-linear-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">
                     {vendorInfo?.restaurant_name}
                   </h1>
                   {tableInfo && (
@@ -723,7 +746,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
                 onClick={() => handleCategoryChange(category)}
                 className={`px-6 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 ${
                   selectedCategory === category
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 scale-105"
+                    ? "bg-linear-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 scale-105"
                     : "bg-card border border-border hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-foreground"
                 }`}
               >
@@ -731,7 +754,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
               </button>
             ))}
           </div>
-          <div className="absolute right-0 top-0 bottom-2 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-2 w-12 bg-linear-to-l from-background to-transparent pointer-events-none" />
         </div>
       </div>
 
@@ -780,13 +803,13 @@ const MenuContent: React.FC<MenuContentProps> = ({
       </div>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-br from-muted/50 to-muted border-t border-border mt-12">
+      <footer className="bg-linear-to-br from-muted/50 to-muted border-t border-border mt-12">
         <div className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
             {/* Restaurant Info */}
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                <div className="h-12 w-12 rounded-full bg-linear-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
                   {vendorInfo?.restaurant_name?.charAt(0) || "R"}
                 </div>
                 <div>
@@ -898,7 +921,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
           className={`h-16 w-16 rounded-full shadow-2xl transition-all duration-500 flex items-center justify-center ${
             waiterCallSuccess
               ? "bg-green-600 scale-110"
-              : "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 hover:scale-110"
+              : "bg-linear-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 hover:scale-110"
           } ${isCallingWaiter ? "animate-pulse" : ""}`}
         >
           {waiterCallSuccess ? (
@@ -1032,7 +1055,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
           <DialogHeader>
             <DialogTitle>Join Table</DialogTitle>
             <DialogDescription>
-              Enter the table identifier to join an existing table's order.
+              Enter the table identifier to join an existing table&apos;s order.
               {cart.length > 0 && " You can add your items to their order."}
             </DialogDescription>
           </DialogHeader>
@@ -1075,7 +1098,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <p className="text-sm text-blue-800 dark:text-blue-300">
                   <strong>Join Table</strong> allows you to add items to an
-                  existing table's order. Perfect for joining friends!
+                  existing table&apos;s order. Perfect for joining friends!
                 </p>
               </div>
             </div>
@@ -1101,7 +1124,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
                 <ul className="text-sm text-muted-foreground space-y-1.5 ml-4">
                   <li className="flex items-start gap-2">
                     <span className="text-orange-500 mt-0.5">•</span>
-                    <span>You'll be moved to {joinTableInfo.name}</span>
+                    <span>You&apos;ll be moved to {joinTableInfo.name}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-orange-500 mt-0.5">•</span>

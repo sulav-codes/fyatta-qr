@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   User,
   Mail,
@@ -23,6 +23,7 @@ import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import Image from "next/image";
 
 // Types
 interface FormData {
@@ -53,7 +54,7 @@ function SettingsContent() {
   const [error, setError] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const searchParams = useSearchParams();
   const vendorId = getEffectiveVendorId();
@@ -82,7 +83,7 @@ function SettingsContent() {
     closing_time: "",
   });
 
-  const fetchVendorData = async () => {
+  const fetchVendorData = useCallback(async () => {
     if (!vendorId || !token) {
       setIsLoading(false);
       return;
@@ -136,11 +137,11 @@ function SettingsContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, vendorId]);
 
   useEffect(() => {
     fetchVendorData();
-  }, [user, token]);
+  }, [fetchVendorData]);
 
   useEffect(() => {
     if (
@@ -376,9 +377,11 @@ function SettingsContent() {
             <div className="relative">
               {logoPreview ? (
                 <div className="relative w-32 h-32">
-                  <img
+                  <Image
                     src={logoPreview}
                     alt="Logo preview"
+                    width={48}
+                    height={48}
                     className="w-32 h-32 rounded-lg object-cover border-2 border-border"
                   />
                   <button

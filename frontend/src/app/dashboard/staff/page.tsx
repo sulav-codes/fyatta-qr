@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiFetchWithAuth } from "@/lib/api";
-import { Plus, Edit, Trash2, UserCheck, UserX, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, UserCheck, UserX } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -33,17 +33,11 @@ function StaffManagementContent() {
     phone: "",
   });
 
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
 
-  useEffect(() => {
-    if (vendorId && token) {
-      fetchStaff();
-    }
-  }, [vendorId, token]);
-
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -61,7 +55,13 @@ function StaffManagementContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, vendorId]);
+
+  useEffect(() => {
+    if (vendorId && token) {
+      fetchStaff();
+    }
+  }, [vendorId, token, fetchStaff]);
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +106,13 @@ function StaffManagementContent() {
     if (!selectedStaff) return;
 
     try {
-      const updateData: any = {
+      const updateData: {
+        username: string;
+        email: string;
+        ownerName: string;
+        phone: string;
+        password?: string;
+      } = {
         username: formData.username,
         email: formData.email,
         ownerName: formData.ownerName,
@@ -282,8 +288,8 @@ function StaffManagementContent() {
                     colSpan={7}
                     className="px-6 py-8 text-center text-muted-foreground"
                   >
-                    No staff members yet. Click "Add Staff Member" to get
-                    started.
+                    No staff members yet. Click &quot;Add Staff Member&quot; to
+                    get started.
                   </td>
                 </tr>
               ) : (

@@ -10,6 +10,7 @@ import {
   Linkedin,
 } from "lucide-react";
 
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
@@ -163,7 +164,7 @@ export default function Footer() {
                   href="mailto:support@fyattaqr.com"
                   className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors"
                 >
-                  <Mail className="h-4 w-4 flex-shrink-0" />
+                  <Mail className="h-4 w-4 shrink-0" />
                   <span>support@fyattaqr.com</span>
                 </a>
               </li>
@@ -172,13 +173,13 @@ export default function Footer() {
                   href="tel:+1234567890"
                   className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors"
                 >
-                  <Phone className="h-4 w-4 flex-shrink-0" />
+                  <Phone className="h-4 w-4 shrink-0" />
                   <span>+1 (234) 567-890</span>
                 </a>
               </li>
               <li>
                 <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>
                     123 Business Street
                     <br />
