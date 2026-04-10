@@ -317,14 +317,18 @@ export default function OrdersPage() {
               order.customerVerified || order.customer_verified,
             ),
             verification_timestamp:
-              order.verificationTimestamp || order.verification_timestamp || null,
+              order.verificationTimestamp ||
+              order.verification_timestamp ||
+              null,
             delivery_issue_reported: Boolean(
               order.deliveryIssueReported || order.delivery_issue_reported,
             ),
             issue_description:
               order.issueDescription || order.issue_description || null,
             issue_report_timestamp:
-              order.issue_report_timestamp || order.issueReportTimestamp || null,
+              order.issue_report_timestamp ||
+              order.issueReportTimestamp ||
+              null,
             issue_resolved: Boolean(order.issue_resolved),
             issue_resolution_timestamp:
               order.issue_resolution_timestamp || null,
