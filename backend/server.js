@@ -7,10 +7,32 @@ const multer = require("multer");
 const http = require("http");
 const routes = require("./routes/index");
 const { createSocketServer } = require("./sockets");
+const { apiLimiter } = require("./middlewares/rateLimiter");
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
+
+const resolveTrustProxy = () => {
+  const rawValue = process.env.TRUST_PROXY;
+
+  if (!rawValue) {
+    return process.env.NODE_ENV === "production" ? 1 : false;
+  }
+
+  if (rawValue === "true") {
+    return true;
+  }
+
+  if (rawValue === "false") {
+    return false;
+  }
+
+  const numeric = Number.parseInt(rawValue, 10);
+  return Number.isNaN(numeric) ? rawValue : numeric;
+};
+
+app.set("trust proxy", resolveTrustProxy());
 
 // Socket.IO setup
 const io = createSocketServer(server);
@@ -40,6 +62,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
+
+// Baseline API throttling for public/protected API traffic
+app.use("/api", apiLimiter);
 
 // Routes
 app.use("/", routes);

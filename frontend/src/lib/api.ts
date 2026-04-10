@@ -1,17 +1,37 @@
-/**
- * API Configuration
- * Centralized API base URL configuration
- */
+//API Configuration
+const DEV_API_BASE_URL = "http://localhost:8000";
+
+const getFallbackApiBaseUrl = (): string => {
+  if (typeof window !== "undefined") {
+    return process.env.NODE_ENV === "development"
+      ? DEV_API_BASE_URL
+      : window.location.origin;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return DEV_API_BASE_URL;
+  }
+
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "";
+};
 
 export const getApiBaseUrl = (): string => {
   if (typeof window === "undefined") {
     return (
       process.env.API_BASE_URL_SERVER ||
       process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "http://localhost:8000"
+      getFallbackApiBaseUrl()
     );
   }
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  return process.env.NEXT_PUBLIC_API_BASE_URL || getFallbackApiBaseUrl();
 };
 
 export const getGoogleAuthStartUrl = (): string => {

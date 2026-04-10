@@ -1,9 +1,6 @@
 import { usePermissions } from "@/hooks/usePermissions";
 
-/**
- * Helper to construct API URLs with the effective vendor ID
- * Automatically uses the correct vendor ID based on user role
- */
+// Helper to construct API URLs with the effective vendor ID
 export function useVendorApi() {
   const { getEffectiveVendorId } = usePermissions();
 
