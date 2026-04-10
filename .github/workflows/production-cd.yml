@@ -1,0 +1,97 @@
+name: Production CD
+
+on:
+  workflow_run:
+    workflows:
+      - Production CI
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-cd-main
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend (Render)
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Render deploy hook secret
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Missing secret RENDER_DEPLOY_HOOK_URL. Add it in repository secrets."
+            exit 1
+          fi
+
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 3 -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Write deployment summary
+        run: |
+          {
+            echo "### Backend deployment triggered"
+            echo "- Provider: Render"
+            echo "- Workflow trigger: ${GITHUB_EVENT_NAME}"
+            echo "- Run ID: ${GITHUB_RUN_ID}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Vercel deploy hook secret
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Missing secret VERCEL_DEPLOY_HOOK_URL. Add it in repository secrets."
+            exit 1
+          fi
+
+      - name: Trigger Vercel deployment
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 3 -X POST "$VERCEL_DEPLOY_HOOK_URL"
+
+      - name: Write deployment summary
+        run: |
+          {
+            echo "### Frontend deployment triggered"
+            echo "- Provider: Vercel"
+            echo "- Workflow trigger: ${GITHUB_EVENT_NAME}"
+            echo "- Run ID: ${GITHUB_RUN_ID}"
+          } >> "$GITHUB_STEP_SUMMARY"
