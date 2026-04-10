@@ -8,6 +8,8 @@ const {
   emitVendorNotification,
 } = require("../../sockets/order.socket");
 const { ServiceError } = require("../../utils/serviceError");
+const { validatePayload } = require("../../utils/serviceValidation");
+const orderValidation = require("./order.validation");
 
 const VALID_ORDER_STATUSES = [
   "pending",
@@ -88,7 +90,12 @@ const generateInvoiceNumber = async () => {
 };
 
 const getOrders = async ({ vendorId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    orderValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+
   assertVendorAccess(user, parsedVendorId);
 
   const vendor = await prisma.user.findUnique({
@@ -209,9 +216,16 @@ const resolveOrderItems = async ({ rawItems, vendorId }) => {
 };
 
 const createCustomerOrder = async ({ body }) => {
-  const vendorId = parsePositiveInt(body?.vendor_id, "vendor ID");
-  const tableIdentifier = body?.table_identifier || null;
-  const orderItemsData = Array.isArray(body?.items) ? body.items : [];
+  const validatedBody = validatePayload(
+    orderValidation.createCustomerOrderBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: true } },
+  );
+  const vendorId = parsePositiveInt(validatedBody.vendor_id, "vendor ID");
+  const tableIdentifier = validatedBody.table_identifier || null;
+  const orderItemsData = Array.isArray(validatedBody.items)
+    ? validatedBody.items
+    : [];
 
   if (orderItemsData.length === 0) {
     throw new ServiceError("Vendor ID and order items are required", {
@@ -338,10 +352,18 @@ const createCustomerOrder = async ({ body }) => {
 };
 
 const createOrder = async ({ body, user }) => {
-  const parsedVendorId = parsePositiveInt(body?.vendorId, "vendor ID");
+  const validatedBody = validatePayload(
+    orderValidation.createOrderBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: true } },
+  );
+  const parsedVendorId = parsePositiveInt(validatedBody.vendorId, "vendor ID");
+
   assertVendorAccess(user, parsedVendorId);
 
-  const orderItemsData = Array.isArray(body?.items) ? body.items : [];
+  const orderItemsData = Array.isArray(validatedBody.items)
+    ? validatedBody.items
+    : [];
   if (orderItemsData.length === 0) {
     throw new ServiceError("Vendor ID and order items are required", {
       status: 400,
@@ -358,8 +380,8 @@ const createOrder = async ({ body, user }) => {
   }
 
   let table = null;
-  if (body?.tableId) {
-    const parsedTableId = parsePositiveInt(body.tableId, "table ID");
+  if (validatedBody?.tableId) {
+    const parsedTableId = parsePositiveInt(validatedBody.tableId, "table ID");
 
     table = await prisma.table.findFirst({
       where: {
@@ -398,7 +420,7 @@ const createOrder = async ({ body, user }) => {
       tableId: table ? table.id : null,
       tableIdentifier: table ? table.name : null,
       status: "pending",
-      totalAmount: body?.totalAmount || calculatedTotal,
+      totalAmount: validatedBody?.totalAmount || calculatedTotal,
       invoiceNo,
       paymentStatus: "pending",
       paymentMethod: "cash",
@@ -418,7 +440,7 @@ const createOrder = async ({ body, user }) => {
     ),
   );
 
-  if (!body?.totalAmount) {
+  if (!validatedBody?.totalAmount) {
     await prisma.order.update({
       where: { id: order.id },
       data: { totalAmount: calculatedTotal },
@@ -428,7 +450,7 @@ const createOrder = async ({ body, user }) => {
   emitOrderCreated(parsedVendorId, {
     orderId: order.id,
     status: order.status,
-    totalAmount: body?.totalAmount || calculatedTotal,
+    totalAmount: validatedBody?.totalAmount || calculatedTotal,
     tableIdentifier: table ? table.name : null,
   });
 
@@ -443,7 +465,7 @@ const createOrder = async ({ body, user }) => {
     data: {
       order_id: order.id,
       table_name: table ? table.name : null,
-      total_amount: body?.totalAmount || calculatedTotal,
+      total_amount: validatedBody?.totalAmount || calculatedTotal,
       status: order.status,
     },
   });
@@ -464,8 +486,16 @@ const createOrder = async ({ body, user }) => {
 };
 
 const updateOrderStatus = async ({ orderId, body, user }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
-  const newStatus = body?.status;
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
+  const { status: newStatus } = validatePayload(
+    orderValidation.updateOrderStatusBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -545,7 +575,11 @@ const updateOrderStatus = async ({ orderId, body, user }) => {
 };
 
 const getOrderDetails = async ({ orderId, user }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -618,7 +652,11 @@ const getOrderDetails = async ({ orderId, user }) => {
 };
 
 const getCustomerOrderDetails = async ({ orderId }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -678,7 +716,16 @@ const getCustomerOrderDetails = async ({ orderId }) => {
 };
 
 const updatePaymentStatus = async ({ orderId, body, user }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    orderValidation.updatePaymentStatusBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -695,9 +742,12 @@ const updatePaymentStatus = async ({ orderId, body, user }) => {
   assertVendorAccess(user, order.vendorId);
 
   const updates = {};
-  if (body?.paymentStatus) updates.paymentStatus = body.paymentStatus;
-  if (body?.paymentMethod) updates.paymentMethod = body.paymentMethod;
-  if (body?.transactionId) updates.transactionId = body.transactionId;
+  if (validatedBody?.paymentStatus)
+    updates.paymentStatus = validatedBody.paymentStatus;
+  if (validatedBody?.paymentMethod)
+    updates.paymentMethod = validatedBody.paymentMethod;
+  if (validatedBody?.transactionId)
+    updates.transactionId = validatedBody.transactionId;
 
   const updated = await prisma.order.update({
     where: { id: parsedOrderId },
@@ -714,9 +764,18 @@ const updatePaymentStatus = async ({ orderId, body, user }) => {
 };
 
 const reportDeliveryIssue = async ({ orderId, body }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    orderValidation.reportDeliveryIssueBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: true } },
+  );
   const issueDescription =
-    body?.issueDescription || "Customer reported not receiving order";
+    validatedBody?.issueDescription || "Customer reported not receiving order";
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -766,9 +825,18 @@ const reportDeliveryIssue = async ({ orderId, body }) => {
 };
 
 const resolveDeliveryIssue = async ({ orderId, body, user }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    orderValidation.resolveDeliveryIssueBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: true } },
+  );
   const resolutionMessage =
-    body?.resolutionMessage || "Issue has been resolved";
+    validatedBody?.resolutionMessage || "Issue has been resolved";
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -800,7 +868,11 @@ const resolveDeliveryIssue = async ({ orderId, body, user }) => {
 };
 
 const verifyDelivery = async ({ orderId }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    orderValidation.orderParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },

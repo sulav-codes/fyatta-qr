@@ -13,6 +13,8 @@ const {
   getRefreshTokenExpiryDate,
 } = require("../../utils/tokenUtils");
 const { ServiceError } = require("../../utils/serviceError");
+const { validatePayload } = require("../../utils/serviceValidation");
+const authValidation = require("./auth.validation");
 
 const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
 const GOOGLE_STATE_EXPIRES_IN = process.env.GOOGLE_STATE_EXPIRES_IN || "5m";
@@ -245,6 +247,12 @@ const getVerifiedGoogleClaims = async ({
 };
 
 const register = async ({ body }) => {
+  const validatedBody = validatePayload(
+    authValidation.registerBodySchema,
+    body || {},
+    { part: "body" },
+  );
+
   const {
     username,
     email,
@@ -256,7 +264,7 @@ const register = async ({ body }) => {
     description,
     openingTime,
     closingTime,
-  } = body || {};
+  } = validatedBody;
 
   const requiredFields = [
     "username",
@@ -316,7 +324,11 @@ const register = async ({ body }) => {
 };
 
 const login = async ({ body }) => {
-  const { email, password } = body || {};
+  const { email, password } = validatePayload(
+    authValidation.loginBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   if (!email || !password) {
     throw new ServiceError("Email and password are required", { status: 400 });
@@ -387,8 +399,14 @@ const googleStart = async () => {
 };
 
 const googleCallback = async ({ query }) => {
+  const validatedQuery = validatePayload(
+    authValidation.googleCallbackQuerySchema,
+    query || {},
+    { part: "query", prefs: { allowUnknown: true, stripUnknown: false } },
+  );
+
   const { clientId, clientSecret, redirectUri } = getGoogleConfig();
-  const { code, state, error } = query || {};
+  const { code, state, error } = validatedQuery;
 
   if (error) {
     throw new ServiceError("Google auth provider returned an error", {
@@ -463,6 +481,14 @@ const googleCallback = async ({ query }) => {
 };
 
 const refreshSession = async ({ incomingRefreshToken }) => {
+  if (incomingRefreshToken !== null && incomingRefreshToken !== undefined) {
+    ({ incomingRefreshToken } = validatePayload(
+      authValidation.refreshTokenSchema,
+      { incomingRefreshToken },
+      { part: "headers" },
+    ));
+  }
+
   if (!incomingRefreshToken) {
     throw new ServiceError("Refresh token is missing", {
       status: 401,
@@ -565,6 +591,12 @@ const refreshSession = async ({ incomingRefreshToken }) => {
 
 const logout = async ({ incomingRefreshToken }) => {
   if (incomingRefreshToken) {
+    ({ incomingRefreshToken } = validatePayload(
+      authValidation.optionalRefreshTokenSchema,
+      { incomingRefreshToken },
+      { part: "headers" },
+    ));
+
     const incomingHash = hashToken(incomingRefreshToken);
     await prisma.refreshToken.updateMany({
       where: {
@@ -583,6 +615,12 @@ const logout = async ({ incomingRefreshToken }) => {
 };
 
 const getProfile = async ({ userId }) => {
+  ({ userId } = validatePayload(
+    authValidation.profileInputSchema,
+    { userId },
+    { part: "params" },
+  ));
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {

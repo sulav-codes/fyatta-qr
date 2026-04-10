@@ -36,12 +36,31 @@ const formatErrorDetails = (details = [], part) => {
   }));
 };
 
-const validate = (schemas, customPrefs = {}) => {
-  return (req, res, next) => {
-    const validationDetails = [];
-    const requestParts = ["params", "query", "body", "headers"];
+const REQUEST_PARTS = ["params", "query", "body", "headers"];
 
-    for (const part of requestParts) {
+const isJoiSchema = (schema) => {
+  return Boolean(
+    schema &&
+    typeof schema === "object" &&
+    typeof schema.validate === "function" &&
+    typeof schema.describe === "function",
+  );
+};
+
+const normalizeSchemasInput = (schemaOrSchemas) => {
+  if (isJoiSchema(schemaOrSchemas)) {
+    return { body: schemaOrSchemas };
+  }
+
+  return schemaOrSchemas || {};
+};
+
+const validate = (schemaOrSchemas, customPrefs = {}) => {
+  return (req, res, next) => {
+    const schemas = normalizeSchemasInput(schemaOrSchemas);
+    const validationDetails = [];
+
+    for (const part of REQUEST_PARTS) {
       const schema = schemas?.[part];
       if (!schema) {
         continue;

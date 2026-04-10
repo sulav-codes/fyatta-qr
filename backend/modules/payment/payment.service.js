@@ -6,6 +6,8 @@ const {
   emitVendorNotification,
 } = require("../../sockets/order.socket");
 const { ServiceError } = require("../../utils/serviceError");
+const { validatePayload } = require("../../utils/serviceValidation");
+const paymentValidation = require("./payment.validation");
 
 const ESEWA_CONFIG = {
   SECRET_KEY: "8gBm/:&EnhH.1/q",
@@ -68,23 +70,12 @@ const buildTransactionUuid = (orderId) => {
   return `INV-${orderId}-${ts}-${rand}`;
 };
 
-const parsePositiveInt = (value, fieldName) => {
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed) || parsed < 1) {
-    throw new ServiceError(`${fieldName} must be a valid number`, {
-      status: 400,
-    });
-  }
-
-  return parsed;
-};
-
 const initiateEsewaPayment = async ({ orderId }) => {
-  if (!orderId) {
-    throw new ServiceError("Order ID is required", { status: 400 });
-  }
-
-  const parsedOrderId = parsePositiveInt(orderId, "Order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    paymentValidation.initiateEsewaPaymentBodySchema,
+    { orderId },
+    { part: "body" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },
@@ -151,6 +142,12 @@ const initiateEsewaPayment = async ({ orderId }) => {
 };
 
 const verifyEsewaPayment = async ({ dataParam }) => {
+  ({ dataParam } = validatePayload(
+    paymentValidation.verifyEsewaPaymentQuerySchema,
+    { dataParam },
+    { part: "query", prefs: { allowUnknown: true, stripUnknown: false } },
+  ));
+
   if (!dataParam) {
     return buildClientRedirect("status=failed&reason=missing-data");
   }
@@ -268,7 +265,11 @@ const verifyEsewaPayment = async ({ dataParam }) => {
 };
 
 const getPaymentStatus = async ({ orderId }) => {
-  const parsedOrderId = parsePositiveInt(orderId, "Order ID");
+  const { orderId: parsedOrderId } = validatePayload(
+    paymentValidation.paymentStatusParamsSchema,
+    { orderId },
+    { part: "params" },
+  );
 
   const order = await prisma.order.findUnique({
     where: { id: parsedOrderId },

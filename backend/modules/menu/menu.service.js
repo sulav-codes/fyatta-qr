@@ -1,6 +1,8 @@
 const prisma = require("../../config/prisma");
 const { canAccessVendor } = require("../../utils/helpers");
 const { ServiceError } = require("../../utils/serviceError");
+const { validatePayload } = require("../../utils/serviceValidation");
+const menuValidation = require("./menu.validation");
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
@@ -9,15 +11,6 @@ const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   );
   return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
 })();
-
-const parsePositiveInt = (value, fieldName) => {
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed) || parsed < 1) {
-    throw new ServiceError(`Invalid ${fieldName}`, { status: 400 });
-  }
-
-  return parsed;
-};
 
 const assertVendorAccess = (user, vendorId) => {
   if (!canAccessVendor(user, vendorId)) {
@@ -122,14 +115,24 @@ const mapImagesToItemIndexes = ({ files, imageIndexesRaw, itemsLength }) => {
 };
 
 const createMenuItems = async ({ vendorId, user, body, files }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    menuValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    menuValidation.createMenuItemsBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: true } },
+  );
+
   assertVendorAccess(user, parsedVendorId);
   await assertVendorExists(parsedVendorId);
 
-  const itemsData = parseMenuItemsInput(body?.menuItems);
+  const itemsData = parseMenuItemsInput(validatedBody.menuItems);
   const imageByItemIndex = mapImagesToItemIndexes({
     files,
-    imageIndexesRaw: body?.imageIndexes,
+    imageIndexesRaw: validatedBody.imageIndexes,
     itemsLength: itemsData.length,
   });
 
@@ -213,7 +216,12 @@ const createMenuItems = async ({ vendorId, user, body, files }) => {
 };
 
 const getMenuItems = async ({ vendorId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    menuValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+
   assertVendorAccess(user, parsedVendorId);
   await assertVendorExists(parsedVendorId);
 
@@ -231,7 +239,12 @@ const getMenuItems = async ({ vendorId, user }) => {
 };
 
 const getMenuItemsByCategory = async ({ vendorId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    menuValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+
   assertVendorAccess(user, parsedVendorId);
 
   const items = await prisma.menuItem.findMany({
@@ -271,8 +284,11 @@ const getMenuItemsByCategory = async ({ vendorId, user }) => {
 };
 
 const getMenuItem = async ({ vendorId, itemId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedItemId = parsePositiveInt(itemId, "item ID");
+  const { vendorId: parsedVendorId, itemId: parsedItemId } = validatePayload(
+    menuValidation.vendorItemParamsSchema,
+    { vendorId, itemId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -296,8 +312,16 @@ const getMenuItem = async ({ vendorId, itemId, user }) => {
 };
 
 const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedItemId = parsePositiveInt(itemId, "item ID");
+  const { vendorId: parsedVendorId, itemId: parsedItemId } = validatePayload(
+    menuValidation.vendorItemParamsSchema,
+    { vendorId, itemId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    menuValidation.updateMenuItemBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -312,19 +336,21 @@ const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
 
   const updates = {};
 
-  if (body?.name) updates.name = body.name.trim();
-  if (body?.price) updates.price = parseFloat(body.price);
-  if (body?.category) updates.category = body.category.trim();
+  if (validatedBody?.name) updates.name = validatedBody.name.trim();
+  if (validatedBody?.price) updates.price = parseFloat(validatedBody.price);
+  if (validatedBody?.category) updates.category = validatedBody.category.trim();
 
-  if (body?.description !== undefined) {
-    updates.description = body.description ? body.description.trim() : "";
+  if (validatedBody?.description !== undefined) {
+    updates.description = validatedBody.description
+      ? validatedBody.description.trim()
+      : "";
   }
 
-  if (body?.isAvailable !== undefined) {
+  if (validatedBody?.isAvailable !== undefined) {
     updates.isAvailable =
-      body.isAvailable === true ||
-      body.isAvailable === "true" ||
-      body.isAvailable === 1;
+      validatedBody.isAvailable === true ||
+      validatedBody.isAvailable === "true" ||
+      validatedBody.isAvailable === 1;
   }
 
   if (file) {
@@ -351,8 +377,11 @@ const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
 };
 
 const deleteMenuItem = async ({ vendorId, itemId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedItemId = parsePositiveInt(itemId, "item ID");
+  const { vendorId: parsedVendorId, itemId: parsedItemId } = validatePayload(
+    menuValidation.vendorItemParamsSchema,
+    { vendorId, itemId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -373,7 +402,11 @@ const deleteMenuItem = async ({ vendorId, itemId, user }) => {
 };
 
 const getPublicMenu = async ({ vendorId }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    menuValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
 
   const vendor = await prisma.user.findUnique({
     where: { id: parsedVendorId },
@@ -444,8 +477,11 @@ const getPublicMenu = async ({ vendorId }) => {
 };
 
 const toggleAvailability = async ({ vendorId, itemId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedItemId = parsePositiveInt(itemId, "item ID");
+  const { vendorId: parsedVendorId, itemId: parsedItemId } = validatePayload(
+    menuValidation.vendorItemParamsSchema,
+    { vendorId, itemId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 

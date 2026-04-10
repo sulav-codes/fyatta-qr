@@ -5,14 +5,8 @@ const {
   canAccessVendor,
 } = require("../../utils/helpers");
 const { ServiceError } = require("../../utils/serviceError");
-
-const parsePositiveInt = (value, fieldName) => {
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed) || parsed < 1) {
-    throw new ServiceError(`Invalid ${fieldName}`, { status: 400 });
-  }
-  return parsed;
-};
+const { validatePayload } = require("../../utils/serviceValidation");
+const staffValidation = require("./staff.validation");
 
 const assertVendorAccess = (user, vendorId, message = "Access denied.") => {
   if (!canAccessVendor(user, vendorId)) {
@@ -21,7 +15,11 @@ const assertVendorAccess = (user, vendorId, message = "Access denied.") => {
 };
 
 const getStaff = async ({ vendorId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    staffValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
@@ -58,8 +56,11 @@ const getStaff = async ({ vendorId, user }) => {
 };
 
 const getStaffMember = async ({ vendorId, staffId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedStaffId = parsePositiveInt(staffId, "staff ID");
+  const { vendorId: parsedVendorId, staffId: parsedStaffId } = validatePayload(
+    staffValidation.vendorStaffParamsSchema,
+    { vendorId, staffId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -94,8 +95,16 @@ const getStaffMember = async ({ vendorId, staffId, user }) => {
 };
 
 const createStaff = async ({ vendorId, user, body }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const { username, email, password, ownerName, phone } = body || {};
+  const { vendorId: parsedVendorId } = validatePayload(
+    staffValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const { username, email, password, ownerName, phone } = validatePayload(
+    staffValidation.createStaffBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   assertVendorAccess(
     user,
@@ -173,8 +182,14 @@ const createStaff = async ({ vendorId, user, body }) => {
 };
 
 const updateStaff = async ({ vendorId, staffId, user, body }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedStaffId = parsePositiveInt(staffId, "staff ID");
+  const { vendorId: parsedVendorId, staffId: parsedStaffId } = validatePayload(
+    staffValidation.vendorStaffParamsSchema,
+    { vendorId, staffId },
+    { part: "params" },
+  );
+  body = validatePayload(staffValidation.updateStaffBodySchema, body || {}, {
+    part: "body",
+  });
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -247,8 +262,11 @@ const updateStaff = async ({ vendorId, staffId, user, body }) => {
 };
 
 const deleteStaff = async ({ vendorId, staffId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedStaffId = parsePositiveInt(staffId, "staff ID");
+  const { vendorId: parsedVendorId, staffId: parsedStaffId } = validatePayload(
+    staffValidation.vendorStaffParamsSchema,
+    { vendorId, staffId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -276,8 +294,11 @@ const deleteStaff = async ({ vendorId, staffId, user }) => {
 };
 
 const toggleStaffStatus = async ({ vendorId, staffId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedStaffId = parsePositiveInt(staffId, "staff ID");
+  const { vendorId: parsedVendorId, staffId: parsedStaffId } = validatePayload(
+    staffValidation.vendorStaffParamsSchema,
+    { vendorId, staffId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 

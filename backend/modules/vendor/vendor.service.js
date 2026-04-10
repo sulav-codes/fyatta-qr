@@ -1,15 +1,8 @@
 const prisma = require("../../config/prisma");
 const { canAccessVendor } = require("../../utils/helpers");
 const { ServiceError } = require("../../utils/serviceError");
-
-const parseVendorId = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed) || parsed < 1) {
-    throw new ServiceError("Invalid vendor ID", { status: 400 });
-  }
-
-  return parsed;
-};
+const { validatePayload } = require("../../utils/serviceValidation");
+const vendorValidation = require("./vendor.validation");
 
 const parseLimit = (value, fallback = 10, max = 100) => {
   const parsed = Number.parseInt(String(value ?? fallback), 10);
@@ -27,7 +20,11 @@ const assertVendorAccess = (user, vendorId, message = "Unauthorized") => {
 };
 
 const getProfile = async ({ vendorId, user }) => {
-  const parsedVendorId = parseVendorId(vendorId);
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
@@ -59,7 +56,16 @@ const getProfile = async ({ vendorId, user }) => {
 };
 
 const updateProfile = async ({ vendorId, user, body, file }) => {
-  const parsedVendorId = parseVendorId(vendorId);
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    vendorValidation.updateProfileBodySchema,
+    body || {},
+    { part: "body", prefs: { allowUnknown: false } },
+  );
 
   assertVendorAccess(
     user,
@@ -76,10 +82,13 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
     throw new ServiceError("Vendor not found", { status: 404 });
   }
 
-  const restaurantNameInput = body?.restaurantName ?? body?.restaurant_name;
-  const ownerNameInput = body?.ownerName ?? body?.owner_name;
-  const openingTimeInput = body?.openingTime ?? body?.opening_time;
-  const closingTimeInput = body?.closingTime ?? body?.closing_time;
+  const restaurantNameInput =
+    validatedBody?.restaurantName ?? validatedBody?.restaurant_name;
+  const ownerNameInput = validatedBody?.ownerName ?? validatedBody?.owner_name;
+  const openingTimeInput =
+    validatedBody?.openingTime ?? validatedBody?.opening_time;
+  const closingTimeInput =
+    validatedBody?.closingTime ?? validatedBody?.closing_time;
 
   const updates = {};
 
@@ -91,16 +100,18 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
     updates.ownerName = ownerNameInput ? ownerNameInput.trim() : null;
   }
 
-  if (body?.phone !== undefined) {
-    updates.phone = body.phone ? body.phone.trim() : null;
+  if (validatedBody?.phone !== undefined) {
+    updates.phone = validatedBody.phone ? validatedBody.phone.trim() : null;
   }
 
-  if (body?.location) {
-    updates.location = body.location.trim();
+  if (validatedBody?.location) {
+    updates.location = validatedBody.location.trim();
   }
 
-  if (body?.description !== undefined) {
-    updates.description = body.description ? body.description.trim() : null;
+  if (validatedBody?.description !== undefined) {
+    updates.description = validatedBody.description
+      ? validatedBody.description.trim()
+      : null;
   }
 
   if (openingTimeInput !== undefined) {
@@ -111,10 +122,10 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
     updates.closingTime = closingTimeInput || null;
   }
 
-  if (body?.email) {
+  if (validatedBody?.email) {
     const existingUser = await prisma.user.findFirst({
       where: {
-        email: body.email,
+        email: validatedBody.email,
         NOT: {
           id: parsedVendorId,
         },
@@ -131,7 +142,7 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
       );
     }
 
-    updates.email = body.email.trim();
+    updates.email = validatedBody.email.trim();
   }
 
   if (file) {
@@ -156,7 +167,11 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
 };
 
 const getDashboardStats = async ({ vendorId, user }) => {
-  const parsedVendorId = parseVendorId(vendorId);
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -221,8 +236,17 @@ const getDashboardStats = async ({ vendorId, user }) => {
 };
 
 const getSalesReport = async ({ vendorId, user, query }) => {
-  const parsedVendorId = parseVendorId(vendorId);
-  const timeframe = query?.timeframe || "week";
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedQuery = validatePayload(
+    vendorValidation.salesReportQuerySchema,
+    query || {},
+    { part: "query", prefs: { allowUnknown: true } },
+  );
+  const timeframe = validatedQuery?.timeframe || "week";
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -298,8 +322,17 @@ const getSalesReport = async ({ vendorId, user, query }) => {
 };
 
 const getPopularItems = async ({ vendorId, user, query }) => {
-  const parsedVendorId = parseVendorId(vendorId);
-  const limit = parseLimit(query?.limit);
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedQuery = validatePayload(
+    vendorValidation.paginationQuerySchema,
+    query || {},
+    { part: "query", prefs: { allowUnknown: true } },
+  );
+  const limit = parseLimit(validatedQuery?.limit);
 
   assertVendorAccess(user, parsedVendorId);
 
@@ -369,8 +402,17 @@ const getPopularItems = async ({ vendorId, user, query }) => {
 };
 
 const getRecentOrders = async ({ vendorId, user, query }) => {
-  const parsedVendorId = parseVendorId(vendorId);
-  const limit = parseLimit(query?.limit);
+  const { vendorId: parsedVendorId } = validatePayload(
+    vendorValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedQuery = validatePayload(
+    vendorValidation.paginationQuerySchema,
+    query || {},
+    { part: "query", prefs: { allowUnknown: true } },
+  );
+  const limit = parseLimit(validatedQuery?.limit);
 
   assertVendorAccess(user, parsedVendorId);
 

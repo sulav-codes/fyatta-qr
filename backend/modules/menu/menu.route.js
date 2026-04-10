@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { authenticate } = require("../../middlewares/auth.middleware");
+const { validate } = require("../../middlewares/validate.middleware");
 const menuController = require("./menu.controller");
+const menuValidation = require("./menu.validation");
 const upload = require("../../middlewares/multerConfig");
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
@@ -13,23 +15,33 @@ const MAX_MENU_ITEMS_PER_REQUEST = (() => {
 })();
 
 // Public route - no auth required
-router.get("/public-menu/:vendorId/", menuController.getPublicMenu);
+router.get(
+  "/public-menu/:vendorId/",
+  validate({ params: menuValidation.vendorParamsSchema }),
+  menuController.getPublicMenu,
+);
 
 // Menu items routes for a vendor
 router.post(
   "/vendors/:vendorId/menu",
   authenticate,
   upload.array("images", MAX_MENU_ITEMS_PER_REQUEST),
+  validate({
+    params: menuValidation.vendorParamsSchema,
+    body: menuValidation.createMenuItemsBodySchema,
+  }),
   menuController.createMenuItems,
 );
 router.get(
   "/vendors/:vendorId/menu",
   authenticate,
+  validate({ params: menuValidation.vendorParamsSchema }),
   menuController.getMenuItems,
 );
 router.get(
   "/vendors/:vendorId/menu/categories",
   authenticate,
+  validate({ params: menuValidation.vendorParamsSchema }),
   menuController.getMenuItemsByCategory,
 );
 
@@ -37,22 +49,29 @@ router.get(
 router.get(
   "/vendors/:vendorId/menu/:itemId",
   authenticate,
+  validate({ params: menuValidation.vendorItemParamsSchema }),
   menuController.getMenuItem,
 );
 router.put(
   "/vendors/:vendorId/menu/:itemId",
   authenticate,
   upload.single("image"),
+  validate({
+    params: menuValidation.vendorItemParamsSchema,
+    body: menuValidation.updateMenuItemBodySchema,
+  }),
   menuController.updateMenuItem,
 );
 router.delete(
   "/vendors/:vendorId/menu/:itemId",
   authenticate,
+  validate({ params: menuValidation.vendorItemParamsSchema }),
   menuController.deleteMenuItem,
 );
 router.patch(
   "/vendors/:vendorId/menu/:itemId/toggle",
   authenticate,
+  validate({ params: menuValidation.vendorItemParamsSchema }),
   menuController.toggleAvailability,
 );
 

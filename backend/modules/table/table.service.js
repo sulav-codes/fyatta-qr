@@ -2,14 +2,8 @@ const { v4: uuidv4 } = require("uuid");
 const prisma = require("../../config/prisma");
 const { canAccessVendor } = require("../../utils/helpers");
 const { ServiceError } = require("../../utils/serviceError");
-
-const parsePositiveInt = (value, fieldName) => {
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed) || parsed < 1) {
-    throw new ServiceError(`Invalid ${fieldName}`, { status: 400 });
-  }
-  return parsed;
-};
+const { validatePayload } = require("../../utils/serviceValidation");
+const tableValidation = require("./table.validation");
 
 const assertVendorAccess = (user, vendorId, message) => {
   if (!canAccessVendor(user, vendorId)) {
@@ -41,7 +35,11 @@ const parseBoolean = (value) => {
 };
 
 const getTables = async ({ vendorId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    tableValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
@@ -66,7 +64,16 @@ const getTables = async ({ vendorId, user }) => {
 };
 
 const createTable = async ({ vendorId, user, body }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId } = validatePayload(
+    tableValidation.vendorParamsSchema,
+    { vendorId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    tableValidation.createTableBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   assertVendorAccess(
     user,
@@ -74,7 +81,7 @@ const createTable = async ({ vendorId, user, body }) => {
     "You do not have permission to perform this action",
   );
 
-  const name = body?.name?.trim();
+  const name = validatedBody.name.trim();
   if (!name) {
     throw new ServiceError("Table name is required", { status: 400 });
   }
@@ -114,8 +121,16 @@ const createTable = async ({ vendorId, user, body }) => {
 };
 
 const updateTable = async ({ vendorId, tableId, user, body }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedTableId = parsePositiveInt(tableId, "table ID");
+  const { vendorId: parsedVendorId, tableId: parsedTableId } = validatePayload(
+    tableValidation.vendorTableParamsSchema,
+    { vendorId, tableId },
+    { part: "params" },
+  );
+  const validatedBody = validatePayload(
+    tableValidation.updateTableBodySchema,
+    body || {},
+    { part: "body" },
+  );
 
   assertVendorAccess(
     user,
@@ -136,8 +151,8 @@ const updateTable = async ({ vendorId, tableId, user, body }) => {
 
   const updates = {};
 
-  if (body?.name !== undefined) {
-    const nextName = String(body.name || "").trim();
+  if (validatedBody?.name !== undefined) {
+    const nextName = String(validatedBody.name || "").trim();
     if (!nextName) {
       throw new ServiceError("Table name is required", { status: 400 });
     }
@@ -161,8 +176,8 @@ const updateTable = async ({ vendorId, tableId, user, body }) => {
     updates.name = nextName;
   }
 
-  if (body?.isActive !== undefined) {
-    updates.isActive = parseBoolean(body.isActive);
+  if (validatedBody?.isActive !== undefined) {
+    updates.isActive = parseBoolean(validatedBody.isActive);
   }
 
   const updatedTable = await prisma.table.update({
@@ -182,8 +197,11 @@ const updateTable = async ({ vendorId, tableId, user, body }) => {
 };
 
 const deleteTable = async ({ vendorId, tableId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedTableId = parsePositiveInt(tableId, "table ID");
+  const { vendorId: parsedVendorId, tableId: parsedTableId } = validatePayload(
+    tableValidation.vendorTableParamsSchema,
+    { vendorId, tableId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
@@ -213,8 +231,11 @@ const deleteTable = async ({ vendorId, tableId, user }) => {
 };
 
 const regenerateQRCode = async ({ vendorId, tableId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedTableId = parsePositiveInt(tableId, "table ID");
+  const { vendorId: parsedVendorId, tableId: parsedTableId } = validatePayload(
+    tableValidation.vendorTableParamsSchema,
+    { vendorId, tableId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
@@ -250,11 +271,16 @@ const regenerateQRCode = async ({ vendorId, tableId, user }) => {
 };
 
 const getTableStatus = async ({ vendorId, tableIdentifier }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
+  const { vendorId: parsedVendorId, tableIdentifier: parsedTableIdentifier } =
+    validatePayload(
+      tableValidation.tableStatusParamsSchema,
+      { vendorId, tableIdentifier },
+      { part: "params" },
+    );
 
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      String(tableIdentifier || ""),
+      String(parsedTableIdentifier || ""),
     );
 
   if (!isUuid) {
@@ -264,7 +290,7 @@ const getTableStatus = async ({ vendorId, tableIdentifier }) => {
   const table = await prisma.table.findFirst({
     where: {
       vendorId: parsedVendorId,
-      qrCode: tableIdentifier,
+      qrCode: parsedTableIdentifier,
     },
   });
 
@@ -294,8 +320,11 @@ const getTableStatus = async ({ vendorId, tableIdentifier }) => {
 };
 
 const getTableDetails = async ({ vendorId, tableId, user }) => {
-  const parsedVendorId = parsePositiveInt(vendorId, "vendor ID");
-  const parsedTableId = parsePositiveInt(tableId, "table ID");
+  const { vendorId: parsedVendorId, tableId: parsedTableId } = validatePayload(
+    tableValidation.vendorTableParamsSchema,
+    { vendorId, tableId },
+    { part: "params" },
+  );
 
   assertVendorAccess(
     user,
