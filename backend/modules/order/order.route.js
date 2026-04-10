@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { authenticate } = require("../../middlewares/auth.middleware");
 const { validate } = require("../../middlewares/validate.middleware");
+const { publicWriteLimiter } = require("../../middlewares/rateLimiter");
 const orderController = require("./order.controller");
 const orderValidation = require("./order.validation");
 
@@ -16,6 +17,7 @@ router.get(
 // Public customer order creation endpoint - no authentication required
 router.post(
   "/customer/orders",
+  publicWriteLimiter,
   validate({ body: orderValidation.createCustomerOrderBodySchema }),
   orderController.createCustomerOrder,
 );
@@ -70,6 +72,7 @@ router.post(
 // Public/semi-public routes for customers
 router.post(
   "/orders/:orderId/report-issue",
+  publicWriteLimiter,
   validate({
     params: orderValidation.orderParamsSchema,
     body: orderValidation.reportDeliveryIssueBodySchema,
@@ -78,6 +81,7 @@ router.post(
 );
 router.post(
   "/orders/:orderId/verify",
+  publicWriteLimiter,
   validate({ params: orderValidation.orderParamsSchema }),
   orderController.verifyDelivery,
 );

@@ -597,7 +597,7 @@ function GenerateQRContent() {
                   size="sm"
                   onClick={() => deleteTable(table.id)}
                   disabled={isDeletingTable === table.id}
-                  className="w-full bg-red-600 hover:bg-red-700"
+                  className="w-full bg-red-700 hover:bg-red-800"
                 >
                   {isDeletingTable === table.id ? (
                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
