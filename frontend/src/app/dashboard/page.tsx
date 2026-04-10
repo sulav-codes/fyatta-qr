@@ -182,8 +182,8 @@ export default function Dashboard() {
             : []
           ).map((day) => ({
             date: day.date,
-            revenue: parseFloat(day.revenue || 0),
-            orders: parseInt(day.orderCount || 0),
+            revenue: Number(day.revenue ?? 0),
+            orders: Number(day.orderCount ?? 0),
           })),
         };
         setSalesData(transformedData);
