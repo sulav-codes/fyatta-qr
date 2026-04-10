@@ -1,538 +1,139 @@
-const prisma = require("../../config/prisma");
-const { canAccessVendor } = require("../../utils/helpers");
+const menuService = require("./menu.service");
+const { sendControllerError } = require("../../utils/controllerError");
 
-const MAX_MENU_ITEMS_PER_REQUEST = (() => {
-  const parsed = Number.parseInt(
-    process.env.MAX_MENU_ITEMS_PER_REQUEST || "50",
-    10,
-  );
-  return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
-})();
-
-function mapMenuItem(item) {
-  return {
-    id: item.id,
-    name: item.name,
-    price: Number(item.price),
-    description: item.description,
-    category: item.category,
-    imageUrl: item.image ? `/uploads/${item.image}` : null,
-    isAvailable: item.isAvailable,
-    createdAt: item.createdAt,
-  };
-}
-
-//Create menu items for a vendor
 exports.createMenuItems = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    // Verify vendor exists
-    const vendor = await prisma.user.findUnique({
-      where: { id: vendorId },
-      select: { id: true },
+    const response = await menuService.createMenuItems({
+      vendorId: req.params.vendorId,
+      user: req.user,
+      body: req.body,
+      files: req.files,
     });
 
-    if (!vendor) {
-      return res.status(404).json({ error: "Vendor not found" });
-    }
-
-    // Parse menu items from request
-    let itemsData;
-    try {
-      itemsData = JSON.parse(req.body.menuItems || "[]");
-    } catch (error) {
-      return res.status(400).json({ error: "Invalid JSON in menuItems" });
-    }
-
-    if (!Array.isArray(itemsData) || itemsData.length === 0) {
-      return res.status(400).json({
-        error: "menuItems must be a non-empty array",
-      });
-    }
-
-    if (itemsData.length > MAX_MENU_ITEMS_PER_REQUEST) {
-      return res.status(400).json({
-        error: "Too many menu items",
-        details: `Maximum ${MAX_MENU_ITEMS_PER_REQUEST} items are allowed per request`,
-      });
-    }
-
-    const uploadedImages = Array.isArray(req.files) ? req.files : [];
-    const rawImageIndexes = req.body.imageIndexes;
-    const imageIndexes = Array.isArray(rawImageIndexes)
-      ? rawImageIndexes
-      : rawImageIndexes !== undefined
-        ? [rawImageIndexes]
-        : [];
-
-    if (uploadedImages.length !== imageIndexes.length) {
-      return res.status(400).json({
-        error: "Invalid image payload",
-        details: "Each uploaded image must have a matching imageIndexes value",
-      });
-    }
-
-    if (uploadedImages.length > MAX_MENU_ITEMS_PER_REQUEST) {
-      return res.status(400).json({
-        error: "Too many images",
-        details: `Maximum ${MAX_MENU_ITEMS_PER_REQUEST} images are allowed per request`,
-      });
-    }
-
-    const imageByItemIndex = new Map();
-
-    for (let i = 0; i < uploadedImages.length; i++) {
-      const index = Number.parseInt(String(imageIndexes[i]), 10);
-
-      if (Number.isNaN(index) || index < 0 || index >= itemsData.length) {
-        return res.status(400).json({
-          error: "Invalid image index",
-          details: `imageIndexes[${i}] is out of range`,
-        });
-      }
-
-      if (imageByItemIndex.has(index)) {
-        return res.status(400).json({
-          error: "Invalid image payload",
-          details: `Duplicate image index for item ${index + 1}`,
-        });
-      }
-
-      imageByItemIndex.set(index, uploadedImages[i].filename);
-    }
-
-    const validatedItems = [];
-    const validationErrors = [];
-
-    for (let index = 0; index < itemsData.length; index++) {
-      const item = itemsData[index] || {};
-      const itemErrors = [];
-
-      if (!item.name || item.name.trim() === "") {
-        itemErrors.push("Name is required");
-      } else if (item.name.length > 100) {
-        itemErrors.push("Name too long (max 100 characters)");
-      }
-
-      if (
-        item.price === undefined ||
-        item.price === null ||
-        item.price === ""
-      ) {
-        itemErrors.push("Price is required");
-      } else if (isNaN(item.price) || parseFloat(item.price) <= 0) {
-        itemErrors.push("Price must be greater than 0");
-      } else if (parseFloat(item.price) > 99999.99) {
-        itemErrors.push("Price too high (max 99999.99)");
-      }
-
-      if (!item.category || item.category.trim() === "") {
-        itemErrors.push("Category is required");
-      } else if (item.category.length > 50) {
-        itemErrors.push("Category too long (max 50 characters)");
-      }
-
-      if (item.description && item.description.length > 1000) {
-        itemErrors.push("Description too long (max 1000 characters)");
-      }
-
-      const image = imageByItemIndex.get(index) || null;
-
-      if (itemErrors.length > 0) {
-        validationErrors.push(
-          ...itemErrors.map((err) => `Item ${index + 1}: ${err}`),
-        );
-      } else {
-        validatedItems.push({
-          vendorId,
-          name: item.name.trim(),
-          price: parseFloat(item.price),
-          category: item.category.trim(),
-          description: item.description ? item.description.trim() : "",
-          image,
-          isAvailable: true,
-        });
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: "Validation failed",
-        details: validationErrors,
-      });
-    }
-
-    const createdItems = await prisma.$transaction(
-      validatedItems.map((data) => prisma.menuItem.create({ data })),
-    );
-
-    const itemsResponse = createdItems.map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: Number(item.price),
-      description: item.description,
-      category: item.category,
-      imageUrl: item.image ? `/uploads/${item.image}` : null,
-      isAvailable: item.isAvailable,
-    }));
-
-    res.status(201).json({
-      message: "Menu items created successfully",
-      createdItems: itemsResponse,
-      count: itemsResponse.length,
-    });
+    res.status(201).json(response);
   } catch (error) {
-    console.error("Error creating menu items:", error);
-    res.status(500).json({
-      error: "Failed to create menu items",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error creating menu items:",
+      fallbackMessage: "Failed to create menu items",
     });
   }
 };
 
-//Get all menu items for a vendor
 exports.getMenuItems = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const vendor = await prisma.user.findUnique({
-      where: { id: vendorId },
-      select: { id: true },
+    const response = await menuService.getMenuItems({
+      vendorId: req.params.vendorId,
+      user: req.user,
     });
 
-    if (!vendor) {
-      return res.status(404).json({ error: "Vendor not found" });
-    }
-
-    const items = await prisma.menuItem.findMany({
-      where: { vendorId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const itemsData = items.map(mapMenuItem);
-
-    res.status(200).json({
-      menuItems: itemsData,
-      count: itemsData.length,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching menu items:", error);
-    res.status(500).json({
-      error: "Failed to fetch menu items",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error fetching menu items:",
+      fallbackMessage: "Failed to fetch menu items",
     });
   }
 };
 
-//Get menu items grouped by category
 exports.getMenuItemsByCategory = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const items = await prisma.menuItem.findMany({
-      where: { vendorId },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
+    const response = await menuService.getMenuItemsByCategory({
+      vendorId: req.params.vendorId,
+      user: req.user,
     });
 
-    const categories = {};
-
-    for (const item of items) {
-      const category = item.category;
-      if (!categories[category]) {
-        categories[category] = [];
-      }
-
-      categories[category].push({
-        id: item.id,
-        name: item.name,
-        price: Number(item.price),
-        description: item.description || "",
-        category: item.category,
-        imageUrl: item.image ? `/uploads/${item.image}` : null,
-        isAvailable: item.isAvailable,
-      });
-    }
-
-    const formattedCategories = Object.keys(categories).map((name) => ({
-      name,
-      items: categories[name],
-    }));
-
-    res.status(200).json({
-      categories: formattedCategories,
-      totalItems: items.length,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching menu items by category:", error);
-    res.status(500).json({
-      error: "Failed to fetch menu items",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error fetching menu items by category:",
+      fallbackMessage: "Failed to fetch menu items",
     });
   }
 };
 
-//Get a single menu item by ID
 exports.getMenuItem = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const itemId = parseInt(req.params.itemId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const item = await prisma.menuItem.findFirst({
-      where: { id: itemId, vendorId },
+    const response = await menuService.getMenuItem({
+      vendorId: req.params.vendorId,
+      itemId: req.params.itemId,
+      user: req.user,
     });
 
-    if (!item) {
-      return res.status(404).json({ error: "Menu item not found" });
-    }
-
-    res.status(200).json({
-      id: item.id,
-      name: item.name,
-      price: Number(item.price),
-      description: item.description,
-      category: item.category,
-      imageUrl: item.image ? `/uploads/${item.image}` : null,
-      isAvailable: item.isAvailable,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching menu item:", error);
-    res.status(500).json({
-      error: "Failed to fetch menu item",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error fetching menu item:",
+      fallbackMessage: "Failed to fetch menu item",
     });
   }
 };
 
-//Update a menu item
 exports.updateMenuItem = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const itemId = parseInt(req.params.itemId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const item = await prisma.menuItem.findFirst({
-      where: { id: itemId, vendorId },
+    const response = await menuService.updateMenuItem({
+      vendorId: req.params.vendorId,
+      itemId: req.params.itemId,
+      user: req.user,
+      body: req.body,
+      file: req.file,
     });
 
-    if (!item) {
-      return res.status(404).json({ error: "Menu item not found" });
-    }
-
-    const updates = {};
-    if (req.body.name) updates.name = req.body.name.trim();
-    if (req.body.price) updates.price = parseFloat(req.body.price);
-    if (req.body.category) updates.category = req.body.category.trim();
-
-    if (req.body.description !== undefined) {
-      updates.description = req.body.description
-        ? req.body.description.trim()
-        : "";
-    }
-
-    if (req.body.isAvailable !== undefined) {
-      updates.isAvailable =
-        req.body.isAvailable === true ||
-        req.body.isAvailable === "true" ||
-        req.body.isAvailable === 1;
-    }
-
-    if (req.file) updates.image = req.file.filename;
-
-    const updated = await prisma.menuItem.update({
-      where: { id: itemId },
-      data: updates,
-    });
-
-    res.status(200).json({
-      message: "Menu item updated successfully",
-      item: {
-        id: updated.id,
-        name: updated.name,
-        price: Number(updated.price),
-        category: updated.category,
-        description: updated.description,
-        imageUrl: updated.image ? `/uploads/${updated.image}` : null,
-        isAvailable: updated.isAvailable,
-      },
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error updating menu item:", error);
-    res.status(500).json({
-      error: "Failed to update menu item",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error updating menu item:",
+      fallbackMessage: "Failed to update menu item",
     });
   }
 };
 
-//Delete a menu item
 exports.deleteMenuItem = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const itemId = parseInt(req.params.itemId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const item = await prisma.menuItem.findFirst({
-      where: { id: itemId, vendorId },
-      select: { id: true },
+    const response = await menuService.deleteMenuItem({
+      vendorId: req.params.vendorId,
+      itemId: req.params.itemId,
+      user: req.user,
     });
 
-    if (!item) {
-      return res.status(404).json({ error: "Menu item not found" });
-    }
-
-    await prisma.menuItem.delete({ where: { id: itemId } });
-
-    res.status(200).json({
-      message: "Menu item deleted successfully",
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error deleting menu item:", error);
-    res.status(500).json({
-      error: "Failed to delete menu item",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error deleting menu item:",
+      fallbackMessage: "Failed to delete menu item",
     });
   }
 };
 
-// Public menu endpoint (no authentication required)
 exports.getPublicMenu = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-
-    // Get vendor info
-    const vendor = await prisma.user.findUnique({
-      where: { id: vendorId },
-      select: {
-        id: true,
-        restaurantName: true,
-        ownerName: true,
-        email: true,
-        phone: true,
-        location: true,
-        openingTime: true,
-        closingTime: true,
-        description: true,
-        logo: true,
-      },
+    const response = await menuService.getPublicMenu({
+      vendorId: req.params.vendorId,
     });
 
-    if (!vendor) {
-      return res.status(404).json({ error: "Vendor not found" });
-    }
-
-    // Get all available menu items grouped by category
-    const items = await prisma.menuItem.findMany({
-      where: {
-        vendorId,
-        isAvailable: true,
-      },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
-    });
-
-    // Group items by category
-    const categoriesMap = {};
-    items.forEach((item) => {
-      const category = item.category || "Other";
-      if (!categoriesMap[category]) {
-        categoriesMap[category] = {
-          name: category,
-          items: [],
-        };
-      }
-      categoriesMap[category].items.push({
-        id: item.id,
-        name: item.name,
-        description: item.description,
-        price: Number(item.price),
-        category: item.category,
-        image_url: item.image ? `/uploads/${item.image}` : null,
-        is_available: item.isAvailable,
-      });
-    });
-
-    const categories = Object.values(categoriesMap);
-
-    res.status(200).json({
-      vendor_info: {
-        id: vendor.id,
-        restaurant_name: vendor.restaurantName,
-        owner_name: vendor.ownerName,
-        email: vendor.email,
-        phone: vendor.phone,
-        location: vendor.location,
-        opening_time: vendor.openingTime,
-        closing_time: vendor.closingTime,
-        description: vendor.description,
-        logo: vendor.logo,
-      },
-      categories,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching public menu:", error);
-    res.status(500).json({
-      error: "Failed to fetch menu",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error fetching public menu:",
+      fallbackMessage: "Failed to fetch menu",
     });
   }
 };
 
-//Toggle menu item availability
 exports.toggleAvailability = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const itemId = parseInt(req.params.itemId, 10);
-
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    const item = await prisma.menuItem.findFirst({
-      where: { id: itemId, vendorId },
-      select: { id: true, isAvailable: true },
+    const response = await menuService.toggleAvailability({
+      vendorId: req.params.vendorId,
+      itemId: req.params.itemId,
+      user: req.user,
     });
 
-    if (!item) {
-      return res.status(404).json({ error: "Menu item not found" });
-    }
-
-    const nextAvailability = !item.isAvailable;
-    await prisma.menuItem.update({
-      where: { id: itemId },
-      data: { isAvailable: nextAvailability },
-    });
-
-    res.status(200).json({
-      message: `Menu item ${nextAvailability ? "enabled" : "disabled"}`,
-      isAvailable: nextAvailability,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error toggling menu item availability:", error);
-    res.status(500).json({
-      error: "Failed to toggle availability",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error toggling menu item availability:",
+      fallbackMessage: "Failed to toggle availability",
     });
   }
 };
+
+module.exports = exports;

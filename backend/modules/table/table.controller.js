@@ -1,387 +1,120 @@
-const prisma = require("../../config/prisma");
-const { v4: uuidv4 } = require("uuid");
-const { canAccessVendor } = require("../../utils/helpers");
+const tableService = require("./table.service");
+const { sendControllerError } = require("../../utils/controllerError");
 
-//Get all tables for a vendor
 exports.getTables = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to access this data",
-      });
-    }
-
-    // Get all tables for this vendor
-    const vendorTables = await prisma.table.findMany({
-      where: { vendorId },
-      orderBy: { name: "asc" },
+    const response = await tableService.getTables({
+      vendorId: req.params.vendorId,
+      user: req.user,
     });
 
-    const tablesData = vendorTables.map((table) => ({
-      id: table.id,
-      name: table.name,
-      qrCode: table.qrCode,
-      isActive: table.isActive,
-      createdAt: table.createdAt,
-    }));
-
-    res.status(200).json({
-      tables: tablesData,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error in getTables:", error);
-    res.status(500).json({
-      error: "An error occurred while retrieving tables",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in getTables:",
+      fallbackMessage: "An error occurred while retrieving tables",
     });
   }
 };
 
-//Create a new table for a vendor
 exports.createTable = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const { name } = req.body;
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to perform this action",
-      });
-    }
-
-    // Validate table name
-    if (!name || name.trim() === "") {
-      return res.status(400).json({
-        error: "Table name is required",
-      });
-    }
-
-    // Check if table name already exists for this vendor
-    const existingTable = await prisma.table.findUnique({
-      where: {
-        vendorId_name: {
-          vendorId,
-          name: name.trim(),
-        },
-      },
+    const response = await tableService.createTable({
+      vendorId: req.params.vendorId,
+      user: req.user,
+      body: req.body,
     });
 
-    if (existingTable) {
-      return res.status(400).json({
-        error: "A table with this name already exists",
-      });
-    }
-
-    // Create the table
-    const table = await prisma.table.create({
-      data: {
-        vendorId,
-        name: name.trim(),
-        qrCode: uuidv4(),
-      },
-    });
-
-    res.status(201).json({
-      message: "Table created successfully",
-      table: {
-        id: table.id,
-        name: table.name,
-        qrCode: table.qrCode,
-        createdAt: table.createdAt,
-      },
-    });
+    res.status(201).json(response);
   } catch (error) {
-    console.error("Error in createTable:", error);
-    res.status(500).json({
-      error: "An error occurred while creating the table",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in createTable:",
+      fallbackMessage: "An error occurred while creating the table",
     });
   }
 };
 
-//Update a table's name
 exports.updateTable = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const tableId = parseInt(req.params.tableId, 10);
-    const { name, isActive } = req.body;
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to perform this action",
-      });
-    }
-
-    // Find the table
-    const table = await prisma.table.findFirst({
-      where: {
-        id: tableId,
-        vendorId,
-      },
+    const response = await tableService.updateTable({
+      vendorId: req.params.vendorId,
+      tableId: req.params.tableId,
+      user: req.user,
+      body: req.body,
     });
 
-    if (!table) {
-      return res.status(404).json({
-        error: "Table not found",
-      });
-    }
-
-    // Update fields
-    const updates = {};
-    if (name) {
-      // Check if new name already exists for this vendor (excluding current table)
-      const existingTable = await prisma.table.findFirst({
-        where: {
-          vendorId,
-          name: name.trim(),
-          NOT: {
-            id: tableId,
-          },
-        },
-      });
-
-      if (existingTable) {
-        return res.status(400).json({
-          error: "A table with this name already exists",
-        });
-      }
-
-      updates.name = name.trim();
-    }
-
-    if (isActive !== undefined) {
-      updates.isActive = isActive;
-    }
-
-    const updatedTable = await prisma.table.update({
-      where: { id: tableId },
-      data: updates,
-    });
-
-    res.status(200).json({
-      message: "Table updated successfully",
-      table: {
-        id: updatedTable.id,
-        name: updatedTable.name,
-        qrCode: updatedTable.qrCode,
-        isActive: updatedTable.isActive,
-      },
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error in updateTable:", error);
-    res.status(500).json({
-      error: "An error occurred while updating the table",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in updateTable:",
+      fallbackMessage: "An error occurred while updating the table",
     });
   }
 };
 
-//Delete a table
 exports.deleteTable = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const tableId = parseInt(req.params.tableId, 10);
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to perform this action",
-      });
-    }
-
-    // Find the table
-    const table = await prisma.table.findFirst({
-      where: {
-        id: tableId,
-        vendorId,
-      },
+    const response = await tableService.deleteTable({
+      vendorId: req.params.vendorId,
+      tableId: req.params.tableId,
+      user: req.user,
     });
 
-    if (!table) {
-      return res.status(404).json({
-        error: "Table not found",
-      });
-    }
-
-    // Delete the table
-    await prisma.table.delete({
-      where: { id: tableId },
-    });
-
-    res.status(200).json({
-      message: "Table deleted successfully",
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error in deleteTable:", error);
-    res.status(500).json({
-      error: "An error occurred while deleting the table",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in deleteTable:",
+      fallbackMessage: "An error occurred while deleting the table",
     });
   }
 };
 
-//Regenerate a table's QR code
 exports.regenerateQRCode = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const tableId = parseInt(req.params.tableId, 10);
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to perform this action",
-      });
-    }
-
-    // Find the table
-    const table = await prisma.table.findFirst({
-      where: {
-        id: tableId,
-        vendorId,
-      },
+    const response = await tableService.regenerateQRCode({
+      vendorId: req.params.vendorId,
+      tableId: req.params.tableId,
+      user: req.user,
     });
 
-    if (!table) {
-      return res.status(404).json({
-        error: "Table not found",
-      });
-    }
-
-    // Regenerate QR code with new UUID
-    const newQrCode = uuidv4();
-    const updatedTable = await prisma.table.update({
-      where: { id: tableId },
-      data: { qrCode: newQrCode },
-    });
-
-    res.status(200).json({
-      message: "QR code regenerated successfully",
-      table: {
-        id: updatedTable.id,
-        name: updatedTable.name,
-        qrCode: updatedTable.qrCode,
-      },
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error in regenerateQRCode:", error);
-    res.status(500).json({
-      error: "An error occurred while regenerating the QR code",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in regenerateQRCode:",
+      fallbackMessage: "An error occurred while regenerating the QR code",
     });
   }
 };
 
-//Get table status (for checking active and available tables)
 exports.getTableStatus = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const { tableIdentifier } = req.params;
-
-    // Table identifier must be the QR identifier (UUID format).
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        tableIdentifier,
-      );
-
-    if (!isUuid) {
-      return res.status(404).json({ error: "Table not found" });
-    }
-
-    // Resolve table strictly by QR code identifier.
-    const table = await prisma.table.findFirst({
-      where: {
-        vendorId,
-        qrCode: tableIdentifier,
-      },
+    const response = await tableService.getTableStatus({
+      vendorId: req.params.vendorId,
+      tableIdentifier: req.params.tableIdentifier,
     });
 
-    if (!table) {
-      return res.status(404).json({ error: "Table not found" });
-    }
-
-    // Check for active orders at this table
-    const activeOrder = await prisma.order.findFirst({
-      where: {
-        tableId: table.id,
-        status: {
-          in: ["pending", "accepted", "confirmed", "preparing"],
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.status(200).json({
-      table_id: table.id,
-      name: table.name,
-      qr_code: table.qrCode,
-      is_active: table.isActive,
-      vendor_id: table.vendorId,
-      has_active_order: activeOrder !== null,
-      active_order_id: activeOrder ? activeOrder.id : null,
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching table status:", error);
-    res.status(500).json({
-      error: "Failed to fetch table status",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error fetching table status:",
+      fallbackMessage: "Failed to fetch table status",
     });
   }
 };
 
-// Get table details with current orders
 exports.getTableDetails = async (req, res) => {
   try {
-    const vendorId = parseInt(req.params.vendorId, 10);
-    const tableId = parseInt(req.params.tableId, 10);
-
-    // Check authorization
-    if (!canAccessVendor(req.user, vendorId)) {
-      return res.status(403).json({
-        error: "You do not have permission to access this data",
-      });
-    }
-
-    // Find the table with active orders
-    const table = await prisma.table.findFirst({
-      where: {
-        id: tableId,
-        vendorId,
-      },
-      include: {
-        orders: {
-          where: {
-            status: {
-              in: ["pending", "accepted", "confirmed", "preparing"],
-            },
-          },
-        },
-      },
+    const response = await tableService.getTableDetails({
+      vendorId: req.params.vendorId,
+      tableId: req.params.tableId,
+      user: req.user,
     });
 
-    if (!table) {
-      return res.status(404).json({
-        error: "Table not found",
-      });
-    }
-
-    res.status(200).json({
-      id: table.id,
-      name: table.name,
-      qrCode: table.qrCode,
-      isActive: table.isActive,
-      createdAt: table.createdAt,
-      activeOrders: table.orders || [],
-    });
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error in getTableDetails:", error);
-    res.status(500).json({
-      error: "An error occurred while retrieving table details",
-      details: error.message,
+    sendControllerError(res, error, {
+      logPrefix: "Error in getTableDetails:",
+      fallbackMessage: "An error occurred while retrieving table details",
     });
   }
 };
