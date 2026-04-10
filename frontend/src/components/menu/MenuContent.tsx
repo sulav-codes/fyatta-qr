@@ -217,9 +217,9 @@ const MenuContent: React.FC<MenuContentProps> = ({
           id: item.id,
           name: item.name,
           category: item.category,
-          price: parseFloat(item.price),
+          price: Number(item.price),
           description: item.description || "",
-          image: item.image_url,
+          image: item.image_url || null,
           available: item.is_available,
           isSearchResult: true,
         }));
@@ -263,9 +263,9 @@ const MenuContent: React.FC<MenuContentProps> = ({
         id: item.id,
         name: item.name,
         category: item.category,
-        price: parseFloat(item.price),
+        price: Number(item.price),
         description: item.description || "",
-        image: item.image_url,
+        image: item.image_url || null,
         available: item.is_available,
       }));
 
