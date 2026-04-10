@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { useCart } from "../../context/CartContext";
 import React from "react";
 import { getApiBaseUrl } from "@/lib/api";
+import Image from "next/image";
 
 interface MenuItemProps {
   item: {
@@ -31,15 +32,16 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
 
   return (
     <div className="group bg-card rounded-2xl overflow-hidden border border-border hover:border-orange-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative">
-      <div className="aspect-[4/3] relative overflow-hidden bg-muted">
-        <img
+      <div className="aspect-4/3 relative overflow-hidden bg-muted">
+        <Image
           src={getImageUrl(item.image)}
           alt={item.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
             e.currentTarget.src = defaultImage;
           }}
-          loading="lazy"
+          width={400}
+          height={300}
         />
         {item.isSearchResult && (
           <Badge className="absolute top-3 right-3 bg-blue-600 text-white shadow-lg">
@@ -47,11 +49,11 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
           </Badge>
         )}
         {isPopular && !item.isSearchResult && (
-          <Badge className="absolute top-3 right-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border-0">
+          <Badge className="absolute top-3 right-3 bg-linear-to-r from-orange-500 to-orange-600 text-white shadow-lg border-0">
             ⭐ Popular
           </Badge>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between mb-2 gap-2">
@@ -67,14 +69,14 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
             Rs. {item.price.toFixed(0)}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[2.5rem]">
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-10">
           {item.description || "Delicious dish prepared with fresh ingredients"}
         </p>
         <Button
           className={`w-full rounded-full font-medium transition-all duration-200 ${
             recentlyAdded[item.id]
               ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/30"
-              : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30"
+              : "bg-linear-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30"
           }`}
           disabled={!item.available || pendingOrder !== null}
           onClick={() => addToCart(item)}
@@ -82,8 +84,8 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
           {pendingOrder !== null
             ? "Order Pending"
             : recentlyAdded[item.id]
-            ? "✓ Added to Cart"
-            : "+ Add to Cart"}
+              ? "✓ Added to Cart"
+              : "+ Add to Cart"}
         </Button>
       </div>
       {/* Overlay covers entire card including button */}

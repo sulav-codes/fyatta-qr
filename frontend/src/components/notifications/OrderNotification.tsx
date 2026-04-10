@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { CheckCircle, XCircle, Eye, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -45,6 +45,11 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
 
   const orderData = notification.data || {};
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setTimeout(() => onClose?.(notification.id), 300);
+  }, [notification.id, onClose]);
+
   useEffect(() => {
     if (!isPinned && !isProcessing && timeLeft > 0) {
       const timer = setTimeout(() => {
@@ -54,12 +59,7 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
     } else if (!isPinned && !isProcessing && timeLeft === 0) {
       handleClose();
     }
-  }, [timeLeft, isPinned, isProcessing]);
-
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(() => onClose?.(notification.id), 300);
-  };
+  }, [timeLeft, isPinned, isProcessing, handleClose]);
 
   const handleOrderAction = async (action: string) => {
     if (isProcessing) return;
@@ -100,7 +100,7 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
         );
       }
 
-      const data = await response.json();
+      await response.json();
 
       const normalizedOrderId =
         typeof order_id === "number" ? order_id : Number(order_id);
@@ -115,9 +115,13 @@ const OrderNotification: React.FC<OrderNotificationProps> = ({
 
       // Close the notification
       handleClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating order status:", error);
-      toast.error(`Failed to update order status: ${error.message}`);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Unknown error";
+      toast.error(`Failed to update order status: ${message}`);
       setIsProcessing(false);
     }
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getApiBaseUrl } from "@/lib/api";
@@ -39,16 +39,10 @@ function PaymentResultContent() {
   const status = searchParams.get("status");
   const transactionId = searchParams.get("transaction_id");
 
-  useEffect(() => {
-    if (orderId) {
-      fetchOrderDetails();
-    }
-  }, [orderId]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/customer/orders/${orderId}`
+        `${getApiBaseUrl()}/api/customer/orders/${orderId}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -59,7 +53,13 @@ function PaymentResultContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) {
+      fetchOrderDetails();
+    }
+  }, [orderId, fetchOrderDetails]);
 
   const getStatusConfig = () => {
     switch (status) {
@@ -99,7 +99,7 @@ function PaymentResultContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 animate-spin text-[var(--orange)]" />
+        <RefreshCw className="w-8 h-8 animate-spin text-(--orange)" />
       </div>
     );
   }
@@ -173,7 +173,7 @@ function PaymentResultContent() {
 
                 <div className="flex justify-between items-center py-2 pt-4">
                   <span className="text-lg font-semibold">Total Amount</span>
-                  <span className="text-2xl font-bold text-[var(--orange)]">
+                  <span className="text-2xl font-bold text-(--orange)">
                     Rs. {Number(orderDetails.total_amount).toFixed(2)}
                   </span>
                 </div>
@@ -213,7 +213,7 @@ function PaymentResultContent() {
                 href={`/order-tracking?orderId=${orderId}`}
                 className="block"
               >
-                <Button className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                <Button className="w-full bg-(--orange) hover:bg-(--orange)/90 text-white">
                   Track Your Order
                 </Button>
               </Link>
@@ -222,7 +222,7 @@ function PaymentResultContent() {
             {status === "pending" && (
               <Button
                 onClick={fetchOrderDetails}
-                className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
+                className="w-full bg-(--orange) hover:bg-(--orange)/90 text-white"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Check Payment Status
@@ -231,7 +231,7 @@ function PaymentResultContent() {
 
             {status === "failed" && (
               <Link href="/" className="block">
-                <Button className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                <Button className="w-full bg-(--orange) hover:bg-(--orange)/90 text-white">
                   Try Again
                 </Button>
               </Link>
@@ -255,7 +255,7 @@ export default function PaymentResultPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-background flex items-center justify-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-[var(--orange)]" />
+          <RefreshCw className="w-8 h-8 animate-spin text-(--orange)" />
         </div>
       }
     >

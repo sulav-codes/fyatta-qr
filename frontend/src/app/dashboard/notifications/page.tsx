@@ -54,7 +54,7 @@ export default function NotificationsPage() {
 
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [typeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedNotifications, setSelectedNotifications] = useState<
     Array<string | number>

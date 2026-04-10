@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
@@ -11,6 +11,7 @@ import { ArrowLeft, Upload, X, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
+import Image from "next/image";
 
 // Types
 interface MenuItem {
@@ -31,7 +32,7 @@ export default function EditMenuItem({
   const unwrappedParams = use(params);
   const { id } = unwrappedParams;
 
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
   const [isLoading, setIsLoading] = useState(true);
@@ -50,13 +51,7 @@ export default function EditMenuItem({
   const [newImage, setNewImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (vendorId && token && id) {
-      fetchMenuItem();
-    }
-  }, [vendorId, token, id]);
-
-  const fetchMenuItem = async () => {
+  const fetchMenuItem = useCallback(async () => {
     setIsLoading(true);
     try {
       if (!token) return;
@@ -87,7 +82,13 @@ export default function EditMenuItem({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, token, vendorId]);
+
+  useEffect(() => {
+    if (vendorId && token && id) {
+      fetchMenuItem();
+    }
+  }, [vendorId, token, id, fetchMenuItem]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -302,10 +303,12 @@ export default function EditMenuItem({
                   {imagePreview ? (
                     <div className="space-y-2">
                       <div className="relative w-full aspect-video mx-auto">
-                        <img
+                        <Image
                           src={imagePreview}
                           alt="Preview"
                           className="rounded-md object-cover w-full h-full"
+                          width={400}
+                          height={300}
                         />
                         <button
                           type="button"

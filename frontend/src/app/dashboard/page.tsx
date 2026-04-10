@@ -11,10 +11,9 @@ import {
   DollarSign,
   ArrowUp,
   ArrowDown,
-  Minus,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiFetchWithAuth } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -47,6 +46,28 @@ interface SalesData {
   daily_breakdown: Array<{ date: string; revenue: number; orders: number }>;
 }
 
+interface RecentOrderResponse {
+  orderId: string;
+  totalAmount: number | string;
+  tableName: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+interface PopularItemResponse {
+  id: number;
+  name: string;
+  price: string;
+  orderCount: number;
+  totalRevenue: number;
+}
+
+interface SalesDayResponse {
+  date: string;
+  revenue: number | string;
+  orderCount: number | string;
+}
+
 export default function Dashboard() {
   const { user, token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
@@ -58,15 +79,7 @@ export default function Dashboard() {
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingSales, setLoadingSales] = useState(true);
 
-  useEffect(() => {
-    if (vendorId && token) {
-      fetchRecentOrders();
-      fetchPopularItems();
-      fetchSalesReport();
-    }
-  }, [vendorId, token]);
-
-  const getTimeElapsed = (createdAt: string) => {
+  const getTimeElapsed = useCallback((createdAt: string) => {
     const now = new Date();
     const orderTime = new Date(createdAt);
     const diffMs = now.getTime() - orderTime.getTime();
@@ -78,9 +91,9 @@ export default function Dashboard() {
     if (diffHours > 0) return `${diffHours}h ago`;
     if (diffMins > 0) return `${diffMins}m ago`;
     return "Just now";
-  };
+  }, []);
 
-  const fetchRecentOrders = async () => {
+  const fetchRecentOrders = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -90,10 +103,16 @@ export default function Dashboard() {
       );
       if (response.ok) {
         const data = await response.json();
-        const ordersWithTime = (data.recentOrders || []).map((order: any) => ({
-          ...order,
+        const recentOrdersRaw: RecentOrderResponse[] = Array.isArray(
+          data.recentOrders,
+        )
+          ? (data.recentOrders as RecentOrderResponse[])
+          : [];
+
+        const ordersWithTime = recentOrdersRaw.map((order) => ({
+          ...(order as unknown as Order),
           order_id: order.orderId,
-          total_amount: order.totalAmount,
+          total_amount: String(order.totalAmount),
           table_name: order.tableName,
           time_elapsed: getTimeElapsed(order.createdAt),
         }));
@@ -104,9 +123,9 @@ export default function Dashboard() {
     } finally {
       setLoadingOrders(false);
     }
-  };
+  }, [getTimeElapsed, token, vendorId]);
 
-  const fetchPopularItems = async () => {
+  const fetchPopularItems = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -116,13 +135,19 @@ export default function Dashboard() {
       );
       if (response.ok) {
         const data = await response.json();
-        const itemsFormatted = (data.popularItems || []).map((item: any) => ({
+        const popularItemsRaw: PopularItemResponse[] = Array.isArray(
+          data.popularItems,
+        )
+          ? (data.popularItems as PopularItemResponse[])
+          : [];
+
+        const itemsFormatted = popularItemsRaw.map((item) => ({
           id: item.id,
           name: item.name,
           price: item.price,
           image: null,
           order_count: item.orderCount,
-          total_revenue: item.totalRevenue.toFixed(2),
+          total_revenue: Number(item.totalRevenue).toFixed(2),
         }));
         setPopularItems(itemsFormatted);
       }
@@ -131,9 +156,9 @@ export default function Dashboard() {
     } finally {
       setLoadingItems(false);
     }
-  };
+  }, [token, vendorId]);
 
-  const fetchSalesReport = async () => {
+  const fetchSalesReport = useCallback(async () => {
     try {
       if (!token) return;
 
@@ -152,7 +177,10 @@ export default function Dashboard() {
           peak_hour: null,
           revenue_change: 0,
           orders_change: 0,
-          daily_breakdown: (data.salesData || []).map((day: any) => ({
+          daily_breakdown: (Array.isArray(data.salesData)
+            ? (data.salesData as SalesDayResponse[])
+            : []
+          ).map((day) => ({
             date: day.date,
             revenue: parseFloat(day.revenue || 0),
             orders: parseInt(day.orderCount || 0),
@@ -165,7 +193,15 @@ export default function Dashboard() {
     } finally {
       setLoadingSales(false);
     }
-  };
+  }, [token, vendorId]);
+
+  useEffect(() => {
+    if (vendorId && token) {
+      fetchRecentOrders();
+      fetchPopularItems();
+      fetchSalesReport();
+    }
+  }, [vendorId, token, fetchRecentOrders, fetchPopularItems, fetchSalesReport]);
 
   return (
     <div className="space-y-6">

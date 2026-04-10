@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { usePermissions } from "@/hooks/usePermissions";
+import Image from "next/image";
 
 // Types
 interface MenuItem {
@@ -26,7 +27,7 @@ const MAX_MENU_ITEMS_PER_REQUEST = 50;
 
 function CreateMenuContent() {
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const vendorId = getEffectiveVendorId();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
@@ -109,7 +110,7 @@ function CreateMenuContent() {
   const handleItemChange = (
     index: number,
     field: keyof MenuItem,
-    value: any,
+    value: MenuItem[keyof MenuItem],
   ) => {
     const newItems = [...menuItems];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -125,7 +126,7 @@ function CreateMenuContent() {
         }
       });
     };
-  }, []);
+  }, [menuItems]);
 
   const validateItems = () => {
     const errors: string[] = [];
@@ -173,9 +174,12 @@ function CreateMenuContent() {
       const formData = new FormData();
 
       // Convert menu items to JSON and add to form data
-      const itemsForJson = menuItems.map(
-        ({ image, imagePreview, ...item }) => item,
-      );
+      const itemsForJson = menuItems.map((item) => ({
+        name: item.name,
+        price: item.price,
+        description: item.description,
+        category: item.category,
+      }));
       formData.append("menuItems", JSON.stringify(itemsForJson));
 
       // Add images as a single field plus explicit item index mapping.
@@ -314,7 +318,7 @@ function CreateMenuContent() {
                     {item.imagePreview ? (
                       <div className="space-y-2">
                         <div className="relative w-full aspect-video mx-auto">
-                          <img
+                          <Image
                             src={item.imagePreview}
                             alt="Preview"
                             className="rounded-md object-cover w-full h-full"

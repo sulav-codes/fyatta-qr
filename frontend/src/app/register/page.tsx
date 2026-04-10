@@ -369,7 +369,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
       <Navbar />
-      <div className="flex-1 bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 py-12 px-4 md:px-6 lg:px-8">
+      <div className="flex-1 bg-linear-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 py-12 px-4 md:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto pb-8">
           {/* Header */}
           <div className="text-center mb-8">
