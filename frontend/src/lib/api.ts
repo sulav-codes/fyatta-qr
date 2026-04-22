@@ -12,13 +12,15 @@ const getFallbackApiBaseUrl = (): string => {
     return DEV_API_BASE_URL;
   }
 
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
   }
 
-  throw new Error(
-    "Unable to resolve API base URL on the server in production. Set API_BASE_URL_SERVER, NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_APP_URL, or VERCEL_URL.",
-  );
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "";
 };
 
 export const getApiBaseUrl = (): string => {
