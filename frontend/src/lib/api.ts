@@ -20,7 +20,9 @@ const getFallbackApiBaseUrl = (): string => {
     return `https://${process.env.VERCEL_URL}`;
   }
 
-  return "";
+  throw new Error(
+    "Unable to resolve API base URL on the server in production. Set API_BASE_URL_SERVER, NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_APP_URL, or VERCEL_URL.",
+  );
 };
 
 export const getApiBaseUrl = (): string => {

@@ -6,19 +6,20 @@ const sendControllerError = (
   {
     logPrefix = "Controller error:",
     fallbackMessage = "Request failed",
-    includeErrorDetails = true,
+    includeErrorDetails = process.env.NODE_ENV !== "production",
   } = {},
 ) => {
   if (isServiceError(error)) {
+    const shouldExpose = error.expose !== false;
     const payload = {
-      error: error.message,
+      error: shouldExpose ? error.message : fallbackMessage,
     };
 
     if (error.code) {
       payload.code = error.code;
     }
 
-    if (error.details !== undefined) {
+    if (shouldExpose && error.details !== undefined) {
       payload.details = error.details;
     }
 
