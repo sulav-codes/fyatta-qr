@@ -7,7 +7,7 @@ const initiateEsewaPaymentBodySchema = Joi.object({
 });
 
 const verifyEsewaPaymentQuerySchema = Joi.object({
-  data: Joi.string().trim().optional(),
+  dataParam: Joi.string().trim().optional(),
 }).unknown(true);
 
 const paymentStatusParamsSchema = Joi.object({
