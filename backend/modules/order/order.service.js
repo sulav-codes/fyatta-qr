@@ -1,4 +1,5 @@
 const prisma = require("../../config/prisma");
+const { v4: uuidv4 } = require("uuid");
 const {
   emitOrderCreated,
   emitOrderStatusChanged,
@@ -22,6 +23,8 @@ const VALID_ORDER_STATUSES = [
   "completed",
   "cancelled",
 ];
+
+const INVOICE_CREATE_MAX_RETRIES = 5;
 
 const parsePositiveInt = (value, fieldName) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -79,14 +82,53 @@ const getTimeElapsed = (createdAt) => {
   return "Just now";
 };
 
-const generateInvoiceNumber = async () => {
-  const lastOrder = await prisma.order.findFirst({
-    orderBy: { id: "desc" },
-    select: { id: true },
-  });
+const generateInvoiceNumber = () => {
+  return `INV-${uuidv4().toUpperCase()}`;
+};
 
-  const nextId = lastOrder ? lastOrder.id + 1 : 1;
-  return `INV-${String(nextId).padStart(6, "0")}`;
+const isInvoiceUniqueConstraintError = (error) => {
+  if (error?.code !== "P2002") {
+    return false;
+  }
+
+  const target = error?.meta?.target;
+  if (Array.isArray(target)) {
+    return target.some((field) =>
+      String(field).toLowerCase().includes("invoice"),
+    );
+  }
+
+  return String(target || "")
+    .toLowerCase()
+    .includes("invoice");
+};
+
+const createOrderWithUniqueInvoice = async (orderData) => {
+  for (let attempt = 1; attempt <= INVOICE_CREATE_MAX_RETRIES; attempt += 1) {
+    const invoiceNo = generateInvoiceNumber();
+
+    try {
+      const order = await prisma.order.create({
+        data: {
+          ...orderData,
+          invoiceNo,
+        },
+      });
+
+      return { order, invoiceNo };
+    } catch (error) {
+      if (
+        !isInvoiceUniqueConstraintError(error) ||
+        attempt === INVOICE_CREATE_MAX_RETRIES
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw new ServiceError("Failed to generate unique invoice number", {
+    status: 500,
+  });
 };
 
 const getOrders = async ({ vendorId, user }) => {
@@ -97,15 +139,6 @@ const getOrders = async ({ vendorId, user }) => {
   );
 
   assertVendorAccess(user, parsedVendorId);
-
-  const vendor = await prisma.user.findUnique({
-    where: { id: parsedVendorId },
-    select: { id: true },
-  });
-
-  if (!vendor) {
-    throw new ServiceError("Vendor not found", { status: 404 });
-  }
 
   const vendorOrders = await prisma.order.findMany({
     where: { vendorId: parsedVendorId },
@@ -270,19 +303,14 @@ const createCustomerOrder = async ({ body }) => {
     return sum + Number(menuItem.price) * quantity;
   }, 0);
 
-  const invoiceNo = await generateInvoiceNumber();
-
-  const order = await prisma.order.create({
-    data: {
-      vendorId,
-      tableId: table ? table.id : null,
-      tableIdentifier: tableIdentifier || null,
-      status: "pending",
-      totalAmount: calculatedTotal,
-      invoiceNo,
-      paymentStatus: "pending",
-      paymentMethod: "cash",
-    },
+  const { order, invoiceNo } = await createOrderWithUniqueInvoice({
+    vendorId,
+    tableId: table ? table.id : null,
+    tableIdentifier: tableIdentifier || null,
+    status: "pending",
+    totalAmount: calculatedTotal,
+    paymentStatus: "pending",
+    paymentMethod: "cash",
   });
 
   await prisma.$transaction(
@@ -370,15 +398,6 @@ const createOrder = async ({ body, user }) => {
     });
   }
 
-  const vendor = await prisma.user.findUnique({
-    where: { id: parsedVendorId },
-    select: { id: true },
-  });
-
-  if (!vendor) {
-    throw new ServiceError("Vendor not found", { status: 404 });
-  }
-
   let table = null;
   if (validatedBody?.tableId) {
     const parsedTableId = parsePositiveInt(validatedBody.tableId, "table ID");
@@ -412,60 +431,45 @@ const createOrder = async ({ body, user }) => {
     return sum + Number(menuItem.price) * quantity;
   }, 0);
 
-  const invoiceNo = await generateInvoiceNumber();
-
-  const order = await prisma.order.create({
-    data: {
-      vendorId: parsedVendorId,
-      tableId: table ? table.id : null,
-      tableIdentifier: table ? table.name : null,
-      status: "pending",
-      totalAmount: validatedBody?.totalAmount || calculatedTotal,
-      invoiceNo,
-      paymentStatus: "pending",
-      paymentMethod: "cash",
-    },
+  const { order } = await createOrderWithUniqueInvoice({
+    vendorId: parsedVendorId,
+    tableId: table ? table.id : null,
+    tableIdentifier: table ? table.name : null,
+    status: "pending",
+    totalAmount: calculatedTotal,
+    paymentStatus: "pending",
+    paymentMethod: "cash",
   });
 
-  await prisma.$transaction(
-    validItems.map(({ menuItem, quantity }) =>
-      prisma.orderItem.create({
-        data: {
-          orderId: order.id,
-          menuItemId: menuItem.id,
-          quantity,
-          price: menuItem.price,
-        },
-      }),
-    ),
-  );
-
-  if (!validatedBody?.totalAmount) {
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { totalAmount: calculatedTotal },
-    });
-  }
+  await prisma.orderItem.createMany({
+    data: validItems.map(({ menuItem, quantity }) => ({
+      orderId: order.id,
+      menuItemId: menuItem.id,
+      quantity,
+      price: menuItem.price,
+    })),
+  });
 
   emitOrderCreated(parsedVendorId, {
     orderId: order.id,
     status: order.status,
-    totalAmount: validatedBody?.totalAmount || calculatedTotal,
+    totalAmount: calculatedTotal,
     tableIdentifier: table ? table.name : null,
   });
 
+  const now = new Date().toISOString();
   emitVendorNotification(parsedVendorId, {
     id: `order-${order.id}-created`,
     type: "order",
     title: "New Order Received",
     message: `New order #${order.id} from ${table ? table.name : "customer"}`,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+    timestamp: now,
+    created_at: now,
     read: false,
     data: {
       order_id: order.id,
       table_name: table ? table.name : null,
-      total_amount: validatedBody?.totalAmount || calculatedTotal,
+      total_amount: calculatedTotal,
       status: order.status,
     },
   });
