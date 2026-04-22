@@ -79,14 +79,10 @@ const getTimeElapsed = (createdAt) => {
   return "Just now";
 };
 
-const generateInvoiceNumber = async () => {
-  const lastOrder = await prisma.order.findFirst({
-    orderBy: { id: "desc" },
-    select: { id: true },
-  });
-
-  const nextId = lastOrder ? lastOrder.id + 1 : 1;
-  return `INV-${String(nextId).padStart(6, "0")}`;
+const generateInvoiceNumber = () => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `INV-${timestamp}-${random}`;
 };
 
 const getOrders = async ({ vendorId, user }) => {
@@ -270,7 +266,7 @@ const createCustomerOrder = async ({ body }) => {
     return sum + Number(menuItem.price) * quantity;
   }, 0);
 
-  const invoiceNo = await generateInvoiceNumber();
+  const invoiceNo = generateInvoiceNumber();
 
   const order = await prisma.order.create({
     data: {
@@ -412,7 +408,7 @@ const createOrder = async ({ body, user }) => {
     return sum + Number(menuItem.price) * quantity;
   }, 0);
 
-  const invoiceNo = await generateInvoiceNumber();
+  const invoiceNo = generateInvoiceNumber();
 
   const order = await prisma.order.create({
     data: {
@@ -420,52 +416,42 @@ const createOrder = async ({ body, user }) => {
       tableId: table ? table.id : null,
       tableIdentifier: table ? table.name : null,
       status: "pending",
-      totalAmount: validatedBody?.totalAmount || calculatedTotal,
+      totalAmount: calculatedTotal,
       invoiceNo,
       paymentStatus: "pending",
       paymentMethod: "cash",
     },
   });
 
-  await prisma.$transaction(
-    validItems.map(({ menuItem, quantity }) =>
-      prisma.orderItem.create({
-        data: {
-          orderId: order.id,
-          menuItemId: menuItem.id,
-          quantity,
-          price: menuItem.price,
-        },
-      }),
-    ),
-  );
-
-  if (!validatedBody?.totalAmount) {
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { totalAmount: calculatedTotal },
-    });
-  }
+  await prisma.orderItem.createMany({
+  data: validItems.map(({ menuItem, quantity }) => ({
+    orderId: order.id,
+    menuItemId: menuItem.id,
+    quantity,
+    price: menuItem.price,
+  })),
+});
 
   emitOrderCreated(parsedVendorId, {
     orderId: order.id,
     status: order.status,
-    totalAmount: validatedBody?.totalAmount || calculatedTotal,
+    totalAmount: calculatedTotal,
     tableIdentifier: table ? table.name : null,
   });
 
+  const now = new Date().toISOString();
   emitVendorNotification(parsedVendorId, {
     id: `order-${order.id}-created`,
     type: "order",
     title: "New Order Received",
     message: `New order #${order.id} from ${table ? table.name : "customer"}`,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+    timestamp: now,
+    created_at: now,
     read: false,
     data: {
       order_id: order.id,
       table_name: table ? table.name : null,
-      total_amount: validatedBody?.totalAmount || calculatedTotal,
+      total_amount: calculatedTotal,
       status: order.status,
     },
   });
