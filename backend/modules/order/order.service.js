@@ -103,12 +103,15 @@ const isInvoiceUniqueConstraintError = (error) => {
     .includes("invoice");
 };
 
-const createOrderWithUniqueInvoice = async (orderData) => {
+const createOrderWithUniqueInvoice = async (
+  orderData,
+  prismaClient = prisma,
+) => {
   for (let attempt = 1; attempt <= INVOICE_CREATE_MAX_RETRIES; attempt += 1) {
     const invoiceNo = generateInvoiceNumber();
 
     try {
-      const order = await prisma.order.create({
+      const order = await prismaClient.order.create({
         data: {
           ...orderData,
           invoiceNo,
@@ -431,23 +434,30 @@ const createOrder = async ({ body, user }) => {
     return sum + Number(menuItem.price) * quantity;
   }, 0);
 
-  const { order } = await createOrderWithUniqueInvoice({
-    vendorId: parsedVendorId,
-    tableId: table ? table.id : null,
-    tableIdentifier: table ? table.name : null,
-    status: "pending",
-    totalAmount: calculatedTotal,
-    paymentStatus: "pending",
-    paymentMethod: "cash",
-  });
+  const order = await prisma.$transaction(async (tx) => {
+    const { order: createdOrder } = await createOrderWithUniqueInvoice(
+      {
+        vendorId: parsedVendorId,
+        tableId: table ? table.id : null,
+        tableIdentifier: table ? table.name : null,
+        status: "pending",
+        totalAmount: calculatedTotal,
+        paymentStatus: "pending",
+        paymentMethod: "cash",
+      },
+      tx,
+    );
 
-  await prisma.orderItem.createMany({
-    data: validItems.map(({ menuItem, quantity }) => ({
-      orderId: order.id,
-      menuItemId: menuItem.id,
-      quantity,
-      price: menuItem.price,
-    })),
+    await tx.orderItem.createMany({
+      data: validItems.map(({ menuItem, quantity }) => ({
+        orderId: createdOrder.id,
+        menuItemId: menuItem.id,
+        quantity,
+        price: menuItem.price,
+      })),
+    });
+
+    return createdOrder;
   });
 
   emitOrderCreated(parsedVendorId, {
