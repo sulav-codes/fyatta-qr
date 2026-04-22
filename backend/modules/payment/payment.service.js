@@ -10,8 +10,8 @@ const { validatePayload } = require("../../utils/serviceValidation");
 const paymentValidation = require("./payment.validation");
 
 const ESEWA_CONFIG = {
-  SECRET_KEY: "8gBm/:&EnhH.1/q",
-  PRODUCT_CODE: "EPAYTEST",
+  SECRET_KEY: process.env.ESEWA_SECRET_KEY,
+  PRODUCT_CODE: process.env.ESEWA_PRODUCT_CODE,
   SUCCESS_URL:
     process.env.ESEWA_SUCCESS_URL ||
     "http://localhost:8000/api/payment/esewa/verify",
