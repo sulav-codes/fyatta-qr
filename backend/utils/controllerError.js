@@ -1,4 +1,5 @@
 const { isServiceError } = require("./serviceError");
+const logger = require("../config/logger");
 
 const sendControllerError = (
   res,
@@ -10,6 +11,7 @@ const sendControllerError = (
   } = {},
 ) => {
   if (isServiceError(error)) {
+    const statusCode = Number.isInteger(error.status) ? error.status : 500;
     const shouldExpose = error.expose !== false;
     const payload = {
       error: shouldExpose ? error.message : fallbackMessage,
@@ -23,10 +25,28 @@ const sendControllerError = (
       payload.details = error.details;
     }
 
-    return res.status(error.status).json(payload);
+    const logMetadata = {
+      logPrefix,
+      statusCode,
+      code: error.code,
+    };
+
+    if (statusCode >= 500) {
+      logger.error(logPrefix, {
+        ...logMetadata,
+        error,
+      });
+    } else {
+      logger.warn(logPrefix, logMetadata);
+    }
+
+    return res.status(statusCode).json(payload);
   }
 
-  console.error(logPrefix, error);
+  logger.error(logPrefix, {
+    error,
+    statusCode: 500,
+  });
 
   const payload = {
     error: fallbackMessage,

@@ -5,6 +5,7 @@ const {
   emitOrderCreated,
   emitVendorNotification,
 } = require("../../sockets/order.socket");
+const logger = require("../../config/logger");
 const { ServiceError } = require("../../utils/serviceError");
 const { validatePayload } = require("../../utils/serviceValidation");
 const paymentValidation = require("./payment.validation");
@@ -56,7 +57,11 @@ const verifyEsewaSignature = (
 
     return receivedSignature === calculatedSignature;
   } catch (error) {
-    console.error("[eSewa] Error verifying signature:", error);
+    logger.error("[eSewa] Error verifying signature", {
+      module: "payment-service",
+      error,
+    });
+
     return false;
   }
 };
@@ -158,7 +163,12 @@ const verifyEsewaPayment = async ({ dataParam }) => {
     const decodedBytes = Buffer.from(dataParam, "base64");
     paymentData = JSON.parse(decodedBytes.toString("utf-8"));
   } catch (error) {
-    console.error("[eSewa] Error decoding payment data:", error);
+    logger.error("[eSewa] Error decoding payment data", {
+      module: "payment-service",
+      error,
+      hasDataParam: Boolean(dataParam),
+    });
+
     return buildClientRedirect("status=failed&reason=decode-error");
   }
 
@@ -177,6 +187,11 @@ const verifyEsewaPayment = async ({ dataParam }) => {
     );
 
     if (!isValid) {
+      logger.warn("[eSewa] Signature verification failed", {
+        module: "payment-service",
+        transactionUuid: paymentData.transaction_uuid,
+      });
+
       return buildClientRedirect("status=failed&reason=invalid-signature");
     }
   }

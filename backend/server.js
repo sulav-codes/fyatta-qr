@@ -3,11 +3,12 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
-const multer = require("multer");
 const http = require("http");
 const routes = require("./routes/index");
 const { createSocketServer } = require("./sockets");
 const { apiLimiter } = require("./middlewares/rateLimiter");
+const logger = require("./config/logger");
+const { errorMiddleware } = require("./middlewares/error.middleware");
 
 const app = express();
 const server = http.createServer(app);
@@ -70,25 +71,18 @@ app.use("/api", apiLimiter);
 app.use("/", routes);
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("Error:", err);
-
-  if (err instanceof multer.MulterError) {
-    if (err.code === "LIMIT_FILE_SIZE") {
-      return res
-        .status(400)
-        .json({ error: "File size too large. Max size is 5MB" });
-    }
-    return res.status(400).json({ error: err.message });
-  }
-
-  res.status(err.status || 500).json({
-    error: err.message || "Internal server error",
-  });
-});
+app.use(errorMiddleware);
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`Server running on Port:${PORT}`);
-  console.log(`WebSocket server ready`);
+  logger.info("Server listening", {
+    port: PORT,
+  });
+  logger.info("WebSocket server ready");
+});
+
+server.on("error", (error) => {
+  logger.error("Server failed to start", {
+    error,
+  });
 });

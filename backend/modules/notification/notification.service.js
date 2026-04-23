@@ -1,6 +1,7 @@
 const prisma = require("../../config/prisma");
 const { emitVendorNotification } = require("../../sockets/order.socket");
 const { emitToVendor } = require("../../sockets/notifier");
+const logger = require("../../config/logger");
 const { ServiceError } = require("../../utils/serviceError");
 const { validatePayload } = require("../../utils/serviceValidation");
 const notificationValidation = require("./notification.validation");
@@ -17,10 +18,11 @@ const callWaiter = async ({ body }) => {
     throw new ServiceError("Vendor ID must be a valid number", { status: 400 });
   }
 
-  console.log("[Waiter Call] Request received:", {
-    vendor_id,
-    table_identifier,
-    table_name,
+  logger.info("[Waiter Call] Request received", {
+    module: "notification-service",
+    vendorId,
+    tableIdentifier: table_identifier,
+    tableName: table_name || null,
   });
 
   const vendor = await prisma.user.findUnique({
@@ -63,21 +65,30 @@ const callWaiter = async ({ body }) => {
     const didEmit = didEmitNotification || didEmitLegacy;
 
     if (didEmit) {
-      console.log(
-        `[Waiter Call] Socket notification sent to vendor-${vendorId}`,
-      );
+      logger.info("[Waiter Call] Socket notification sent", {
+        module: "notification-service",
+        room: `vendor-${vendorId}`,
+      });
     } else {
-      console.warn(
-        "[Waiter Call] Socket.io not available, notification not sent via socket",
-      );
+      logger.warn("[Waiter Call] Socket.io not available", {
+        module: "notification-service",
+        vendorId,
+      });
     }
   } catch (socketError) {
-    console.error("[Waiter Call] Socket error:", socketError);
+    logger.error("[Waiter Call] Socket error", {
+      module: "notification-service",
+      error: socketError,
+      vendorId,
+    });
   }
 
-  console.log(
-    `[Waiter Call] ${tableName} called waiter at ${vendor.restaurantName}`,
-  );
+  logger.info("[Waiter Call] Waiter notified", {
+    module: "notification-service",
+    tableName,
+    restaurantName: vendor.restaurantName,
+    vendorId,
+  });
 
   return {
     success: true,
