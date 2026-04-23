@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
+const logger = require("./logger");
 
 // Initialize Prisma Client for Supabase
 const prisma = new PrismaClient({
@@ -12,10 +13,12 @@ const prisma = new PrismaClient({
 (async () => {
   try {
     await prisma.$connect();
-    console.log("✅ Connected to Supabase PostgreSQL via Prisma");
+    logger.info("Connected to Supabase PostgreSQL via Prisma");
   } catch (error) {
-    console.error("❌ Supabase connection failed:", error.message);
-    console.error("💡 Check your DATABASE_URL and DIRECT_URL in .env");
+    logger.error("Supabase connection failed", {
+      error,
+      hint: "Check your DATABASE_URL and DIRECT_URL in .env",
+    });
     process.exit(1);
   }
 })();
@@ -23,16 +26,19 @@ const prisma = new PrismaClient({
 // Graceful shutdown
 process.on("beforeExit", async () => {
   await prisma.$disconnect();
+  logger.info("Prisma disconnected on beforeExit");
 });
 
 // Handle unexpected disconnections
 process.on("SIGINT", async () => {
   await prisma.$disconnect();
+  logger.info("Prisma disconnected on SIGINT");
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   await prisma.$disconnect();
+  logger.info("Prisma disconnected on SIGTERM");
   process.exit(0);
 });
 

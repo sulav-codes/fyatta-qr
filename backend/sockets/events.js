@@ -1,5 +1,6 @@
 const SOCKET_EVENTS = Object.freeze({
   CONNECTION: "connection",
+  DISCONNECT: "disconnect",
   JOIN_VENDOR: "join-vendor",
   LEAVE_VENDOR: "leave-vendor",
   JOIN_TABLE: "join-table",

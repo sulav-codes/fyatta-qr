@@ -1,5 +1,6 @@
 const notificationService = require("./notification.service");
 const { isServiceError } = require("../../utils/serviceError");
+const logger = require("../../config/logger");
 
 exports.callWaiter = async (req, res) => {
   try {
@@ -16,7 +17,11 @@ exports.callWaiter = async (req, res) => {
       });
     }
 
-    console.error("Error calling waiter:", error);
+    logger.error("Error calling waiter", {
+      module: "notification-controller",
+      error,
+    });
+
     return res.status(500).json({
       success: false,
       message: "Failed to call waiter",

@@ -1,5 +1,6 @@
 const authService = require("./auth.service");
 const { sendControllerError } = require("../../utils/controllerError");
+const logger = require("../../config/logger");
 const {
   REFRESH_TOKEN_COOKIE_NAME,
   getRefreshCookieOptions,
@@ -81,7 +82,11 @@ exports.googleStart = async (req, res) => {
     const authUrl = await authService.googleStart();
     return res.redirect(authUrl);
   } catch (error) {
-    console.error("Google OAuth start error:", error);
+    logger.error("Google OAuth start error", {
+      module: "auth-controller",
+      error,
+    });
+
     return redirectWithError(
       res,
       frontendFailureUrl,
@@ -115,7 +120,11 @@ exports.googleCallback = async (req, res) => {
 
     return res.redirect(successUrl.toString());
   } catch (error) {
-    console.error("Google OAuth callback error:", error);
+    logger.error("Google OAuth callback error", {
+      module: "auth-controller",
+      error,
+    });
+
     return redirectWithError(
       res,
       frontendFailureUrl,

@@ -1,5 +1,6 @@
 const paymentService = require("./payment.service");
 const { sendControllerError } = require("../../utils/controllerError");
+const logger = require("../../config/logger");
 
 exports.initiateEsewaPayment = async (req, res) => {
   try {
@@ -24,7 +25,11 @@ exports.verifyEsewaPayment = async (req, res) => {
 
     return res.redirect(redirectUrl);
   } catch (error) {
-    console.error("[eSewa] Error verifying payment:", error);
+    logger.error("[eSewa] Error verifying payment", {
+      module: "payment-controller",
+      error,
+    });
+
     return res.redirect(
       `${process.env.CLIENT_URL || "http://localhost:3000"}/payment-result?status=failed&reason=server-error`,
     );

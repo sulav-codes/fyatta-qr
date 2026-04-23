@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const logger = require("../config/logger");
 
 // Middleware to authenticate JWT token and attach user to request
 const authenticate = async (req, res, next) => {
@@ -8,6 +9,14 @@ const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warn(
+        "Authentication failed: missing or malformed authorization header",
+        {
+          method: req.method,
+          path: req.originalUrl,
+        },
+      );
+
       return res.status(401).json({
         error:
           "No token provided. Authorization header must start with 'Bearer '",
@@ -22,6 +31,11 @@ const authenticate = async (req, res, next) => {
 
     const userId = Number.parseInt(String(decoded?.userId), 10);
     if (Number.isNaN(userId) || userId < 1) {
+      logger.warn("Authentication failed: invalid token payload", {
+        method: req.method,
+        path: req.originalUrl,
+      });
+
       return res.status(401).json({
         error: "Invalid token payload",
       });
@@ -44,6 +58,12 @@ const authenticate = async (req, res, next) => {
     });
 
     if (!user) {
+      logger.warn("Authentication failed: user not found", {
+        method: req.method,
+        path: req.originalUrl,
+        userId,
+      });
+
       return res.status(401).json({
         error: "User not found",
       });
@@ -51,6 +71,12 @@ const authenticate = async (req, res, next) => {
 
     // Check if user is active
     if (!user.isActive) {
+      logger.warn("Authentication failed: user account inactive", {
+        method: req.method,
+        path: req.originalUrl,
+        userId: user.id,
+      });
+
       return res.status(401).json({
         error: "Account is inactive",
       });
@@ -61,21 +87,45 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
+      logger.warn("Authentication failed: invalid token", {
+        method: req.method,
+        path: req.originalUrl,
+      });
+
       return res.status(401).json({
         error: "Invalid token",
       });
     }
     if (error.name === "TokenExpiredError") {
+      logger.warn("Authentication failed: token expired", {
+        method: req.method,
+        path: req.originalUrl,
+      });
+
       return res.status(401).json({
         error: "Token expired",
       });
     }
 
-    console.error("Authentication error:", error);
-    return res.status(500).json({
-      error: "Authentication failed",
-      details: error.message,
+    logger.error("Authentication middleware error", {
+      method: req.method,
+      path: req.originalUrl,
+      error,
     });
+
+    const includeErrorDetails =
+      process.env.NODE_ENV !== "production" ||
+      String(process.env.AUTH_INCLUDE_ERROR_DETAILS).toLowerCase() === "true";
+
+    const payload = {
+      error: "Authentication failed",
+    };
+
+    if (includeErrorDetails && error?.message) {
+      payload.details = error.message;
+    }
+
+    return res.status(500).json(payload);
   }
 };
 
@@ -154,10 +204,14 @@ const optionalAuth = async (req, res, next) => {
 
     // If auth header exists but doesn't start with Bearer, ignore it and continue
     if (!authHeader.startsWith("Bearer ")) {
-      console.log(
-        "[optionalAuth] Auth header exists but not Bearer format, ignoring:",
-        authHeader,
+      logger.debug(
+        "Optional authentication skipped: authorization header is not Bearer format",
+        {
+          method: req.method,
+          path: req.originalUrl,
+        },
       );
+
       return next();
     }
 
@@ -168,7 +222,7 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
+    const jwtSecret = process.env.JWT_SECRET_KEY;
     const decoded = jwt.verify(token, jwtSecret);
 
     const user = await prisma.user.findUnique({
@@ -192,10 +246,15 @@ const optionalAuth = async (req, res, next) => {
     next();
   } catch (error) {
     // Token invalid, but don't fail - just continue without user
-    console.log(
-      "[optionalAuth] Token validation failed, continuing without user:",
-      error.message,
+    logger.debug(
+      "Optional authentication token validation failed, continuing without user",
+      {
+        method: req.method,
+        path: req.originalUrl,
+        reason: error?.name || "UnknownError",
+      },
     );
+
     next();
   }
 };
