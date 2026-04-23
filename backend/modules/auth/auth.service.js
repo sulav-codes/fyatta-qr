@@ -16,7 +16,10 @@ const { ServiceError } = require("../../utils/serviceError");
 const { validatePayload } = require("../../utils/serviceValidation");
 const authValidation = require("./auth.validation");
 
-const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
+const jwtSecret = process.env.JWT_SECRET_KEY;
+if (!jwtSecret) {
+  throw new Error("JWT_SECRET_KEY environment variable is required");
+}
 const GOOGLE_STATE_EXPIRES_IN = process.env.GOOGLE_STATE_EXPIRES_IN || "5m";
 const PROFILE_PLACEHOLDER_LOCATION = "PENDING_PROFILE_COMPLETION";
 const PROFILE_PLACEHOLDER_NAME = "New Restaurant";

@@ -113,10 +113,19 @@ const authenticate = async (req, res, next) => {
       error,
     });
 
-    return res.status(500).json({
+    const includeErrorDetails =
+      process.env.NODE_ENV !== "production" ||
+      String(process.env.AUTH_INCLUDE_ERROR_DETAILS).toLowerCase() === "true";
+
+    const payload = {
       error: "Authentication failed",
-      details: error.message,
-    });
+    };
+
+    if (includeErrorDetails && error?.message) {
+      payload.details = error.message;
+    }
+
+    return res.status(500).json(payload);
   }
 };
 
@@ -213,7 +222,7 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const jwtSecret = process.env.JWT_SECRET_KEY || "your-secret-key";
+    const jwtSecret = process.env.JWT_SECRET_KEY;
     const decoded = jwt.verify(token, jwtSecret);
 
     const user = await prisma.user.findUnique({
