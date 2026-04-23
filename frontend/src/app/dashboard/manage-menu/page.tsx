@@ -51,10 +51,23 @@ export default function ManageMenu() {
   const vendorId = getEffectiveVendorId();
 
   const fetchMenuItems = useCallback(async () => {
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (vendorId === null) {
+      setMenuCategories([]);
+      setFilteredCategories([]);
+      setIsLoading(false);
+      toast.error("Unable to load menu items without a vendor context.", {
+        id: "menu-vendor-context-missing",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      if (!token) return;
-
       const response = await apiFetchWithAuth(
         `/api/vendors/${vendorId}/menu/categories`,
         token,
@@ -83,11 +96,12 @@ export default function ManageMenu() {
 
   // Fetch menu items
   useEffect(() => {
-    if (vendorId && token) {
-      fetchMenuItems();
-    } else {
+    if (!token) {
       setIsLoading(false);
+      return;
     }
+
+    fetchMenuItems();
   }, [vendorId, token, fetchMenuItems]);
 
   // Filter menu items when search term changes
@@ -153,7 +167,6 @@ export default function ManageMenu() {
       }));
 
       setMenuCategories(updatedCategories);
-      setFilteredCategories(updatedCategories);
       toast.success("Item availability updated");
     } catch (error) {
       console.error("Error updating item:", error);
@@ -280,7 +293,7 @@ export default function ManageMenu() {
                 ? "No items match your search. Try a different search term."
                 : "You haven't added any menu items yet."}
             </p>
-            {!searchTerm && (
+            {!searchTerm && canCreateDeleteMenuItems() && (
               <Button
                 onClick={() => router.push("/dashboard/create-menu")}
                 className="bg-orange-500 hover:bg-orange-600 text-white"
@@ -342,13 +355,13 @@ export default function ManageMenu() {
                               <div>
                                 <div className="font-medium">{item.name}</div>
                                 <div className="text-sm text-muted-foreground md:hidden">
-                                  ₹{item.price}
+                                  Rs.{item.price}
                                 </div>
                               </div>
                             </div>
                           </td>
                           <td className="p-4 hidden md:table-cell">
-                            ₹{item.price}
+                            Rs.{item.price}
                           </td>
                           <td className="p-4 text-center">
                             <button
