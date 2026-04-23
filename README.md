@@ -84,7 +84,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone https://github.com/sulav-codes/fyatta-qr.git
-cd fyatta_qr
+cd fyatta-qr
 ```
 
 ### 2. Backend setup
@@ -118,6 +118,12 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
 GOOGLE_FRONTEND_SUCCESS_URL=http://localhost:3000/oauth/callback
 GOOGLE_FRONTEND_FAILURE_URL=http://localhost:3000/login
+
+# E-SEWA CONFIGURATION
+ESEWA_SECRET_KEY=your-esewa-secret-key
+ESEWA_PRODUCT_CODE=your-esewa-product-code
+ESEWA_SUCCESS_URL=http://localhost:8000/api/payment/esewa/verify
+ESEWA_FAILURE_URL=http://localhost:8000/api/payment/esewa/verify
 ```
 
 Run Prisma setup/migrations:
@@ -243,22 +249,39 @@ npm start
 ```text
 fyatta_qr/
 ├── backend/
-│   ├── config/              # Prisma config and app config
-│   ├── controllers/         # Route handlers (Prisma-backed)
-│   ├── middleware/          # Auth, RBAC, tenant guards, uploads
-│   ├── models/              # Legacy Sequelize models (migration reference)
-│   ├── prisma/              # Prisma schema + migrations
-│   ├── routes/              # API routes
-│   ├── server.js            # Express + Socket.IO entry
+│   ├── config/              # App config, logger, Prisma client config
+│   ├── docs/                # API docs route wiring
+│   ├── middlewares/         # Auth, validation, uploads, rate limiting, errors
+│   ├── models/              # Legacy Sequelize artifacts (reference)
+│   ├── modules/             # Feature modules (controller/service/route/validation)
+│   │   ├── auth/
+│   │   ├── menu/
+│   │   ├── notification/
+│   │   ├── order/
+│   │   ├── payment/
+│   │   ├── staff/
+│   │   ├── table/
+│   │   └── vendor/
+│   ├── prisma/              # Prisma schema and migrations
+│   ├── routes/              # Route composition/registration
+│   ├── sample/              # Backend sample integrations/references
+│   ├── schemas/             # Shared schema files
+│   ├── sockets/             # Socket.IO server, events, rooms, handlers
+│   ├── utils/               # Shared helpers and service/controller error utils
+│   ├── server.js            # Express + Socket.IO entrypoint
 │   └── uploads/             # Uploaded assets
 ├── frontend/
+│   ├── public/
+│   │   └── images/          # Static images
 │   ├── src/
 │   │   ├── app/             # Next.js app router pages
 │   │   ├── components/      # Reusable UI components
 │   │   ├── context/         # Auth/cart and shared providers
 │   │   ├── hooks/           # RBAC/permission hooks
 │   │   └── lib/             # API helpers and utilities
-│   └── public/              # Static assets
+│   └── sample/              # Frontend sample snippets/assets
+├── sample/                  # Workspace-level sample files
+├── docker-compose.yml       # Local container orchestration
 └── README.md
 ```
 
