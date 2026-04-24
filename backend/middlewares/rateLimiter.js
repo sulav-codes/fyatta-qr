@@ -62,6 +62,7 @@ const authLimiter = createRateLimiter({
   ),
   limit: toPositiveInt(process.env.RATE_LIMIT_AUTH_MAX, 20),
   message: "Too many authentication attempts. Please try again later.",
+  code: "AUTH_RATE_LIMIT_EXCEEDED",
   skipSuccessfulRequests: true,
 });
 
@@ -81,6 +82,7 @@ const paymentLimiter = createRateLimiter({
   ),
   limit: toPositiveInt(process.env.RATE_LIMIT_PAYMENT_MAX, 40),
   message: "Too many payment requests. Please retry in a moment.",
+  code: "PAYMENT_RATE_LIMIT_EXCEEDED",
 });
 
 const waiterCallLimiter = createRateLimiter({
