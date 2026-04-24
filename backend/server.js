@@ -41,6 +41,11 @@ const io = createSocketServer(server);
 // Make io accessible to route handlers
 app.set("io", io);
 
+// Lightweight health endpoint for container checks
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // CORS configuration
 app.use(
   cors({
@@ -58,11 +63,6 @@ app.use(cookieParser());
 // Serve static files
 app.use(express.static("public"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// Lightweight health endpoint for container checks
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
 
 // Baseline API throttling for public/protected API traffic
 app.use("/api", apiLimiter);
