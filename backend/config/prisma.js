@@ -23,23 +23,39 @@ const prisma = new PrismaClient({
   }
 })();
 
-// Graceful shutdown
-process.on("beforeExit", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on beforeExit");
-});
 
-// Handle unexpected disconnections
-process.on("SIGINT", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on SIGINT");
-  process.exit(0);
-});
+let isShuttingDown = false;
 
-process.on("SIGTERM", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on SIGTERM");
-  process.exit(0);
-});
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logger.info(`Received ${signal}, shutting down...`);
+
+  const timeout = setTimeout(() => {
+    logger.error("Shutdown timeout, forcing exit");
+    process.exit(1);
+  }, 10000);
+
+  try {
+    // Close server
+    await new Promise((resolve) => server.close(resolve));
+    logger.info("HTTP server closed");
+
+    // Disconnect Prisma
+    await prisma.$disconnect();
+    logger.info("Prisma disconnected");
+
+    clearTimeout(timeout);
+    process.exit(0);
+  } catch (error) {
+    logger.error("Shutdown error", { error });
+    clearTimeout(timeout);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 module.exports = prisma;

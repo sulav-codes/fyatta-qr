@@ -21,26 +21,22 @@ const prettyLogFormat = winston.format.printf((info) => {
     Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : "";
   const stackString = stack ? `\n${stack}` : "";
 
-  return `${timestamp} ${level}: ${message}${metadataString}${stackString}`;
+  return `${timestamp} [${level.toUpperCase()}]: ${message}${metadataString}${stackString}`;
 });
 
-const createLoggerFormat = () => {
-  const sharedFormats = [
-    winston.format.timestamp(),
+const createConsoleFormat = () => {
+  const baseFormats = [
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
     winston.format.errors({ stack: true }),
     winston.format.splat(),
     redactLogPayloadFormat(),
   ];
 
   if (configuredFormat === "json") {
-    return winston.format.combine(...sharedFormats, winston.format.json());
+    return winston.format.combine(...baseFormats, winston.format.json());
   }
 
-  return winston.format.combine(
-    ...sharedFormats,
-    winston.format.colorize({ all: true }),
-    prettyLogFormat,
-  );
+  return winston.format.combine(...baseFormats, prettyLogFormat);
 };
 
 const logger = winston.createLogger({
@@ -49,9 +45,9 @@ const logger = winston.createLogger({
     service: serviceName,
     environment,
   },
-  format: createLoggerFormat(),
   transports: [
     new winston.transports.Console({
+      format: createConsoleFormat(),
       stderrLevels: ["error"],
       handleExceptions: true,
       handleRejections: true,
@@ -63,9 +59,7 @@ const logger = winston.createLogger({
 logger.on("error", (error) => {
   try {
     process.stderr.write(`Logger transport error: ${error.message}\n`);
-  } catch (_writeError) {
-    // Swallow transport reporting failures to avoid recursion loops.
-  }
+  } catch (_writeError) {}
 });
 
 module.exports = logger;

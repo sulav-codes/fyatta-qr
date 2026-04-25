@@ -16,35 +16,39 @@ const DEFAULT_REDACT_KEYS = [
   "hash",
 ];
 
-const toRedactionKeySet = () => {
-  const envKeys = String(process.env.LOG_REDACT_KEYS || "")
-    .split(",")
-    .map((key) => key.trim().toLowerCase())
-    .filter(Boolean);
+let _redactionKeys = null;
 
-  return new Set([...DEFAULT_REDACT_KEYS, ...envKeys]);
+const getRedactionKeys = () => {
+  if (!_redactionKeys) {
+    const envKeys = String(process.env.LOG_REDACT_KEYS || "")
+      .split(",")
+      .map((key) => key.trim().toLowerCase())
+      .filter(Boolean);
+
+    _redactionKeys = new Set([...DEFAULT_REDACT_KEYS, ...envKeys]);
+  }
+  return _redactionKeys;
 };
 
-const REDACTION_KEYS = toRedactionKeySet();
+const resetRedactionKeys = () => {
+  _redactionKeys = null;
+};
 
 const isPlainObject = (value) => {
   if (!value || typeof value !== "object") {
     return false;
   }
-
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 };
 
 const shouldRedactKey = (key) => {
   const lowerCaseKey = String(key || "").toLowerCase();
-
-  for (const pattern of REDACTION_KEYS) {
+  for (const pattern of getRedactionKeys()) {
     if (lowerCaseKey.includes(pattern)) {
       return true;
     }
   }
-
   return false;
 };
 
@@ -55,20 +59,12 @@ const sanitizeError = (error) => {
 
   const sanitized = {
     name: error.name,
-    message: error.message,
+    message: error.message, 
   };
 
-  if (error.stack) {
-    sanitized.stack = error.stack;
-  }
-
-  if (error.code !== undefined) {
-    sanitized.code = error.code;
-  }
-
-  if (error.status !== undefined) {
-    sanitized.status = error.status;
-  }
+  if (error.stack) sanitized.stack = error.stack;
+  if (error.code !== undefined) sanitized.code = error.code;
+  if (error.status !== undefined) sanitized.status = error.status;
 
   return sanitized;
 };
@@ -87,14 +83,23 @@ const sanitizeValue = (key, value, depth = 0) => {
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeValue(key, item, depth + 1));
+    return value.map((item) => {
+      if (isPlainObject(item)) {
+        const entries = Object.entries(item).map(([childKey, childValue]) => [
+          childKey,
+          sanitizeValue(childKey, childValue, depth + 1),
+        ]);
+        return Object.fromEntries(entries);
+      }
+      return sanitizeValue(key, item, depth + 1);
+    });
   }
 
   if (isPlainObject(value)) {
-    const entries = Object.entries(value).map(([childKey, childValue]) => {
-      return [childKey, sanitizeValue(childKey, childValue, depth + 1)];
-    });
-
+    const entries = Object.entries(value).map(([childKey, childValue]) => [
+      childKey,
+      sanitizeValue(childKey, childValue, depth + 1),
+    ]);
     return Object.fromEntries(entries);
   }
 
@@ -106,14 +111,24 @@ const redactForLogs = (payload) => {
     return payload;
   }
 
-  const entries = Object.entries(payload).map(([key, value]) => {
-    return [key, sanitizeValue(key, value)];
-  });
+  if (payload instanceof Error) {
+    return sanitizeError(payload);
+  }
+
+  if (!isPlainObject(payload)) {
+    return payload;
+  }
+
+  const entries = Object.entries(payload).map(([key, value]) => [
+    key,
+    sanitizeValue(key, value),
+  ]);
 
   return Object.fromEntries(entries);
 };
 
 module.exports = {
   redactForLogs,
+  resetRedactionKeys, 
   REDACTED_VALUE,
 };
