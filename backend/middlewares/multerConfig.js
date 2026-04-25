@@ -19,10 +19,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // Custom Multer Storage Engine for Supabase
 class SupabaseStorageEngine {
   _handleFile(req, file, cb) {
+    // Sanitize filename - remove path separators and null bytes
+    const sanitizeFilename = (name) => {
+      return name.replace(/[\/\\:\x00]/g, "_");
+    };
     // Generate unique file path
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext);
+    const safeName = sanitizeFilename(file.originalname);
+    const ext = path.extname(safeName);
+    const basename = path.basename(safeName, ext);
     const fileName = `${basename}-${uniqueSuffix}${ext}`;
 
     // Collect file buffer from stream
@@ -83,6 +88,10 @@ class SupabaseStorageEngine {
         if (error) {
           console.error("Failed to remove file from Supabase:", error.message);
         }
+        cb(null);
+      })
+      .catch((err) => {
+        console.error("Failed to remove file from Supabase:", err.message);
         cb(null);
       });
   }

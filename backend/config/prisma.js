@@ -23,8 +23,8 @@ const prisma = new PrismaClient({
   }
 })();
 
-
 let isShuttingDown = false;
+let httpServer = null;
 
 const gracefulShutdown = async (signal) => {
   if (isShuttingDown) return;
@@ -39,8 +39,10 @@ const gracefulShutdown = async (signal) => {
 
   try {
     // Close server
-    await new Promise((resolve) => server.close(resolve));
-    logger.info("HTTP server closed");
+    if (httpServer) {
+      await new Promise((resolve) => httpServer.close(resolve));
+      logger.info("HTTP server closed");
+    }
 
     // Disconnect Prisma
     await prisma.$disconnect();
@@ -55,7 +57,12 @@ const gracefulShutdown = async (signal) => {
   }
 };
 
+const registerServer = (server) => {
+  httpServer = server;
+};
+
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 module.exports = prisma;
+module.exports.registerServer = registerServer;

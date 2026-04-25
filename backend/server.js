@@ -9,10 +9,14 @@ const { createSocketServer } = require("./sockets");
 const { apiLimiter } = require("./middlewares/rateLimiter");
 const logger = require("./config/logger");
 const { errorMiddleware } = require("./middlewares/error.middleware");
+const prisma = require("./config/prisma");
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
+
+// Register server for graceful shutdown in Prisma
+prisma.registerServer(server);
 
 const resolveTrustProxy = () => {
   const rawValue = process.env.TRUST_PROXY;
