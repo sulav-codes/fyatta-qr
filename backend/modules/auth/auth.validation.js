@@ -1,5 +1,4 @@
-import Joi from "joi";
-
+import { Joi } from "../../utils/serviceValidation.js";
 const positiveId = Joi.number().integer().positive();
 
 const registerBodySchema = Joi.object({

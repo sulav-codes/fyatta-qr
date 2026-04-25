@@ -27,8 +27,8 @@ class SupabaseStorageEngine {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const safeName = sanitizeFilename(file.originalname);
     const ext = extname(safeName);
-    const basename = basename(safeName, ext);
-    const fileName = `${basename}-${uniqueSuffix}${ext}`;
+    const fileBasename = basename(safeName, ext);
+    const fileName = `${fileBasename}-${uniqueSuffix}${ext}`;
 
     // Collect file buffer from stream
     const chunks = [];

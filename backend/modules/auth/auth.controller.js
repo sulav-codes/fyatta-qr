@@ -76,7 +76,7 @@ export async function login(req, res) {
 }
 
 export async function googleStart(req, res) {
-  const { frontendFailureUrl } = getGoogleConfig();
+  const { frontendFailureUrl } = authService.getGoogleConfig();
 
   try {
     const authUrl = await authService.googleStart();
@@ -96,7 +96,7 @@ export async function googleStart(req, res) {
 }
 
 export async function googleCallback(req, res) {
-  const { frontendFailureUrl, frontendSuccessUrl } = getGoogleConfig();
+  const { frontendFailureUrl, frontendSuccessUrl } = authService.getGoogleConfig();
 
   try {
     const response = await authService.googleCallback({
