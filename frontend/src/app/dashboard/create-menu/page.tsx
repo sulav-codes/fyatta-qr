@@ -72,9 +72,17 @@ function CreateMenuContent() {
 
     // Create a preview URL and store the file
     const newMenuItems = [...menuItems];
+    const previousPreview = newMenuItems[index].imagePreview;
+    if (previousPreview) {
+      URL.revokeObjectURL(previousPreview);
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== previousPreview,
+      );
+    }
+    const previewUrl = URL.createObjectURL(file);
     newMenuItems[index].image = file;
-    newMenuItems[index].imagePreview = URL.createObjectURL(file);
-    objectUrlsRef.current.push(newMenuItems[index].imagePreview!);
+    newMenuItems[index].imagePreview = previewUrl;
+    objectUrlsRef.current.push(previewUrl);
     setMenuItems(newMenuItems);
   };
 
