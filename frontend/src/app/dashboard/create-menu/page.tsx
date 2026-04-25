@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Upload, X, CheckCircle2 } from "lucide-react";
+import { Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -322,6 +322,7 @@ function CreateMenuContent() {
                     {item.imagePreview ? (
                       <div className="space-y-2">
                         <div className="relative w-full aspect-video mx-auto">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.imagePreview}
                             alt="Preview"
