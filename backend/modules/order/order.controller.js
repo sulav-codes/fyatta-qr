@@ -1,7 +1,7 @@
-const orderService = require("./order.service");
-const { sendControllerError } = require("../../utils/controllerError");
+import orderService from "./order.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
 
-exports.getOrders = async (req, res) => {
+const getOrders = async (req, res) => {
   try {
     const response = await orderService.getOrders({
       vendorId: req.params.vendorId,
@@ -17,7 +17,7 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-exports.createCustomerOrder = async (req, res) => {
+const createCustomerOrder = async (req, res) => {
   try {
     const response = await orderService.createCustomerOrder({
       body: req.body,
@@ -32,7 +32,7 @@ exports.createCustomerOrder = async (req, res) => {
   }
 };
 
-exports.createOrder = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
     const response = await orderService.createOrder({
       body: req.body,
@@ -48,7 +48,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-exports.updateOrderStatus = async (req, res) => {
+const updateOrderStatus = async (req, res) => {
   try {
     const response = await orderService.updateOrderStatus({
       orderId: req.params.orderId,
@@ -76,7 +76,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-exports.getOrderDetails = async (req, res) => {
+const getOrderDetails = async (req, res) => {
   try {
     const response = await orderService.getOrderDetails({
       orderId: req.params.orderId,
@@ -92,7 +92,7 @@ exports.getOrderDetails = async (req, res) => {
   }
 };
 
-exports.getCustomerOrderDetails = async (req, res) => {
+const getCustomerOrderDetails = async (req, res) => {
   try {
     const response = await orderService.getCustomerOrderDetails({
       orderId: req.params.orderId,
@@ -107,7 +107,7 @@ exports.getCustomerOrderDetails = async (req, res) => {
   }
 };
 
-exports.updatePaymentStatus = async (req, res) => {
+const updatePaymentStatus = async (req, res) => {
   try {
     const response = await orderService.updatePaymentStatus({
       orderId: req.params.orderId,
@@ -124,7 +124,7 @@ exports.updatePaymentStatus = async (req, res) => {
   }
 };
 
-exports.reportDeliveryIssue = async (req, res) => {
+const reportDeliveryIssue = async (req, res) => {
   try {
     const response = await orderService.reportDeliveryIssue({
       orderId: req.params.orderId,
@@ -140,7 +140,7 @@ exports.reportDeliveryIssue = async (req, res) => {
   }
 };
 
-exports.resolveDeliveryIssue = async (req, res) => {
+const resolveDeliveryIssue = async (req, res) => {
   try {
     const response = await orderService.resolveDeliveryIssue({
       orderId: req.params.orderId,
@@ -157,7 +157,7 @@ exports.resolveDeliveryIssue = async (req, res) => {
   }
 };
 
-exports.verifyDelivery = async (req, res) => {
+const verifyDelivery = async (req, res) => {
   try {
     const response = await orderService.verifyDelivery({
       orderId: req.params.orderId,
@@ -172,4 +172,15 @@ exports.verifyDelivery = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export {
+  getOrders,
+  createCustomerOrder,
+  createOrder,
+  updateOrderStatus,
+  getOrderDetails,
+  getCustomerOrderDetails,
+  updatePaymentStatus,
+  reportDeliveryIssue,
+  resolveDeliveryIssue,
+  verifyDelivery,
+};

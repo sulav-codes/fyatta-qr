@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -8,6 +8,4 @@ const callWaiterBodySchema = Joi.object({
   table_name: Joi.string().trim().max(120).allow("", null).optional(),
 }).unknown(false);
 
-module.exports = {
-  callWaiterBodySchema,
-};
+export { callWaiterBodySchema };

@@ -1,10 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const { authenticate } = require("../../middlewares/auth.middleware");
-const { validate } = require("../../middlewares/validate.middleware");
-const menuController = require("./menu.controller");
-const menuValidation = require("./menu.validation");
-const upload = require("../../middlewares/multerConfig");
+import { Router } from "express";
+import authMiddleware from "../../middlewares/auth.middleware.js";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import * as menuController from "./menu.controller.js";
+import * as menuValidation from "./menu.validation.js";
+import upload from "../../middlewares/multerConfig.js";
+
+const router = Router();
+const { authenticate } = authMiddleware;
+const { validate } = validateMiddleware;
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
@@ -75,4 +78,4 @@ router.patch(
   menuController.toggleAvailability,
 );
 
-module.exports = router;
+export default router;

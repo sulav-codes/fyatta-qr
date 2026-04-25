@@ -1,6 +1,6 @@
-const { getSocketServer } = require("./socket.store");
-const { vendorRoom, tableRoom } = require("./rooms");
-const logger = require("../config/logger");
+import { getSocketServer } from "./socket.store.js";
+import { vendorRoom, tableRoom } from "./rooms.js";
+import logger from "../config/logger.js";
 
 function emitToRoom(room, event, payload) {
   const io = getSocketServer();
@@ -35,8 +35,4 @@ function emitToTable(vendorId, tableIdentifier, event, payload) {
   return emitToRoom(tableRoom(vendorId, tableIdentifier), event, payload);
 }
 
-module.exports = {
-  emitToRoom,
-  emitToVendor,
-  emitToTable,
-};
+export { emitToRoom, emitToVendor, emitToTable };

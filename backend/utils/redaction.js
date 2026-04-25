@@ -59,7 +59,7 @@ const sanitizeError = (error) => {
 
   const sanitized = {
     name: error.name,
-    message: error.message, 
+    message: error.message,
   };
 
   if (error.stack) sanitized.stack = error.stack;
@@ -127,8 +127,4 @@ const redactForLogs = (payload) => {
   return Object.fromEntries(entries);
 };
 
-module.exports = {
-  redactForLogs,
-  resetRedactionKeys, 
-  REDACTED_VALUE,
-};
+export { redactForLogs, resetRedactionKeys, REDACTED_VALUE };

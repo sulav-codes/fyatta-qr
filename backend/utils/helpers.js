@@ -1,4 +1,4 @@
-const bcrypt = require("bcrypt");
+import bcrypt from "bcrypt";
 
 // Helper functions for authentication, authorization, and other common tasks
 async function hashPassword(password) {
@@ -47,7 +47,7 @@ function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-module.exports = {
+export {
   hashPassword,
   comparePassword,
   sanitizeUser,

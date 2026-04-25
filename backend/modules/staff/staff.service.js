@@ -1,12 +1,12 @@
-const prisma = require("../../config/prisma");
-const {
+import prisma from "../../config/prisma.js";
+import {
   hashPassword,
   sanitizeUser,
   canAccessVendor,
-} = require("../../utils/helpers");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const staffValidation = require("./staff.validation");
+} from "../../utils/helpers.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as staffValidation from "./staff.validation.js";
 
 const assertVendorAccess = (user, vendorId, message = "Access denied.") => {
   if (!canAccessVendor(user, vendorId)) {
@@ -332,7 +332,7 @@ const toggleStaffStatus = async ({ vendorId, staffId, user }) => {
   };
 };
 
-module.exports = {
+export default {
   getStaff,
   getStaffMember,
   createStaff,

@@ -1,6 +1,6 @@
-const multer = require("multer");
-const path = require("path");
-const { createClient } = require("@supabase/supabase-js");
+import multer from "multer";
+import { extname, basename } from "path";
+import { createClient } from "@supabase/supabase-js";
 
 // Load Supabase config from environment variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -26,8 +26,8 @@ class SupabaseStorageEngine {
     // Generate unique file path
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const safeName = sanitizeFilename(file.originalname);
-    const ext = path.extname(safeName);
-    const basename = path.basename(safeName, ext);
+    const ext = extname(safeName);
+    const basename = basename(safeName, ext);
     const fileName = `${basename}-${uniqueSuffix}${ext}`;
 
     // Collect file buffer from stream
@@ -114,4 +114,4 @@ const upload = multer({
   },
 });
 
-module.exports = upload;
+export default upload;

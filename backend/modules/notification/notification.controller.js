@@ -1,8 +1,8 @@
-const notificationService = require("./notification.service");
-const { isServiceError } = require("../../utils/serviceError");
-const logger = require("../../config/logger");
+import notificationService from "./notification.service.js";
+import { isServiceError } from "../../utils/serviceError.js";
+import logger from "../../config/logger.js";
 
-exports.callWaiter = async (req, res) => {
+const callWaiter = async (req, res) => {
   try {
     const response = await notificationService.callWaiter({
       body: req.body,
@@ -30,4 +30,4 @@ exports.callWaiter = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export { callWaiter };

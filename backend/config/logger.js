@@ -1,5 +1,5 @@
-const winston = require("winston");
-const { redactForLogs } = require("../utils/redaction");
+import winston from "winston";
+import { redactForLogs } from "../utils/redaction.js";
 
 const environment = process.env.NODE_ENV || "development";
 const isProduction = environment === "production";
@@ -62,4 +62,4 @@ logger.on("error", (error) => {
   } catch (_writeError) {}
 });
 
-module.exports = logger;
+export default logger;

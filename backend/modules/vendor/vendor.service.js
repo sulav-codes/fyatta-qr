@@ -1,8 +1,8 @@
-const prisma = require("../../config/prisma");
-const { canAccessVendor } = require("../../utils/helpers");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const vendorValidation = require("./vendor.validation");
+import prisma from "../../config/prisma.js";
+import { canAccessVendor } from "../../utils/helpers.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as vendorValidation from "./vendor.validation.js";
 
 const parseLimit = (value, fallback = 10, max = 100) => {
   const parsed = Number.parseInt(String(value ?? fallback), 10);
@@ -445,7 +445,7 @@ const getRecentOrders = async ({ vendorId, user, query }) => {
   };
 };
 
-module.exports = {
+export default {
   getProfile,
   updateProfile,
   getDashboardStats,

@@ -1,9 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const { authenticate } = require("../../middlewares/auth.middleware");
-const { validate } = require("../../middlewares/validate.middleware");
-const staffController = require("./staff.controller");
-const staffValidation = require("./staff.validation");
+import { Router } from "express";
+import authMiddleware from "../../middlewares/auth.middleware.js";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import * as staffController from "./staff.controller.js";
+import * as staffValidation from "./staff.validation.js";
+
+const router = Router();
+const { authenticate } = authMiddleware;
+const { validate } = validateMiddleware;
 
 // Staff CRUD routes for vendors
 router.get(
@@ -49,4 +52,4 @@ router.patch(
   staffController.toggleStaffStatus,
 );
 
-module.exports = router;
+export default router;

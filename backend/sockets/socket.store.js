@@ -9,7 +9,4 @@ function getSocketServer() {
   return socketServer;
 }
 
-module.exports = {
-  setSocketServer,
-  getSocketServer,
-};
+export { setSocketServer, getSocketServer };

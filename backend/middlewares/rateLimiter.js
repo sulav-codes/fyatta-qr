@@ -1,4 +1,4 @@
-const rateLimit = require("express-rate-limit");
+import rateLimit from "express-rate-limit";
 
 const DEFAULT_RATE_LIMIT_MESSAGE = "Too many requests. Please try again later.";
 
@@ -94,7 +94,7 @@ const waiterCallLimiter = createRateLimiter({
   message: "Too many waiter calls. Please wait a moment before retrying.",
 });
 
-module.exports = {
+export default {
   apiLimiter,
   authLimiter,
   publicWriteLimiter,

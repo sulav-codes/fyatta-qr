@@ -18,7 +18,4 @@ function tableRoom(vendorId, tableIdentifier) {
   return `table-${vendorId}-${tableIdentifier}`;
 }
 
-module.exports = {
-  vendorRoom,
-  tableRoom,
-};
+export { vendorRoom, tableRoom };

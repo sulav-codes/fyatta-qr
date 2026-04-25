@@ -1,7 +1,7 @@
-const menuService = require("./menu.service");
-const { sendControllerError } = require("../../utils/controllerError");
+import menuService from "./menu.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
 
-exports.createMenuItems = async (req, res) => {
+const createMenuItems = async (req, res) => {
   try {
     const response = await menuService.createMenuItems({
       vendorId: req.params.vendorId,
@@ -19,7 +19,7 @@ exports.createMenuItems = async (req, res) => {
   }
 };
 
-exports.getMenuItems = async (req, res) => {
+const getMenuItems = async (req, res) => {
   try {
     const response = await menuService.getMenuItems({
       vendorId: req.params.vendorId,
@@ -35,7 +35,7 @@ exports.getMenuItems = async (req, res) => {
   }
 };
 
-exports.getMenuItemsByCategory = async (req, res) => {
+const getMenuItemsByCategory = async (req, res) => {
   try {
     const response = await menuService.getMenuItemsByCategory({
       vendorId: req.params.vendorId,
@@ -51,7 +51,7 @@ exports.getMenuItemsByCategory = async (req, res) => {
   }
 };
 
-exports.getMenuItem = async (req, res) => {
+const getMenuItem = async (req, res) => {
   try {
     const response = await menuService.getMenuItem({
       vendorId: req.params.vendorId,
@@ -68,7 +68,7 @@ exports.getMenuItem = async (req, res) => {
   }
 };
 
-exports.updateMenuItem = async (req, res) => {
+const updateMenuItem = async (req, res) => {
   try {
     const response = await menuService.updateMenuItem({
       vendorId: req.params.vendorId,
@@ -87,7 +87,7 @@ exports.updateMenuItem = async (req, res) => {
   }
 };
 
-exports.deleteMenuItem = async (req, res) => {
+const deleteMenuItem = async (req, res) => {
   try {
     const response = await menuService.deleteMenuItem({
       vendorId: req.params.vendorId,
@@ -104,7 +104,7 @@ exports.deleteMenuItem = async (req, res) => {
   }
 };
 
-exports.getPublicMenu = async (req, res) => {
+const getPublicMenu = async (req, res) => {
   try {
     const response = await menuService.getPublicMenu({
       vendorId: req.params.vendorId,
@@ -119,7 +119,7 @@ exports.getPublicMenu = async (req, res) => {
   }
 };
 
-exports.toggleAvailability = async (req, res) => {
+const toggleAvailability = async (req, res) => {
   try {
     const response = await menuService.toggleAvailability({
       vendorId: req.params.vendorId,
@@ -136,4 +136,13 @@ exports.toggleAvailability = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export {
+  createMenuItems,
+  getMenuItems,
+  getMenuItemsByCategory,
+  getMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
+  getPublicMenu,
+  toggleAvailability,
+};

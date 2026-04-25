@@ -1,5 +1,5 @@
-const { PrismaClient } = require("@prisma/client");
-const logger = require("./logger");
+import { PrismaClient } from "@prisma/client";
+import logger from "./logger.js";
 
 // Initialize Prisma Client for Supabase
 const prisma = new PrismaClient({
@@ -64,5 +64,5 @@ const registerServer = (server) => {
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
-module.exports = prisma;
-module.exports.registerServer = registerServer;
+export default prisma;
+export { registerServer };

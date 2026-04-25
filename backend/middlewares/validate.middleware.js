@@ -1,4 +1,4 @@
-const Joi = require("joi");
+import Joi from "joi";
 
 const DEFAULT_PREFS = {
   body: {
@@ -95,7 +95,7 @@ const validate = (schemaOrSchemas, customPrefs = {}) => {
   };
 };
 
-module.exports = {
+export default {
   Joi,
   validate,
 };

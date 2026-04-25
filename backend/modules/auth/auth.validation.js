@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import Joi from "joi";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -38,7 +38,7 @@ const profileInputSchema = Joi.object({
   userId: positiveId.required(),
 });
 
-module.exports = {
+export {
   registerBodySchema,
   loginBodySchema,
   googleCallbackQuerySchema,

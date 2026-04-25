@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -14,7 +14,7 @@ const paymentStatusParamsSchema = Joi.object({
   orderId: positiveId.required(),
 });
 
-module.exports = {
+export {
   initiateEsewaPaymentBodySchema,
   verifyEsewaPaymentQuerySchema,
   paymentStatusParamsSchema,

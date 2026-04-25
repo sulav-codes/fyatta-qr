@@ -1,5 +1,5 @@
-const staffService = require("./staff.service");
-const { sendControllerError } = require("../../utils/controllerError");
+import staffService from "./staff.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
 
 const getStaff = async (req, res) => {
   try {
@@ -103,7 +103,7 @@ const toggleStaffStatus = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getStaff,
   getStaffMember,
   createStaff,

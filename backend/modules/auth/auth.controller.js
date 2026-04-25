@@ -1,10 +1,10 @@
-const authService = require("./auth.service");
-const { sendControllerError } = require("../../utils/controllerError");
-const logger = require("../../config/logger");
-const {
+import * as authService from "./auth.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
+import logger from "../../config/logger.js";
+import {
   REFRESH_TOKEN_COOKIE_NAME,
   getRefreshCookieOptions,
-} = require("../../utils/tokenUtils");
+} from "../../utils/tokenUtils.js";
 
 const setRefreshTokenCookie = (res, refreshToken, expiresAt) => {
   res.cookie(
@@ -35,7 +35,7 @@ const encodeUserForRedirect = (user) => {
   return Buffer.from(JSON.stringify(user)).toString("base64url");
 };
 
-exports.register = async (req, res) => {
+export async function register(req, res) {
   try {
     const response = await authService.register({
       body: req.body,
@@ -48,9 +48,9 @@ exports.register = async (req, res) => {
       fallbackMessage: "Registration failed. Please try again.",
     });
   }
-};
+}
 
-exports.login = async (req, res) => {
+export async function login(req, res) {
   try {
     const response = await authService.login({
       body: req.body,
@@ -73,10 +73,10 @@ exports.login = async (req, res) => {
       fallbackMessage: "Login failed. Please try again.",
     });
   }
-};
+}
 
-exports.googleStart = async (req, res) => {
-  const { frontendFailureUrl } = authService.getGoogleConfig();
+export async function googleStart(req, res) {
+  const { frontendFailureUrl } = getGoogleConfig();
 
   try {
     const authUrl = await authService.googleStart();
@@ -93,11 +93,10 @@ exports.googleStart = async (req, res) => {
       error.code || "google_start_failed",
     );
   }
-};
+}
 
-exports.googleCallback = async (req, res) => {
-  const { frontendFailureUrl, frontendSuccessUrl } =
-    authService.getGoogleConfig();
+export async function googleCallback(req, res) {
+  const { frontendFailureUrl, frontendSuccessUrl } = getGoogleConfig();
 
   try {
     const response = await authService.googleCallback({
@@ -131,9 +130,9 @@ exports.googleCallback = async (req, res) => {
       error.code || "google_auth_failed",
     );
   }
-};
+}
 
-exports.refreshToken = async (req, res) => {
+export async function refreshToken(req, res) {
   try {
     const response = await authService.refreshSession({
       incomingRefreshToken: getRefreshTokenFromRequest(req),
@@ -160,9 +159,9 @@ exports.refreshToken = async (req, res) => {
       fallbackMessage: "Failed to refresh token",
     });
   }
-};
+}
 
-exports.getProfile = async (req, res) => {
+export async function getProfile(req, res) {
   try {
     const response = await authService.getProfile({
       userId: req.user.id,
@@ -175,9 +174,9 @@ exports.getProfile = async (req, res) => {
       fallbackMessage: "Failed to get profile",
     });
   }
-};
+}
 
-exports.logout = async (req, res) => {
+export async function logout(req, res) {
   try {
     const response = await authService.logout({
       incomingRefreshToken: getRefreshTokenFromRequest(req),
@@ -193,6 +192,4 @@ exports.logout = async (req, res) => {
       includeErrorDetails: false,
     });
   }
-};
-
-module.exports = exports;
+}

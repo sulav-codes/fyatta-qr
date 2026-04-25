@@ -13,6 +13,4 @@ const SOCKET_EVENTS = Object.freeze({
   NOTIFICATION: "notification",
 });
 
-module.exports = {
-  SOCKET_EVENTS,
-};
+export { SOCKET_EVENTS };

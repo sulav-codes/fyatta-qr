@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
-const prisma = require("../config/prisma");
-const logger = require("../config/logger");
+import jwt from "jsonwebtoken";
+import prisma from "../config/prisma.js";
+import logger from "../config/logger.js";
 
 // Middleware to authenticate JWT token and attach user to request
 const authenticate = async (req, res, next) => {
@@ -259,7 +259,7 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export default {
   authenticate,
   requireStaff,
   requireVendor,

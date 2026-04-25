@@ -1,7 +1,7 @@
-const tableService = require("./table.service");
-const { sendControllerError } = require("../../utils/controllerError");
+import tableService from "./table.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
 
-exports.getTables = async (req, res) => {
+const getTables = async (req, res) => {
   try {
     const response = await tableService.getTables({
       vendorId: req.params.vendorId,
@@ -17,7 +17,7 @@ exports.getTables = async (req, res) => {
   }
 };
 
-exports.createTable = async (req, res) => {
+const createTable = async (req, res) => {
   try {
     const response = await tableService.createTable({
       vendorId: req.params.vendorId,
@@ -34,7 +34,7 @@ exports.createTable = async (req, res) => {
   }
 };
 
-exports.updateTable = async (req, res) => {
+const updateTable = async (req, res) => {
   try {
     const response = await tableService.updateTable({
       vendorId: req.params.vendorId,
@@ -52,7 +52,7 @@ exports.updateTable = async (req, res) => {
   }
 };
 
-exports.deleteTable = async (req, res) => {
+const deleteTable = async (req, res) => {
   try {
     const response = await tableService.deleteTable({
       vendorId: req.params.vendorId,
@@ -69,7 +69,7 @@ exports.deleteTable = async (req, res) => {
   }
 };
 
-exports.regenerateQRCode = async (req, res) => {
+const regenerateQRCode = async (req, res) => {
   try {
     const response = await tableService.regenerateQRCode({
       vendorId: req.params.vendorId,
@@ -86,7 +86,7 @@ exports.regenerateQRCode = async (req, res) => {
   }
 };
 
-exports.getTableStatus = async (req, res) => {
+const getTableStatus = async (req, res) => {
   try {
     const response = await tableService.getTableStatus({
       vendorId: req.params.vendorId,
@@ -102,7 +102,7 @@ exports.getTableStatus = async (req, res) => {
   }
 };
 
-exports.getTableDetails = async (req, res) => {
+const getTableDetails = async (req, res) => {
   try {
     const response = await tableService.getTableDetails({
       vendorId: req.params.vendorId,
@@ -119,4 +119,12 @@ exports.getTableDetails = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export {
+  getTables,
+  createTable,
+  updateTable,
+  deleteTable,
+  regenerateQRCode,
+  getTableStatus,
+  getTableDetails,
+};

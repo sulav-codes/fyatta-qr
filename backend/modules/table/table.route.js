@@ -1,9 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const { authenticate } = require("../../middlewares/auth.middleware");
-const { validate } = require("../../middlewares/validate.middleware");
-const tableController = require("./table.controller");
-const tableValidation = require("./table.validation");
+import { Router } from "express";
+import authMiddleware from "../../middlewares/auth.middleware.js";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import * as tableController from "./table.controller.js";
+import * as tableValidation from "./table.validation.js";
+
+const router = Router();
+const { authenticate } = authMiddleware;
+const { validate } = validateMiddleware;
 
 // Public route - no auth required (for QR code scanning)
 router.get(
@@ -61,4 +64,4 @@ router.post(
   tableController.regenerateQRCode,
 );
 
-module.exports = router;
+export default router;

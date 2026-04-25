@@ -1,9 +1,9 @@
-const { v4: uuidv4 } = require("uuid");
-const prisma = require("../../config/prisma");
-const { canAccessVendor } = require("../../utils/helpers");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const tableValidation = require("./table.validation");
+import { v4 as uuidv4 } from "uuid";
+import prisma from "../../config/prisma.js";
+import { canAccessVendor } from "../../utils/helpers.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as tableValidation from "./table.validation.js";
 
 const assertVendorAccess = (user, vendorId, message) => {
   if (!canAccessVendor(user, vendorId)) {
@@ -362,7 +362,7 @@ const getTableDetails = async ({ vendorId, tableId, user }) => {
   };
 };
 
-module.exports = {
+export default {
   getTables,
   createTable,
   updateTable,

@@ -1,9 +1,38 @@
-const { createSocketServer } = require("./socket.server");
-const orderSocket = require("./order.socket");
-const notifier = require("./notifier");
+import { createSocketServer } from "./socket.server.js";
+import {
+  emitOrderCreated,
+  emitOrderStatusChanged,
+  emitOrderStatusUpdate,
+  emitDeliveryIssue,
+  emitOrderVerified,
+  emitVendorNotification,
+} from "./order.socket.js";
+import { emitToRoom, emitToVendor, emitToTable } from "./notifier.js";
 
-module.exports = {
+const socketApi = {
   createSocketServer,
-  ...orderSocket,
-  ...notifier,
+  emitOrderCreated,
+  emitOrderStatusChanged,
+  emitOrderStatusUpdate,
+  emitDeliveryIssue,
+  emitOrderVerified,
+  emitVendorNotification,
+  emitToRoom,
+  emitToVendor,
+  emitToTable,
 };
+
+export {
+  createSocketServer,
+  emitOrderCreated,
+  emitOrderStatusChanged,
+  emitOrderStatusUpdate,
+  emitDeliveryIssue,
+  emitOrderVerified,
+  emitVendorNotification,
+  emitToRoom,
+  emitToVendor,
+  emitToTable,
+};
+
+export default socketApi;

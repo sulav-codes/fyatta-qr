@@ -1,7 +1,7 @@
-const vendorService = require("./vendor.service");
-const { sendControllerError } = require("../../utils/controllerError");
+import vendorService from "./vendor.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
 
-exports.getProfile = async (req, res) => {
+const getProfile = async (req, res) => {
   try {
     const response = await vendorService.getProfile({
       vendorId: req.params.vendorId,
@@ -17,7 +17,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-exports.updateProfile = async (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const response = await vendorService.updateProfile({
       vendorId: req.params.vendorId,
@@ -35,7 +35,7 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-exports.getDashboardStats = async (req, res) => {
+const getDashboardStats = async (req, res) => {
   try {
     const response = await vendorService.getDashboardStats({
       vendorId: req.params.vendorId,
@@ -51,7 +51,7 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-exports.getSalesReport = async (req, res) => {
+const getSalesReport = async (req, res) => {
   try {
     const response = await vendorService.getSalesReport({
       vendorId: req.params.vendorId,
@@ -68,7 +68,7 @@ exports.getSalesReport = async (req, res) => {
   }
 };
 
-exports.getPopularItems = async (req, res) => {
+const getPopularItems = async (req, res) => {
   try {
     const response = await vendorService.getPopularItems({
       vendorId: req.params.vendorId,
@@ -85,7 +85,7 @@ exports.getPopularItems = async (req, res) => {
   }
 };
 
-exports.getRecentOrders = async (req, res) => {
+const getRecentOrders = async (req, res) => {
   try {
     const response = await vendorService.getRecentOrders({
       vendorId: req.params.vendorId,
@@ -102,4 +102,11 @@ exports.getRecentOrders = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export {
+  getProfile,
+  updateProfile,
+  getDashboardStats,
+  getSalesReport,
+  getPopularItems,
+  getRecentOrders,
+};

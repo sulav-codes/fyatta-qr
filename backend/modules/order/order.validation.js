@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -50,7 +50,7 @@ const resolveDeliveryIssueBodySchema = Joi.object({
   resolutionMessage: Joi.string().trim().allow("", null).max(500).optional(),
 }).unknown(true);
 
-module.exports = {
+export {
   vendorParamsSchema,
   orderParamsSchema,
   createCustomerOrderBodySchema,
