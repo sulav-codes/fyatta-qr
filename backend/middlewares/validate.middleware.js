@@ -79,7 +79,12 @@ const validate = (schemaOrSchemas, customPrefs = {}) => {
       }
 
       if (part !== "headers") {
-        req[part] = value;
+        if (["query", "params"].includes(part)) {
+          Object.keys(req[part]).forEach((key) => delete req[part][key]);
+          Object.assign(req[part], value);
+        } else {
+          req[part] = value;
+        }
       }
     }
 

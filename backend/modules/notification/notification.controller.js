@@ -25,7 +25,6 @@ const callWaiter = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to call waiter",
-      error: error.message,
     });
   }
 };
