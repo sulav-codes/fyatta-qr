@@ -21,7 +21,4 @@ const isServiceError = (error) => {
   return error instanceof ServiceError;
 };
 
-module.exports = {
-  ServiceError,
-  isServiceError,
-};
+export { ServiceError, isServiceError };

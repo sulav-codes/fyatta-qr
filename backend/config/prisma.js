@@ -1,5 +1,5 @@
-const { PrismaClient } = require("@prisma/client");
-const logger = require("./logger");
+import { PrismaClient } from "@prisma/client";
+import logger from "./logger.js";
 
 // Initialize Prisma Client for Supabase
 const prisma = new PrismaClient({
@@ -23,23 +23,46 @@ const prisma = new PrismaClient({
   }
 })();
 
-// Graceful shutdown
-process.on("beforeExit", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on beforeExit");
-});
+let isShuttingDown = false;
+let httpServer = null;
 
-// Handle unexpected disconnections
-process.on("SIGINT", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on SIGINT");
-  process.exit(0);
-});
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
 
-process.on("SIGTERM", async () => {
-  await prisma.$disconnect();
-  logger.info("Prisma disconnected on SIGTERM");
-  process.exit(0);
-});
+  logger.info(`Received ${signal}, shutting down...`);
 
-module.exports = prisma;
+  const timeout = setTimeout(() => {
+    logger.error("Shutdown timeout, forcing exit");
+    process.exit(1);
+  }, 10000);
+
+  try {
+    // Close server
+    if (httpServer) {
+      await new Promise((resolve) => httpServer.close(resolve));
+      logger.info("HTTP server closed");
+    }
+
+    // Disconnect Prisma
+    await prisma.$disconnect();
+    logger.info("Prisma disconnected");
+
+    clearTimeout(timeout);
+    process.exit(0);
+  } catch (error) {
+    logger.error("Shutdown error", { error });
+    clearTimeout(timeout);
+    process.exit(1);
+  }
+};
+
+const registerServer = (server) => {
+  httpServer = server;
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
+export default prisma;
+export { registerServer };

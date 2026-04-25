@@ -1,6 +1,6 @@
-const { SOCKET_EVENTS } = require("./events");
-const { emitToVendor, emitToTable } = require("./notifier");
-const logger = require("../config/logger");
+import { SOCKET_EVENTS } from "./events.js";
+import { emitToVendor, emitToTable } from "./notifier.js";
+import logger from "../config/logger.js";
 
 function emitOrderCreated(vendorId, payload) {
   const didEmit = emitToVendor(vendorId, SOCKET_EVENTS.ORDER_CREATED, payload);
@@ -127,7 +127,7 @@ function emitVendorNotification(vendorId, payload) {
   return true;
 }
 
-module.exports = {
+export {
   emitOrderCreated,
   emitOrderStatusChanged,
   emitOrderStatusUpdate,

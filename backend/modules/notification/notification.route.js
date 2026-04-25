@@ -1,9 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const { validate } = require("../../middlewares/validate.middleware");
-const { waiterCallLimiter } = require("../../middlewares/rateLimiter");
-const notificationValidation = require("./notification.validation");
-const notificationController = require("./notification.controller");
+import { Router } from "express";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import rateLimiter from "../../middlewares/rateLimiter.js";
+import * as notificationValidation from "./notification.validation.js";
+import * as notificationController from "./notification.controller.js";
+
+const router = Router();
+const { validate } = validateMiddleware;
+const { waiterCallLimiter } = rateLimiter;
 
 // Call waiter endpoint
 router.post(
@@ -13,4 +16,4 @@ router.post(
   notificationController.callWaiter,
 );
 
-module.exports = router;
+export default router;

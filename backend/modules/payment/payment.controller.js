@@ -1,8 +1,8 @@
-const paymentService = require("./payment.service");
-const { sendControllerError } = require("../../utils/controllerError");
-const logger = require("../../config/logger");
+import paymentService from "./payment.service.js";
+import { sendControllerError } from "../../utils/controllerError.js";
+import logger from "../../config/logger.js";
 
-exports.initiateEsewaPayment = async (req, res) => {
+const initiateEsewaPayment = async (req, res) => {
   try {
     const response = await paymentService.initiateEsewaPayment({
       orderId: req.body.orderId,
@@ -17,7 +17,7 @@ exports.initiateEsewaPayment = async (req, res) => {
   }
 };
 
-exports.verifyEsewaPayment = async (req, res) => {
+const verifyEsewaPayment = async (req, res) => {
   try {
     const redirectUrl = await paymentService.verifyEsewaPayment({
       dataParam: req.query.data,
@@ -36,7 +36,7 @@ exports.verifyEsewaPayment = async (req, res) => {
   }
 };
 
-exports.getPaymentStatus = async (req, res) => {
+const getPaymentStatus = async (req, res) => {
   try {
     const response = await paymentService.getPaymentStatus({
       orderId: req.params.orderId,
@@ -51,4 +51,4 @@ exports.getPaymentStatus = async (req, res) => {
   }
 };
 
-module.exports = exports;
+export { initiateEsewaPayment, verifyEsewaPayment, getPaymentStatus };

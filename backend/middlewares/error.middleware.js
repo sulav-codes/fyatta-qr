@@ -1,6 +1,6 @@
-const multer = require("multer");
-const { isServiceError } = require("../utils/serviceError");
-const logger = require("../config/logger");
+import { MulterError } from "multer";
+import { isServiceError } from "../utils/serviceError.js";
+import logger from "../config/logger.js";
 
 const shouldIncludeUnexpectedErrorDetails = () => {
   return process.env.NODE_ENV !== "production";
@@ -11,7 +11,7 @@ const errorMiddleware = (err, req, res, next) => {
     return next(err);
   }
 
-  if (err instanceof multer.MulterError) {
+  if (err instanceof MulterError) {
     const payload =
       err.code === "LIMIT_FILE_SIZE"
         ? { error: "File size too large. Max size is 5MB" }
@@ -81,6 +81,4 @@ const errorMiddleware = (err, req, res, next) => {
   return res.status(statusCode).json(payload);
 };
 
-module.exports = {
-  errorMiddleware,
-};
+export { errorMiddleware };

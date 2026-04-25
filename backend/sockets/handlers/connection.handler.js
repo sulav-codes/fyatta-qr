@@ -1,6 +1,6 @@
-const { SOCKET_EVENTS } = require("../events");
-const { vendorRoom, tableRoom } = require("../rooms");
-const logger = require("../../config/logger");
+import { SOCKET_EVENTS } from "../events.js";
+import { vendorRoom, tableRoom } from "../rooms.js";
+import logger from "../../config/logger.js";
 
 function registerConnectionHandler(io) {
   io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
@@ -113,6 +113,4 @@ function registerConnectionHandler(io) {
   });
 }
 
-module.exports = {
-  registerConnectionHandler,
-};
+export { registerConnectionHandler };

@@ -1,20 +1,20 @@
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const prisma = require("../../config/prisma");
-const {
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import prisma from "../../config/prisma.js";
+import {
   hashPassword,
   comparePassword,
   sanitizeUser,
-} = require("../../utils/helpers");
-const {
+} from "../../utils/helpers.js";
+import {
   issueAccessToken,
   generateRefreshToken,
   hashToken,
   getRefreshTokenExpiryDate,
-} = require("../../utils/tokenUtils");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const authValidation = require("./auth.validation");
+} from "../../utils/tokenUtils.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as authValidation from "./auth.validation.js";
 
 const jwtSecret = process.env.JWT_SECRET_KEY;
 if (!jwtSecret) {
@@ -653,7 +653,7 @@ const getProfile = async ({ userId }) => {
   return { user };
 };
 
-module.exports = {
+export {
   getGoogleConfig,
   register,
   login,

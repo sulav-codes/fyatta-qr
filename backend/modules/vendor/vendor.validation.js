@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -32,7 +32,7 @@ const paginationQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).optional(),
 }).unknown(true);
 
-module.exports = {
+export {
   vendorParamsSchema,
   updateProfileBodySchema,
   salesReportQuerySchema,

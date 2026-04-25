@@ -1,5 +1,5 @@
-const { isServiceError } = require("./serviceError");
-const logger = require("../config/logger");
+import { isServiceError } from "./serviceError.js";
+import logger from "../config/logger.js";
 
 const sendControllerError = (
   res,
@@ -59,6 +59,4 @@ const sendControllerError = (
   return res.status(500).json(payload);
 };
 
-module.exports = {
-  sendControllerError,
-};
+export { sendControllerError };

@@ -1,31 +1,35 @@
-const express = require("express");
-const router = express.Router();
-const { validate } = require("../../middlewares/validate.middleware");
-const {
-  authLimiter,
-  publicWriteLimiter,
-} = require("../../middlewares/rateLimiter");
-const authValidation = require("./auth.validation");
-const {
+import { Router } from "express";
+const router = Router();
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import rateLimiter from "../../middlewares/rateLimiter.js";
+import {
+  registerBodySchema,
+  loginBodySchema,
+  googleCallbackQuerySchema,
+} from "./auth.validation.js";
+import {
   register,
   login,
   logout,
   refreshToken,
   googleStart,
   googleCallback,
-} = require("./auth.controller");
+} from "./auth.controller.js";
+
+const { authLimiter, publicWriteLimiter } = rateLimiter;
+const { validate } = validateMiddleware;
 
 // Public routes
 router.post(
   "/register",
   publicWriteLimiter,
-  validate(authValidation.registerBodySchema),
+  validate(registerBodySchema),
   register,
 );
 router.post(
   "/login",
   authLimiter,
-  validate(authValidation.loginBodySchema),
+  validate(loginBodySchema),
   login,
 );
 router.post("/refresh", authLimiter, refreshToken);
@@ -34,8 +38,8 @@ router.get("/google/start", authLimiter, googleStart);
 router.get(
   "/google/callback",
   authLimiter,
-  validate({ query: authValidation.googleCallbackQuerySchema }),
+  validate({ query: googleCallbackQuerySchema }),
   googleCallback,
 );
 
-module.exports = router;
+export default router;

@@ -1,9 +1,12 @@
-const express = require("express");
-const router = express.Router();
-const { validate } = require("../../middlewares/validate.middleware");
-const { paymentLimiter } = require("../../middlewares/rateLimiter");
-const paymentController = require("./payment.controller");
-const paymentValidation = require("./payment.validation");
+import { Router } from "express";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import rateLimiter from "../../middlewares/rateLimiter.js";
+import * as paymentController from "./payment.controller.js";
+import * as paymentValidation from "./payment.validation.js";
+
+const router = Router();
+const { validate } = validateMiddleware;
+const { paymentLimiter } = rateLimiter;
 
 // Initiate eSewa payment
 router.post(
@@ -29,4 +32,4 @@ router.get(
   paymentController.getPaymentStatus,
 );
 
-module.exports = router;
+export default router;

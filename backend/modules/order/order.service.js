@@ -1,16 +1,16 @@
-const prisma = require("../../config/prisma");
-const { v4: uuidv4 } = require("uuid");
-const {
+import prisma from "../../config/prisma.js";
+import { v4 as uuidv4 } from "uuid";
+import {
   emitOrderCreated,
   emitOrderStatusChanged,
   emitOrderStatusUpdate,
   emitDeliveryIssue,
   emitOrderVerified,
   emitVendorNotification,
-} = require("../../sockets/order.socket");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const orderValidation = require("./order.validation");
+} from "../../sockets/order.socket.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as orderValidation from "./order.validation.js";
 
 const VALID_ORDER_STATUSES = [
   "pending",
@@ -932,7 +932,7 @@ const verifyDelivery = async ({ orderId }) => {
   };
 };
 
-module.exports = {
+export default {
   getOrders,
   createCustomerOrder,
   createOrder,

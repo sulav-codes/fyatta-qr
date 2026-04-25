@@ -1,14 +1,14 @@
-const crypto = require("crypto");
-const prisma = require("../../config/prisma");
-const {
+import crypto from "crypto";
+import prisma from "../../config/prisma.js";
+import {
   emitOrderStatusChanged,
   emitOrderCreated,
   emitVendorNotification,
-} = require("../../sockets/order.socket");
-const logger = require("../../config/logger");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const paymentValidation = require("./payment.validation");
+} from "../../sockets/order.socket.js";
+import logger from "../../config/logger.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as paymentValidation from "./payment.validation.js";
 
 const ESEWA_CONFIG = {
   SECRET_KEY: process.env.ESEWA_SECRET_KEY,
@@ -312,7 +312,7 @@ const getPaymentStatus = async ({ orderId }) => {
   };
 };
 
-module.exports = {
+export default {
   initiateEsewaPayment,
   verifyEsewaPayment,
   getPaymentStatus,

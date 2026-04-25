@@ -1,5 +1,5 @@
-const Joi = require("joi");
-const { ServiceError } = require("./serviceError");
+import Joi from "joi";
+import { ServiceError } from "./serviceError.js";
 
 const DEFAULT_VALIDATION_OPTIONS = {
   abortEarly: false,
@@ -42,8 +42,4 @@ const validatePayload = (
   });
 };
 
-module.exports = {
-  Joi,
-  validatePayload,
-  DEFAULT_VALIDATION_OPTIONS,
-};
+export { Joi, validatePayload, DEFAULT_VALIDATION_OPTIONS };

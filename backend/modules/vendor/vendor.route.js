@@ -1,10 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const { authenticate } = require("../../middlewares/auth.middleware");
-const { validate } = require("../../middlewares/validate.middleware");
-const vendorController = require("./vendor.controller");
-const vendorValidation = require("./vendor.validation");
-const upload = require("../../middlewares/multerConfig");
+import { Router } from "express";
+import authMiddleware from "../../middlewares/auth.middleware.js";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import * as vendorController from "./vendor.controller.js";
+import * as vendorValidation from "./vendor.validation.js";
+import upload from "../../middlewares/multerConfig.js";
+
+const router = Router();
+const { authenticate } = authMiddleware;
+const { validate } = validateMiddleware;
 
 // Vendor profile routes
 router.get(
@@ -59,4 +62,4 @@ router.get(
   vendorController.getRecentOrders,
 );
 
-module.exports = router;
+export default router;

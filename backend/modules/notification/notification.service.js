@@ -1,10 +1,10 @@
-const prisma = require("../../config/prisma");
-const { emitVendorNotification } = require("../../sockets/order.socket");
-const { emitToVendor } = require("../../sockets/notifier");
-const logger = require("../../config/logger");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const notificationValidation = require("./notification.validation");
+import prisma from "../../config/prisma.js";
+import { emitVendorNotification } from "../../sockets/order.socket.js";
+import { emitToVendor } from "../../sockets/notifier.js";
+import logger from "../../config/logger.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as notificationValidation from "./notification.validation.js";
 
 const callWaiter = async ({ body }) => {
   const { vendor_id, table_identifier, table_name } = validatePayload(
@@ -97,6 +97,6 @@ const callWaiter = async ({ body }) => {
   };
 };
 
-module.exports = {
+export default {
   callWaiter,
 };

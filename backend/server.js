@@ -1,18 +1,24 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
-const path = require("path");
-const http = require("http");
-const routes = require("./routes/index");
-const { createSocketServer } = require("./sockets");
-const { apiLimiter } = require("./middlewares/rateLimiter");
-const logger = require("./config/logger");
-const { errorMiddleware } = require("./middlewares/error.middleware");
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import http from "http";
+import routes from "./routes/index.js";
+import sockets from "./sockets/index.js";
+import rateLimiter from "./middlewares/rateLimiter.js";
+import logger from "./config/logger.js";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
+import { registerServer } from "./config/prisma.js";
+
+const { createSocketServer } = sockets;
+const { apiLimiter } = rateLimiter;
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 8000;
+
+// Register server for graceful shutdown in Prisma
+registerServer(server);
 
 const resolveTrustProxy = () => {
   const rawValue = process.env.TRUST_PROXY;
@@ -59,10 +65,6 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-// Serve static files
-app.use(express.static("public"));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Baseline API throttling for public/protected API traffic
 app.use("/api", apiLimiter);

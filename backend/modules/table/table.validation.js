@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -27,7 +27,7 @@ const updateTableBodySchema = Joi.object({
   .or("name", "isActive")
   .required();
 
-module.exports = {
+export {
   vendorParamsSchema,
   vendorTableParamsSchema,
   tableStatusParamsSchema,

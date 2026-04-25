@@ -1,4 +1,4 @@
-const { Joi } = require("../../utils/serviceValidation");
+import { Joi } from "../../utils/serviceValidation.js";
 
 const positiveId = Joi.number().integer().positive();
 
@@ -35,7 +35,7 @@ const updateMenuItemBodySchema = Joi.object({
   isAvailable: Joi.boolean().truthy("true", "1").falsy("false", "0").optional(),
 });
 
-module.exports = {
+export {
   vendorParamsSchema,
   vendorItemParamsSchema,
   createMenuItemsBodySchema,

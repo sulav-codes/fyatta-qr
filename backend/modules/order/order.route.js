@@ -1,10 +1,14 @@
-const express = require("express");
-const router = express.Router();
-const { authenticate } = require("../../middlewares/auth.middleware");
-const { validate } = require("../../middlewares/validate.middleware");
-const { publicWriteLimiter } = require("../../middlewares/rateLimiter");
-const orderController = require("./order.controller");
-const orderValidation = require("./order.validation");
+import { Router } from "express";
+import authMiddleware from "../../middlewares/auth.middleware.js";
+import validateMiddleware from "../../middlewares/validate.middleware.js";
+import rateLimiter from "../../middlewares/rateLimiter.js";
+import * as orderController from "./order.controller.js";
+import * as orderValidation from "./order.validation.js";
+
+const router = Router();
+const { authenticate } = authMiddleware;
+const { validate } = validateMiddleware;
+const { publicWriteLimiter } = rateLimiter;
 
 // Protected route for vendors to get their orders
 router.get(
@@ -86,4 +90,4 @@ router.post(
   orderController.verifyDelivery,
 );
 
-module.exports = router;
+export default router;

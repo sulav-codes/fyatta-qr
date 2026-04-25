@@ -1,8 +1,8 @@
-const prisma = require("../../config/prisma");
-const { canAccessVendor } = require("../../utils/helpers");
-const { ServiceError } = require("../../utils/serviceError");
-const { validatePayload } = require("../../utils/serviceValidation");
-const menuValidation = require("./menu.validation");
+import prisma from "../../config/prisma.js";
+import { canAccessVendor } from "../../utils/helpers.js";
+import { ServiceError } from "../../utils/serviceError.js";
+import { validatePayload } from "../../utils/serviceValidation.js";
+import * as menuValidation from "./menu.validation.js";
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
@@ -507,7 +507,7 @@ const toggleAvailability = async ({ vendorId, itemId, user }) => {
   };
 };
 
-module.exports = {
+export default {
   createMenuItems,
   getMenuItems,
   getMenuItemsByCategory,
