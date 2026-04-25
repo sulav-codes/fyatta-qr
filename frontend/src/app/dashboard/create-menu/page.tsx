@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { usePermissions } from "@/hooks/usePermissions";
-import Image from "next/image";
 
 // Types
 interface MenuItem {
@@ -49,6 +48,8 @@ function CreateMenuContent() {
     }
   };
 
+  // Track blob URLs separately for cleanup
+  const objectUrlsRef = useRef<string[]>([]);
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     index: number,
@@ -73,6 +74,7 @@ function CreateMenuContent() {
     const newMenuItems = [...menuItems];
     newMenuItems[index].image = file;
     newMenuItems[index].imagePreview = URL.createObjectURL(file);
+    objectUrlsRef.current.push(newMenuItems[index].imagePreview!);
     setMenuItems(newMenuItems);
   };
 
@@ -98,11 +100,13 @@ function CreateMenuContent() {
   };
 
   const removeMenuItem = (index: number) => {
-    // Release object URL to prevent memory leaks
     if (menuItems[index]?.imagePreview) {
       URL.revokeObjectURL(menuItems[index].imagePreview!);
+      // Remove from tracked URLs
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== menuItems[index].imagePreview,
+      );
     }
-
     const newItems = menuItems.filter((_, i) => i !== index);
     setMenuItems(newItems);
   };
@@ -120,13 +124,9 @@ function CreateMenuContent() {
   // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
-      menuItems.forEach((item) => {
-        if (item.imagePreview) {
-          URL.revokeObjectURL(item.imagePreview);
-        }
-      });
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [menuItems]);
+  }, []);
 
   const validateItems = () => {
     const errors: string[] = [];
@@ -224,6 +224,10 @@ function CreateMenuContent() {
     const newItems = [...menuItems];
     if (newItems[index].imagePreview) {
       URL.revokeObjectURL(newItems[index].imagePreview!);
+      // Remove from tracked URLs to prevent memory leaks
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== newItems[index].imagePreview,
+      );
     }
     newItems[index].image = null;
     newItems[index].imagePreview = null;
@@ -318,7 +322,7 @@ function CreateMenuContent() {
                     {item.imagePreview ? (
                       <div className="space-y-2">
                         <div className="relative w-full aspect-video mx-auto">
-                          <Image
+                          <img
                             src={item.imagePreview}
                             alt="Preview"
                             className="rounded-md object-cover w-full h-full"
@@ -331,10 +335,6 @@ function CreateMenuContent() {
                             <X className="h-4 w-4 text-white" />
                           </button>
                         </div>
-                        <p className="text-sm text-green-600 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 mr-1" /> Image
-                          uploaded
-                        </p>
                       </div>
                     ) : (
                       <>
