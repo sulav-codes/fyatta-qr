@@ -387,8 +387,9 @@ function SettingsContent() {
                   <Image
                     src={logoPreview}
                     alt="Logo preview"
-                    width={48}
-                    height={48}
+                    width={128}
+                    height={128}
+                    sizes="128px"               
                     loading="eager"
                     priority
                     className="w-32 h-32 rounded-lg object-cover border-2 border-border"

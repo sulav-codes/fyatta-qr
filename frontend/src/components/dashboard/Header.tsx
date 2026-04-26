@@ -125,8 +125,11 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
           <Image
             src={logo}
             alt="Logo"
-            width={48}
-            height={48}
+            width={32}
+            height={32}
+            sizes="32px"
+            quality={100}
+            unoptimized
             className="w-full h-full object-cover"
             onError={() => {
               setLogo(null);
