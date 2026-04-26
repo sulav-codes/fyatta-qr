@@ -221,7 +221,13 @@ function OrderTrackingContent() {
             We couldn&apos;t find the order you&apos;re looking for.
           </p>
           <Button
-            onClick={() => router.back()}
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/");
+              }
+            }}
             className="bg-(--orange) hover:bg-(--orange)/90 text-white"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
