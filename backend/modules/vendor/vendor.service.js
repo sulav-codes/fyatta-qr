@@ -18,6 +18,7 @@ const parseLimit = (value, fallback = 10, max = 100) => {
 
   return Math.min(parsed, max);
 };
+const MAX_LOGO_IMAGE_BYTES = 80 * 1024;
 
 const assertVendorAccess = (user, vendorId, message = "Unauthorized") => {
   if (!canAccessVendor(user, vendorId)) {
@@ -170,7 +171,10 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
         file.buffer,
         file.originalname,
         file.mimetype,
-        { folderPath: `vendors/${parsedVendorId}/logo` },
+        {
+          folderPath: `vendors/${parsedVendorId}/logo`,
+          maxBytes: MAX_LOGO_IMAGE_BYTES,
+        },
       );
       updates.logo = uploadedLogo.publicUrl;
     }

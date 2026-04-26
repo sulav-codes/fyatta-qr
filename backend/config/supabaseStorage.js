@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { extname, basename } from "path";
+import { ServiceError } from "../utils/serviceError.js";
 
 // Load Supabase config from environment variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -17,6 +18,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const SUPABASE_PUBLIC_OBJECT_PATH =
   /\/storage\/v1\/object\/public\/[^/]+\/(.+)$/;
+const DEFAULT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 // Sanitize filename - remove path separators and null bytes
 const sanitizeFilename = (name) => name.replace(/[/\\:\x00]/g, "_");
@@ -43,6 +45,14 @@ const normalizeFolderPath = (folderPath) => {
     .map((segment) => sanitizeFilename(segment))
     .filter(Boolean)
     .join("/");
+};
+
+const formatBytes = (bytes) => {
+  if (bytes >= 1024 * 1024) {
+    return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MB`;
+  }
+
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`;
 };
 
 export const resolveStoragePath = (assetReference) => {
@@ -89,7 +99,7 @@ export const uploadImage = async (
   buffer,
   originalName,
   mimetype,
-  { folderPath = "" } = {},
+  { folderPath = "", maxBytes = DEFAULT_MAX_IMAGE_BYTES } = {},
 ) => {
   if (!buffer || typeof buffer.length !== "number") {
     throw new Error("A valid file buffer is required");
@@ -99,8 +109,11 @@ export const uploadImage = async (
     throw new Error("Only image files are allowed");
   }
 
-  if (buffer.length > 5 * 1024 * 1024) {
-    throw new Error("File size exceeds the 5MB limit");
+  if (buffer.length > maxBytes) {
+    throw new ServiceError(
+      `File size exceeds the ${formatBytes(maxBytes)} limit`,
+      { status: 400 },
+    );
   }
 
   const fileName = generateFileName(originalName);

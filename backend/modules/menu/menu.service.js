@@ -17,6 +17,7 @@ const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   );
   return Number.isNaN(parsed) || parsed < 1 ? 50 : parsed;
 })();
+const MAX_MENU_IMAGE_BYTES = 300 * 1024;
 
 const assertVendorAccess = (user, vendorId) => {
   if (!canAccessVendor(user, vendorId)) {
@@ -194,7 +195,10 @@ const createMenuItems = async ({ vendorId, user, body, files }) => {
           rawFile.buffer,
           rawFile.originalname,
           rawFile.mimetype,
-          { folderPath: `vendors/${parsedVendorId}/menu` },
+          {
+            folderPath: `vendors/${parsedVendorId}/menu`,
+            maxBytes: MAX_MENU_IMAGE_BYTES,
+          },
         );
         uploadedImages.push(uploaded);
         image = uploaded.publicUrl;
@@ -401,7 +405,10 @@ const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
         file.buffer,
         file.originalname,
         file.mimetype,
-        { folderPath: `vendors/${parsedVendorId}/menu` },
+        {
+          folderPath: `vendors/${parsedVendorId}/menu`,
+          maxBytes: MAX_MENU_IMAGE_BYTES,
+        },
       );
       updates.image = uploadedImage.publicUrl;
     }
