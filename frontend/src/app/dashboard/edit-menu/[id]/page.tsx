@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { buildApiUrl } from "@/lib/api";
+import { optimizeImage } from "@/lib/imageOptimizer";
 import Image from "next/image";
 
 // Types
@@ -105,24 +106,27 @@ export default function EditMenuItem({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image too large. Maximum size is 5MB.");
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
       return;
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Invalid file type. Please use JPEG, PNG, or WebP.");
+    let optimizedFile: File;
+    try {
+      optimizedFile = await optimizeImage(file, { target: "menu" });
+    } catch (error) {
+      console.error("Image optimization failed:", error);
+      toast.error("Could not optimize this image. Try another one.");
       return;
     }
 
-    setNewImage(file);
+    setNewImage(optimizedFile);
     setRemoveImageRequested(false);
-    setImagePreview(URL.createObjectURL(file));
+    setImagePreview(URL.createObjectURL(optimizedFile));
   };
 
   const handleRemoveImage = () => {
@@ -338,9 +342,11 @@ export default function EditMenuItem({
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/*"
                         className="hidden"
-                        onChange={handleFileChange}
+                        onChange={(e) => {
+                          void handleFileChange(e);
+                        }}
                         aria-label="Upload image file"
                       />
                       <Button

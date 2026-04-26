@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { usePermissions } from "@/hooks/usePermissions";
+import { optimizeImage } from "@/lib/imageOptimizer";
 
 // Types
 interface MenuItem {
@@ -50,23 +51,24 @@ function CreateMenuContent() {
 
   // Track blob URLs separately for cleanup
   const objectUrlsRef = useRef<string[]>([]);
-  const handleFileChange = (
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     index: number,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image too large. Maximum size is 5MB.");
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
       return;
     }
 
-    // Check file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Invalid file type. Please use JPEG, PNG, or WebP.");
+    let optimizedFile: File;
+    try {
+      optimizedFile = await optimizeImage(file, { target: "menu" });
+    } catch (error) {
+      console.error("Image optimization failed:", error);
+      toast.error("Could not optimize this image. Try another one.");
       return;
     }
 
@@ -79,8 +81,8 @@ function CreateMenuContent() {
         (url) => url !== previousPreview,
       );
     }
-    const previewUrl = URL.createObjectURL(file);
-    newMenuItems[index].image = file;
+    const previewUrl = URL.createObjectURL(optimizedFile);
+    newMenuItems[index].image = optimizedFile;
     newMenuItems[index].imagePreview = previewUrl;
     objectUrlsRef.current.push(previewUrl);
     setMenuItems(newMenuItems);
@@ -352,9 +354,11 @@ function CreateMenuContent() {
                             fileInputRefs.current[index] = el;
                           }}
                           type="file"
-                          accept="image/jpeg,image/png,image/webp"
+                          accept="image/*"
                           className="hidden"
-                          onChange={(e) => handleFileChange(e, index)}
+                          onChange={(e) => {
+                            void handleFileChange(e, index);
+                          }}
                           aria-label="Upload image file"
                         />
                         <Button
@@ -367,7 +371,8 @@ function CreateMenuContent() {
                           Upload Image
                         </Button>
                         <p className="text-sm text-muted-foreground mt-2">
-                          PNG, JPG up to 5MB
+                          Any image format. Auto-optimized to WebP before
+                          upload.
                         </p>
                       </>
                     )}
