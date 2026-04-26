@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Bell, ChevronDown, Menu, Moon, Sun, Settings } from "lucide-react";
 import {
   DropdownMenu,
@@ -70,6 +70,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const [orderNotifications, setOrderNotifications] = useState<
     OrderPopupNotification[]
   >([]);
+  const shownOrderIdsRef = useRef<Set<string | number>>(new Set());
   const router = useRouter();
 
   // Use notification context
@@ -152,16 +153,13 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
   // Track new order notifications
   useEffect(() => {
-    // Only show popups for valid orders, deduplicate by order_id
     const validOrders = notifications.filter((n) => {
       if ((n.type !== "order" && n.type !== "new_order") || n.read) {
         return false;
       }
 
       const data = asRecord(n.data);
-      if (!data) {
-        return false;
-      }
+      if (!data) return false;
 
       const orderId = getOrderId(n.data);
       const items = data.items;
@@ -194,14 +192,17 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
     );
 
     // Only add new unique orders not already shown
-    const newOrderPopups = uniqueOrders.filter(
-      (n) =>
-        !orderNotifications.some(
-          (on) => getOrderId(on.data) === getOrderId(n.data),
-        ),
-    );
+    const newOrderPopups = uniqueOrders.filter((n) => {
+      const oid = getOrderId(n.data);
+      return oid && !shownOrderIdsRef.current.has(oid);
+    });
 
     if (newOrderPopups.length > 0) {
+      // Track new IDs in ref before setting state
+      newOrderPopups.forEach((n) => {
+        const oid = getOrderId(n.data);
+        if (oid) shownOrderIdsRef.current.add(oid);
+      });
       setOrderNotifications((prev) => [...prev, ...newOrderPopups]);
     }
 
@@ -217,7 +218,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
         prev.filter((n) => !readNotificationIds.has(n.id)),
       );
     }
-  }, [notifications, orderNotifications]);
+  }, [notifications]);
 
   const handleOrderNotificationClose = useCallback(
     (notificationId: string | number) => {

@@ -19,6 +19,7 @@ import Link from "next/link";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import { useTheme } from "@/components/ThemeProvider";
+import { useRouter } from "next/navigation";
 
 interface OrderItem {
   id: number;
@@ -213,11 +214,7 @@ function OrderTrackingContent() {
   }
 
   if (!orderDetails) {
-    // Try to construct menu URL from params or fallback to home
-    const fallbackMenuUrl =
-      vendorIdParam && tableIdentifierParam
-        ? `/menu/${vendorIdParam}/${tableIdentifierParam}`
-        : "/";
+    const router = useRouter();
 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -226,12 +223,13 @@ function OrderTrackingContent() {
           <p className="text-muted-foreground mb-6">
             We couldn&apos;t find the order you&apos;re looking for.
           </p>
-          <Link href={fallbackMenuUrl}>
-            <Button className="bg-(--orange) hover:bg-(--orange)/90 text-white">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Menu
-            </Button>
-          </Link>
+          <Button
+            onClick={() => router.back()}
+            className="bg-(--orange) hover:bg-(--orange)/90 text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Menu
+          </Button>
         </div>
       </div>
     );
