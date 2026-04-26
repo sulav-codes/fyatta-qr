@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { apiFetchWithAuth, buildApiUrl } from "@/lib/api";
+import { optimizeImage } from "@/lib/imageOptimizer";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -173,18 +174,21 @@ function SettingsContent() {
     fileInputRef.current?.click();
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/gif"];
-    if (!validTypes.includes(file.type)) {
-      toast.error("Please upload a valid image file (JPEG, PNG, GIF)");
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file.");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size should be less than 5MB");
+    let optimizedLogo: File;
+    try {
+      optimizedLogo = await optimizeImage(file, { target: "logo" });
+    } catch (error) {
+      console.error("Logo optimization failed:", error);
+      toast.error("Could not optimize this logo. Try a different image.");
       return;
     }
 
@@ -192,9 +196,9 @@ function SettingsContent() {
     reader.onload = () => {
       setLogoPreview(reader.result as string);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(optimizedLogo);
 
-    setSelectedLogo(file);
+    setSelectedLogo(optimizedLogo);
     setRemoveLogoRequested(false);
   };
 
@@ -409,14 +413,16 @@ function SettingsContent() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleLogoChange}
+                onChange={(e) => {
+                  void handleLogoChange(e);
+                }}
               />
               <Button type="button" variant="outline" onClick={handleLogoClick}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Logo
               </Button>
               <p className="text-sm text-muted-foreground mt-2">
-                JPG, PNG or GIF. Max 5MB
+                Any image format. Auto-optimized to WebP before upload.
               </p>
             </div>
           </div>
