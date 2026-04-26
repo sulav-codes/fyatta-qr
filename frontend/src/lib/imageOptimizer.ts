@@ -5,7 +5,6 @@ type OptimizeImageOptions = {
 };
 
 const MAX_WIDTH = 1000;
-const HARD_LIMIT_BYTES = 500 * 1024;
 
 const TARGET_MAX_BYTES: Record<OptimizeTarget, number> = {
   menu: 300 * 1024,
