@@ -19,6 +19,7 @@ import Link from "next/link";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import { useTheme } from "@/components/ThemeProvider";
+import { useRouter } from "next/navigation";
 
 interface OrderItem {
   id: number;
@@ -55,14 +56,13 @@ const ORDER_STEPS = [
 function OrderTrackingContent() {
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get("orderId");
-  const vendorIdParam = searchParams.get("vendorId");
-  const tableIdentifierParam = searchParams.get("tableIdentifier");
   const { theme, toggleTheme } = useTheme();
 
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const router = useRouter();
 
   const orderId = useMemo(() => {
     // Priority: URL query -> current_order_id -> latest tracked_orders item
@@ -213,12 +213,6 @@ function OrderTrackingContent() {
   }
 
   if (!orderDetails) {
-    // Try to construct menu URL from params or fallback to home
-    const fallbackMenuUrl =
-      vendorIdParam && tableIdentifierParam
-        ? `/menu/${vendorIdParam}/${tableIdentifierParam}`
-        : "/";
-
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="bg-card border rounded-xl shadow-sm p-8 text-center max-w-md">
@@ -226,12 +220,19 @@ function OrderTrackingContent() {
           <p className="text-muted-foreground mb-6">
             We couldn&apos;t find the order you&apos;re looking for.
           </p>
-          <Link href={fallbackMenuUrl}>
-            <Button className="bg-(--orange) hover:bg-(--orange)/90 text-white">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Menu
-            </Button>
-          </Link>
+          <Button
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/");
+              }
+            }}
+            className="bg-(--orange) hover:bg-(--orange)/90 text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Menu
+          </Button>
         </div>
       </div>
     );
