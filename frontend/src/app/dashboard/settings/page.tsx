@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, buildApiUrl } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -54,6 +54,7 @@ function SettingsContent() {
   const [error, setError] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
+  const [removeLogoRequested, setRemoveLogoRequested] = useState(false);
   const { token } = useAuth();
   const { getEffectiveVendorId } = usePermissions();
   const searchParams = useSearchParams();
@@ -125,12 +126,10 @@ function SettingsContent() {
       });
 
       if (data.logo) {
-        // Construct full URL if it's a relative path
-        const logoUrl = data.logo.startsWith("http")
-          ? data.logo
-          : `${getApiBaseUrl()}${data.logo}`;
-        setLogoPreview(logoUrl);
+        setLogoPreview(buildApiUrl(data.logo));
       }
+
+      setRemoveLogoRequested(false);
     } catch (err) {
       console.error("Error loading settings:", err);
       setError("Failed to load settings. Please refresh and try again.");
@@ -196,11 +195,13 @@ function SettingsContent() {
     reader.readAsDataURL(file);
 
     setSelectedLogo(file);
+    setRemoveLogoRequested(false);
   };
 
   const removeLogo = () => {
     setLogoPreview(null);
     setSelectedLogo(null);
+    setRemoveLogoRequested(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -311,6 +312,8 @@ function SettingsContent() {
 
       if (selectedLogo) {
         submitData.append("logo", selectedLogo);
+      } else if (removeLogoRequested) {
+        submitData.append("removeLogo", "true");
       }
 
       const response = await apiFetchWithAuth(
@@ -382,6 +385,8 @@ function SettingsContent() {
                     alt="Logo preview"
                     width={48}
                     height={48}
+                    loading="eager"
+                    priority
                     className="w-32 h-32 rounded-lg object-cover border-2 border-border"
                   />
                   <button

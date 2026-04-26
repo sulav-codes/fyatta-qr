@@ -53,10 +53,12 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "i.pravatar.cc",
-      },
+      ...["i.pravatar.cc", "xlbvvmjzeyotshkbirwi.supabase.co"].map(
+        (hostname): ImageRemotePattern => ({
+          protocol: "https",
+          hostname,
+        }),
+      ),
       ...apiRemotePatterns,
     ],
   },

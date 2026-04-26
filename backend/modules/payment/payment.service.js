@@ -179,21 +179,25 @@ const verifyEsewaPayment = async ({ dataParam }) => {
   const receivedSignature = paymentData.signature;
   const signedFieldNames = paymentData.signed_field_names || "";
 
-  if (receivedSignature && signedFieldNames) {
-    const isValid = verifyEsewaSignature(
-      paymentData,
-      receivedSignature,
-      signedFieldNames,
-    );
+  if (!receivedSignature || !signedFieldNames) {
+    logger.warn("[eSewa] Missing signature fields", {
+      module: "payment-service",
+      transactionUuid: paymentData.transaction_uuid || null,
+    });
+    return buildClientRedirect("status=failed&reason=missing-signature");
+  }
 
-    if (!isValid) {
-      logger.warn("[eSewa] Signature verification failed", {
-        module: "payment-service",
-        transactionUuid: paymentData.transaction_uuid,
-      });
-
-      return buildClientRedirect("status=failed&reason=invalid-signature");
-    }
+  const isValid = verifyEsewaSignature(
+    paymentData,
+    receivedSignature,
+    signedFieldNames,
+  );
+  if (!isValid) {
+    logger.warn("[eSewa] Signature verification failed", {
+      module: "payment-service",
+      transactionUuid: paymentData.transaction_uuid,
+    });
+    return buildClientRedirect("status=failed&reason=invalid-signature");
   }
 
   const order = await prisma.order.findFirst({
@@ -235,8 +239,14 @@ const verifyEsewaPayment = async ({ dataParam }) => {
 
   const oldStatus = order.status;
 
-  await prisma.order.update({
-    where: { id: order.id },
+  if (order.paymentStatus === "paid") {
+    return buildClientRedirect(
+      `status=success&orderId=${order.id}&invoice_no=${transactionUuid}`,
+    );
+  }
+
+  const updated = await prisma.order.updateMany({
+    where: { id: order.id, paymentStatus: { not: "paid" } },
     data: {
       paymentStatus: "paid",
       status: "confirmed",
@@ -244,6 +254,12 @@ const verifyEsewaPayment = async ({ dataParam }) => {
       transactionId: transactionCode,
     },
   });
+
+  if (updated.count === 0) {
+    return buildClientRedirect(
+      `status=success&orderId=${order.id}&invoice_no=${transactionUuid}`,
+    );
+  }
 
   emitOrderStatusChanged(order.vendorId, {
     orderId: order.id,

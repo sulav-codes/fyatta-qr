@@ -19,6 +19,7 @@ const updateProfileBodySchema = Joi.object({
   opening_time: Joi.string().trim().max(16).allow("", null).optional(),
   closingTime: Joi.string().trim().max(16).allow("", null).optional(),
   closing_time: Joi.string().trim().max(16).allow("", null).optional(),
+  removeLogo: Joi.boolean().truthy("true", "1").falsy("false", "0").optional(),
 }).unknown(false);
 
 const salesReportQuerySchema = Joi.object({

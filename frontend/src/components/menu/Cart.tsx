@@ -19,7 +19,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
-import { getApiBaseUrl } from "@/lib/api";
+import { buildApiUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import Image from "next/image";
 
@@ -31,8 +31,7 @@ interface CartProps {
 // Helper function to construct full image URL
 const getImageUrl = (imagePath?: string | null) => {
   if (!imagePath) return "/images/default-food-image.svg";
-  if (imagePath.startsWith("http")) return imagePath;
-  return `${getApiBaseUrl()}${imagePath}`;
+  return buildApiUrl(imagePath);
 };
 
 // Main cart component

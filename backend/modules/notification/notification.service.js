@@ -46,6 +46,7 @@ const callWaiter = async ({ body }) => {
 
   const timestamp = new Date().toISOString();
   const notificationData = {
+    title: "Waiter Call",
     vendor_id: vendor.id,
     table_identifier,
     table_name: tableName,

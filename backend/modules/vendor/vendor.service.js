@@ -1,8 +1,14 @@
 import prisma from "../../config/prisma.js";
+import logger from "../../config/logger.js";
 import { canAccessVendor } from "../../utils/helpers.js";
 import { ServiceError } from "../../utils/serviceError.js";
 import { validatePayload } from "../../utils/serviceValidation.js";
 import * as vendorValidation from "./vendor.validation.js";
+import {
+  uploadImage,
+  deleteImage,
+  getPublicUrl,
+} from "../../config/supabaseStorage.js";
 
 const parseLimit = (value, fallback = 10, max = 100) => {
   const parsed = Number.parseInt(String(value ?? fallback), 10);
@@ -51,7 +57,7 @@ const getProfile = async ({ vendorId, user }) => {
     description: vendor.description,
     openingTime: vendor.openingTime,
     closingTime: vendor.closingTime,
-    logo: vendor.logo ? `/uploads/${vendor.logo}` : null,
+    logo: getPublicUrl(vendor.logo) ?? vendor.logo ?? null,
   };
 };
 
@@ -75,7 +81,7 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
 
   const vendor = await prisma.user.findUnique({
     where: { id: parsedVendorId },
-    select: { id: true },
+    select: { id: true, logo: true },
   });
 
   if (!vendor) {
@@ -145,8 +151,9 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
     updates.email = validatedBody.email.trim();
   }
 
-  if (file) {
-    updates.logo = file.filename;
+  const shouldRemoveLogo = validatedBody.removeLogo === true && !file;
+  if (shouldRemoveLogo) {
+    updates.logo = null;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -155,15 +162,48 @@ const updateProfile = async ({ vendorId, user, body, file }) => {
     });
   }
 
-  const updatedUser = await prisma.user.update({
-    where: { id: parsedVendorId },
-    data: updates,
-  });
+  let uploadedLogo = null;
 
-  return {
-    message: "Vendor details updated successfully",
-    logo: updatedUser.logo ? `/uploads/${updatedUser.logo}` : null,
-  };
+  try {
+    if (file) {
+      uploadedLogo = await uploadImage(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        { folderPath: `vendors/${parsedVendorId}/logo` },
+      );
+      updates.logo = uploadedLogo.publicUrl;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parsedVendorId },
+      data: updates,
+    });
+
+    if ((uploadedLogo || shouldRemoveLogo) && vendor.logo) {
+      await deleteImage(vendor.logo).catch((err) => {
+        logger.warn("Failed to delete old vendor logo from Supabase", {
+          logo: vendor.logo,
+          error: err.message,
+        });
+      });
+    }
+
+    return {
+      message: "Vendor details updated successfully",
+      logo: getPublicUrl(updatedUser.logo) ?? updatedUser.logo ?? null,
+    };
+  } catch (error) {
+    if (uploadedLogo) {
+      await deleteImage(uploadedLogo.publicUrl).catch((cleanupError) => {
+        logger.warn("Failed to clean up new vendor logo after update error", {
+          error: cleanupError.message,
+        });
+      });
+    }
+
+    throw error;
+  }
 };
 
 const getDashboardStats = async ({ vendorId, user }) => {

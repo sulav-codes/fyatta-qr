@@ -5,7 +5,7 @@ import { Edit2, Trash2, Search, Plus, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
+import { buildApiUrl } from "@/lib/api";
 import Image from "next/image";
 
 // Types
@@ -337,7 +338,7 @@ export default function ManageMenu() {
                                 {item.imageUrl ? (
                                   <>
                                     <Image
-                                      src={`${getApiBaseUrl()}${item.imageUrl}`}
+                                      src={buildApiUrl(item.imageUrl)}
                                       alt={item.name}
                                       className="w-full h-full object-cover"
                                       width={48}
