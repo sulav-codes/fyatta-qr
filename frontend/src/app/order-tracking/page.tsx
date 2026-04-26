@@ -56,14 +56,13 @@ const ORDER_STEPS = [
 function OrderTrackingContent() {
   const searchParams = useSearchParams();
   const orderIdParam = searchParams.get("orderId");
-  const vendorIdParam = searchParams.get("vendorId");
-  const tableIdentifierParam = searchParams.get("tableIdentifier");
   const { theme, toggleTheme } = useTheme();
 
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const router = useRouter();
 
   const orderId = useMemo(() => {
     // Priority: URL query -> current_order_id -> latest tracked_orders item
@@ -214,8 +213,6 @@ function OrderTrackingContent() {
   }
 
   if (!orderDetails) {
-    const router = useRouter();
-
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="bg-card border rounded-xl shadow-sm p-8 text-center max-w-md">

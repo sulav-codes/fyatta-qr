@@ -22,16 +22,6 @@ interface NotificationData {
   [key: string]: unknown;
 }
 
-interface VendorEventData {
-  type?: string;
-  message?: string;
-  data?: {
-    table_name?: string;
-    timestamp?: string;
-    [key: string]: unknown;
-  };
-}
-
 interface Notification {
   id: string | number;
   type: string;
