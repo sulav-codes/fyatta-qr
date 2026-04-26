@@ -1,8 +1,14 @@
 import prisma from "../../config/prisma.js";
+import logger from "../../config/logger.js";
 import { canAccessVendor } from "../../utils/helpers.js";
 import { ServiceError } from "../../utils/serviceError.js";
 import { validatePayload } from "../../utils/serviceValidation.js";
 import * as menuValidation from "./menu.validation.js";
+import {
+  uploadImage,
+  deleteImage,
+  getPublicUrl,
+} from "../../config/supabaseStorage.js";
 
 const MAX_MENU_ITEMS_PER_REQUEST = (() => {
   const parsed = Number.parseInt(
@@ -36,7 +42,7 @@ const mapMenuItem = (item) => {
     price: Number(item.price),
     description: item.description,
     category: item.category,
-    imageUrl: item.image ? `/uploads/${item.image}` : null,
+    imageUrl: getPublicUrl(item.image) ?? item.image ?? null,
     isAvailable: item.isAvailable,
     createdAt: item.createdAt,
   };
@@ -108,7 +114,7 @@ const mapImagesToItemIndexes = ({ files, imageIndexesRaw, itemsLength }) => {
       });
     }
 
-    imageByItemIndex.set(index, uploadedImages[i].filename);
+    imageByItemIndex.set(index, uploadedImages[i]);
   }
 
   return imageByItemIndex;
@@ -138,81 +144,110 @@ const createMenuItems = async ({ vendorId, user, body, files }) => {
 
   const validatedItems = [];
   const validationErrors = [];
+  const uploadedImages = [];
 
-  for (let index = 0; index < itemsData.length; index++) {
-    const item = itemsData[index] || {};
-    const itemErrors = [];
+  try {
+    for (let index = 0; index < itemsData.length; index++) {
+      const item = itemsData[index] || {};
+      const itemErrors = [];
 
-    if (!item.name || item.name.trim() === "") {
-      itemErrors.push("Name is required");
-    } else if (item.name.length > 100) {
-      itemErrors.push("Name too long (max 100 characters)");
+      if (!item.name || item.name.trim() === "") {
+        itemErrors.push("Name is required");
+      } else if (item.name.length > 100) {
+        itemErrors.push("Name too long (max 100 characters)");
+      }
+
+      if (
+        item.price === undefined ||
+        item.price === null ||
+        item.price === ""
+      ) {
+        itemErrors.push("Price is required");
+      } else if (isNaN(item.price) || parseFloat(item.price) <= 0) {
+        itemErrors.push("Price must be greater than 0");
+      } else if (parseFloat(item.price) > 99999.99) {
+        itemErrors.push("Price too high (max 99999.99)");
+      }
+
+      if (!item.category || item.category.trim() === "") {
+        itemErrors.push("Category is required");
+      } else if (item.category.length > 50) {
+        itemErrors.push("Category too long (max 50 characters)");
+      }
+
+      if (item.description && item.description.length > 1000) {
+        itemErrors.push("Description too long (max 1000 characters)");
+      }
+
+      if (itemErrors.length > 0) {
+        validationErrors.push(
+          ...itemErrors.map((err) => `Item ${index + 1}: ${err}`),
+        );
+        continue;
+      }
+
+      const rawFile = imageByItemIndex.get(index) || null;
+      let image = null;
+
+      if (rawFile) {
+        const uploaded = await uploadImage(
+          rawFile.buffer,
+          rawFile.originalname,
+          rawFile.mimetype,
+          { folderPath: `vendors/${parsedVendorId}/menu` },
+        );
+        uploadedImages.push(uploaded);
+        image = uploaded.publicUrl;
+      }
+
+      validatedItems.push({
+        vendorId: parsedVendorId,
+        name: item.name.trim(),
+        price: parseFloat(item.price),
+        category: item.category.trim(),
+        description: item.description ? item.description.trim() : "",
+        image,
+        isAvailable: true,
+      });
     }
 
-    if (item.price === undefined || item.price === null || item.price === "") {
-      itemErrors.push("Price is required");
-    } else if (isNaN(item.price) || parseFloat(item.price) <= 0) {
-      itemErrors.push("Price must be greater than 0");
-    } else if (parseFloat(item.price) > 99999.99) {
-      itemErrors.push("Price too high (max 99999.99)");
+    if (validationErrors.length > 0) {
+      throw new ServiceError("Validation failed", {
+        status: 400,
+        details: validationErrors,
+      });
     }
 
-    if (!item.category || item.category.trim() === "") {
-      itemErrors.push("Category is required");
-    } else if (item.category.length > 50) {
-      itemErrors.push("Category too long (max 50 characters)");
-    }
+    const createdItems = await prisma.$transaction(
+      validatedItems.map((data) => prisma.menuItem.create({ data })),
+    );
 
-    if (item.description && item.description.length > 1000) {
-      itemErrors.push("Description too long (max 1000 characters)");
-    }
+    const itemsResponse = createdItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: Number(item.price),
+      description: item.description,
+      category: item.category,
+      imageUrl: getPublicUrl(item.image) ?? item.image ?? null,
+      isAvailable: item.isAvailable,
+    }));
 
-    const image = imageByItemIndex.get(index) || null;
-
-    if (itemErrors.length > 0) {
-      validationErrors.push(
-        ...itemErrors.map((err) => `Item ${index + 1}: ${err}`),
-      );
-      continue;
-    }
-
-    validatedItems.push({
-      vendorId: parsedVendorId,
-      name: item.name.trim(),
-      price: parseFloat(item.price),
-      category: item.category.trim(),
-      description: item.description ? item.description.trim() : "",
-      image,
-      isAvailable: true,
+    return {
+      message: "Menu items created successfully",
+      createdItems: itemsResponse,
+      count: itemsResponse.length,
+    };
+  } catch (error) {
+    await Promise.all(
+      uploadedImages.map((asset) => deleteImage(asset.publicUrl)),
+    ).catch((cleanupError) => {
+      logger.warn("Failed to clean up uploaded menu images after failure", {
+        error: cleanupError.message,
+      });
     });
+
+    throw error;
   }
-
-  if (validationErrors.length > 0) {
-    throw new ServiceError("Validation failed", {
-      status: 400,
-      details: validationErrors,
-    });
-  }
-
-  const createdItems = await prisma.$transaction(
-    validatedItems.map((data) => prisma.menuItem.create({ data })),
-  );
-
-  const itemsResponse = createdItems.map((item) => ({
-    id: item.id,
-    name: item.name,
-    price: Number(item.price),
-    description: item.description,
-    category: item.category,
-    imageUrl: item.image ? `/uploads/${item.image}` : null,
-    isAvailable: item.isAvailable,
-  }));
-
-  return {
-    message: "Menu items created successfully",
-    createdItems: itemsResponse,
-    count: itemsResponse.length,
-  };
 };
 
 const getMenuItems = async ({ vendorId, user }) => {
@@ -267,7 +302,7 @@ const getMenuItemsByCategory = async ({ vendorId, user }) => {
       price: Number(item.price),
       description: item.description || "",
       category: item.category,
-      imageUrl: item.image ? `/uploads/${item.image}` : null,
+      imageUrl: getPublicUrl(item.image) ?? item.image ?? null,
       isAvailable: item.isAvailable,
     });
   }
@@ -306,7 +341,7 @@ const getMenuItem = async ({ vendorId, itemId, user }) => {
     price: Number(item.price),
     description: item.description,
     category: item.category,
-    imageUrl: item.image ? `/uploads/${item.image}` : null,
+    imageUrl: getPublicUrl(item.image) ?? item.image ?? null,
     isAvailable: item.isAvailable,
   };
 };
@@ -327,7 +362,7 @@ const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
 
   const item = await prisma.menuItem.findFirst({
     where: { id: parsedItemId, vendorId: parsedVendorId },
-    select: { id: true },
+    select: { id: true, image: true },
   });
 
   if (!item) {
@@ -353,27 +388,61 @@ const updateMenuItem = async ({ vendorId, itemId, user, body, file }) => {
       validatedBody.isAvailable === 1;
   }
 
-  if (file) {
-    updates.image = file.filename;
+  const shouldRemoveImage = validatedBody.removeImage === true && !file;
+  if (shouldRemoveImage) {
+    updates.image = null;
   }
 
-  const updated = await prisma.menuItem.update({
-    where: { id: parsedItemId },
-    data: updates,
-  });
+  let uploadedImage = null;
 
-  return {
-    message: "Menu item updated successfully",
-    item: {
-      id: updated.id,
-      name: updated.name,
-      price: Number(updated.price),
-      category: updated.category,
-      description: updated.description,
-      imageUrl: updated.image ? `/uploads/${updated.image}` : null,
-      isAvailable: updated.isAvailable,
-    },
-  };
+  try {
+    if (file) {
+      uploadedImage = await uploadImage(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        { folderPath: `vendors/${parsedVendorId}/menu` },
+      );
+      updates.image = uploadedImage.publicUrl;
+    }
+
+    const updated = await prisma.menuItem.update({
+      where: { id: parsedItemId },
+      data: updates,
+    });
+
+    if ((uploadedImage || shouldRemoveImage) && item.image) {
+      await deleteImage(item.image).catch((err) => {
+        logger.warn("Failed to delete old image from Supabase", {
+          image: item.image,
+          error: err.message,
+        });
+      });
+    }
+
+    return {
+      message: "Menu item updated successfully",
+      item: {
+        id: updated.id,
+        name: updated.name,
+        price: Number(updated.price),
+        category: updated.category,
+        description: updated.description,
+        imageUrl: getPublicUrl(updated.image) ?? updated.image ?? null,
+        isAvailable: updated.isAvailable,
+      },
+    };
+  } catch (error) {
+    if (uploadedImage) {
+      await deleteImage(uploadedImage.publicUrl).catch((cleanupError) => {
+        logger.warn("Failed to clean up new menu image after update error", {
+          error: cleanupError.message,
+        });
+      });
+    }
+
+    throw error;
+  }
 };
 
 const deleteMenuItem = async ({ vendorId, itemId, user }) => {
@@ -387,7 +456,7 @@ const deleteMenuItem = async ({ vendorId, itemId, user }) => {
 
   const item = await prisma.menuItem.findFirst({
     where: { id: parsedItemId, vendorId: parsedVendorId },
-    select: { id: true },
+    select: { id: true, image: true },
   });
 
   if (!item) {
@@ -395,6 +464,16 @@ const deleteMenuItem = async ({ vendorId, itemId, user }) => {
   }
 
   await prisma.menuItem.delete({ where: { id: parsedItemId } });
+
+  // Clean up image from Supabase after successful DB delete
+  if (item.image) {
+    await deleteImage(item.image).catch((err) => {
+      logger.warn("Failed to delete image from Supabase", {
+        image: item.image,
+        error: err.message,
+      });
+    });
+  }
 
   return {
     message: "Menu item deleted successfully",
@@ -454,7 +533,7 @@ const getPublicMenu = async ({ vendorId }) => {
       description: item.description,
       price: Number(item.price),
       category: item.category,
-      image_url: item.image ? `/uploads/${item.image}` : null,
+      image_url: getPublicUrl(item.image) ?? item.image ?? null,
       is_available: item.isAvailable,
     });
   }
@@ -470,7 +549,7 @@ const getPublicMenu = async ({ vendorId }) => {
       opening_time: vendor.openingTime,
       closing_time: vendor.closingTime,
       description: vendor.description,
-      logo: vendor.logo,
+      logo: getPublicUrl(vendor.logo) ?? vendor.logo ?? null,
     },
     categories: Object.values(categoriesMap),
   };

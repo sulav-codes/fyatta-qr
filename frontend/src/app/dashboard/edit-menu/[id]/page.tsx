@@ -11,6 +11,7 @@ import { ArrowLeft, Upload, X, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
+import { buildApiUrl } from "@/lib/api";
 import Image from "next/image";
 
 // Types
@@ -50,6 +51,7 @@ export default function EditMenuItem({
 
   const [newImage, setNewImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [removeImageRequested, setRemoveImageRequested] = useState(false);
 
   const fetchMenuItem = useCallback(async () => {
     setIsLoading(true);
@@ -73,9 +75,8 @@ export default function EditMenuItem({
 
       const data = await response.json();
       setMenuItem(data);
-      setImagePreview(
-        data.imageUrl ? `${getApiBaseUrl()}${data.imageUrl}` : null,
-      );
+      setImagePreview(data.imageUrl ? buildApiUrl(data.imageUrl) : null);
+      setRemoveImageRequested(false);
     } catch (error) {
       console.error("Error fetching menu item:", error);
       toast.error("Failed to load menu item details");
@@ -120,15 +121,20 @@ export default function EditMenuItem({
     }
 
     setNewImage(file);
+    setRemoveImageRequested(false);
     setImagePreview(URL.createObjectURL(file));
   };
 
-  const removeImage = () => {
+  const handleRemoveImage = () => {
     if (imagePreview && imagePreview !== menuItem.imageUrl) {
       URL.revokeObjectURL(imagePreview);
     }
     setNewImage(null);
-    setImagePreview(menuItem.imageUrl);
+    setRemoveImageRequested(true);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,6 +170,10 @@ export default function EditMenuItem({
       formData.append("category", menuItem.category);
       formData.append("description", menuItem.description || "");
       formData.append("isAvailable", String(menuItem.isAvailable));
+
+      if (removeImageRequested && !newImage) {
+        formData.append("removeImage", "true");
+      }
 
       if (newImage) {
         formData.append("image", newImage);
@@ -312,7 +322,7 @@ export default function EditMenuItem({
                         />
                         <button
                           type="button"
-                          onClick={removeImage}
+                          onClick={handleRemoveImage}
                           className="absolute top-2 right-2 bg-black/50 rounded-full p-1 hover:bg-black/70 transition-colors"
                         >
                           <X className="h-4 w-4 text-white" />

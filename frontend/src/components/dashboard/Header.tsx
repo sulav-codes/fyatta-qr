@@ -15,7 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/context/NotificationContext";
 import OrderNotification from "@/components/notifications/OrderNotification";
-import { apiFetchWithAuth, getApiBaseUrl } from "@/lib/api";
+import { apiFetchWithAuth, buildApiUrl } from "@/lib/api";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -100,7 +100,7 @@ const DashboardHeader = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
       const data = await response.json();
       // Construct full logo URL if it exists
-      const logoUrl = data.logo ? `${getApiBaseUrl()}${data.logo}` : null;
+      const logoUrl = data.logo ? buildApiUrl(data.logo) : null;
       setLogo(logoUrl);
     } catch (error) {
       console.error("Error fetching logo:", error);

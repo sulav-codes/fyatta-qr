@@ -2,7 +2,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { useCart } from "../../context/CartContext";
 import React from "react";
-import { getApiBaseUrl } from "@/lib/api";
+import { buildApiUrl } from "@/lib/api";
 import Image from "next/image";
 
 interface MenuItemProps {
@@ -26,8 +26,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
   // Construct full image URL if it's a relative path
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return defaultImage;
-    if (imagePath.startsWith("http")) return imagePath;
-    return `${getApiBaseUrl()}${imagePath}`;
+    return buildApiUrl(imagePath);
   };
 
   return (
@@ -42,6 +41,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, isPopular }) => {
           }}
           width={400}
           height={300}
+          loading="eager"
         />
         {item.isSearchResult && (
           <Badge className="absolute top-3 right-3 bg-blue-600 text-white shadow-lg">

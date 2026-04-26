@@ -33,6 +33,7 @@ const updateMenuItemBodySchema = Joi.object({
   category: Joi.string().trim().min(1).max(50).optional(),
   description: Joi.string().allow("", null).max(1000).optional(),
   isAvailable: Joi.boolean().truthy("true", "1").falsy("false", "0").optional(),
+  removeImage: Joi.boolean().truthy("true", "1").falsy("false", "0").optional(),
 });
 
 export {
