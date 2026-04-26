@@ -73,7 +73,6 @@ const findBlobUnderSize = async (
   canvas: HTMLCanvasElement,
   maxBytes: number,
 ): Promise<Blob | null> => {
-
   const floorBlob = await canvasToBlob(canvas, QUALITY_FLOOR);
   if (floorBlob.size > maxBytes) {
     return null;
@@ -139,16 +138,9 @@ export async function optimizeImage(
     const blob = await findBlobUnderSize(canvas, maxBytes);
 
     if (!blob) {
-      const fallback = await canvasToBlob(canvas, QUALITY_FLOOR);
-      if (fallback.size > maxBytes) {
-        throw new Error(
+      throw new Error(
         `Unable to compress image under ${Math.round(maxBytes / 1024)}KB`,
-        );
-      }
-      return new File([fallback], toWebpName(file.name), {
-        type: "image/webp",
-        lastModified: Date.now(),
-      });
+      );
     }
 
     return new File([blob], toWebpName(file.name), {

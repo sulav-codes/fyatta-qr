@@ -389,9 +389,7 @@ function SettingsContent() {
                     alt="Logo preview"
                     width={128}
                     height={128}
-                    sizes="128px"
-                    quality={100}
-                    unoptimized
+                    sizes="128px"               
                     loading="eager"
                     priority
                     className="w-32 h-32 rounded-lg object-cover border-2 border-border"
