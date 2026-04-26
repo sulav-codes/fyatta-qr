@@ -141,9 +141,9 @@ export async function optimizeImage(
 
     if (!blob) {
       const fallback = await canvasToBlob(canvas, QUALITY_FLOOR);
-      if (fallback.size > HARD_LIMIT_BYTES) {
+      if (fallback.size > maxBytes) {
         throw new Error(
-          `Unable to compress image under ${HARD_LIMIT_BYTES / 1024}KB`,
+        `Unable to compress image under ${Math.round(maxBytes / 1024)}KB`,
         );
       }
       return new File([fallback], toWebpName(file.name), {
